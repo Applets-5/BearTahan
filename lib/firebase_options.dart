@@ -63,7 +63,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '806620359391',
     projectId: 'beartahan-2e52d',
     storageBucket: 'beartahan-2e52d.firebasestorage.app',
-    iosClientId: '806620359391-r5kf6pqv1f0qt5n9cv026jr6vtl82dpm.apps.googleusercontent.com',
+    iosClientId:
+        '806620359391-r5kf6pqv1f0qt5n9cv026jr6vtl82dpm.apps.googleusercontent.com',
     iosBundleId: 'com.applets5.bearTahan',
   );
 
@@ -73,7 +74,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '806620359391',
     projectId: 'beartahan-2e52d',
     storageBucket: 'beartahan-2e52d.firebasestorage.app',
-    iosClientId: '806620359391-r5kf6pqv1f0qt5n9cv026jr6vtl82dpm.apps.googleusercontent.com',
+    iosClientId:
+        '806620359391-r5kf6pqv1f0qt5n9cv026jr6vtl82dpm.apps.googleusercontent.com',
     iosBundleId: 'com.applets5.bearTahan',
   );
 
