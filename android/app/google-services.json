@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "806620359391",
+    "project_id": "beartahan-2e52d",
+    "storage_bucket": "beartahan-2e52d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:806620359391:android:ff6d3f156b2361a0a2976a",
+        "android_client_info": {
+          "package_name": "com.applets5.bear_tahan"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "806620359391-2nr55hj064iklg42bmor2lifsiq1bavq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCoitcJEwoIZC_3ExUGddDQg2iX60ZdZ8A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "806620359391-2nr55hj064iklg42bmor2lifsiq1bavq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
