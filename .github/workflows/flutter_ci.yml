@@ -14,7 +14,7 @@ jobs:
       
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.0"   # pin to your team's version
+          flutter-version: "3.41.9"   # pin to your team's version
           channel: "stable"
       
       - name: Install dependencies
