@@ -1,0 +1,8 @@
+pre-commit:
+  commands:
+    format:
+      run: dart format --set-exit-if-changed .
+      fail_text: "Code is not formatted. Run: dart format . then re-commit."
+    analyze:
+      run: flutter analyze
+      fail_text: "Flutter analyze found issues. Fix them then re-commit."
