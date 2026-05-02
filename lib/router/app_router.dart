@@ -44,85 +44,113 @@ class AppRouter {
   static final router = GoRouter(
     initialLocation: login,
     routes: [
-      GoRoute(path: login, builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: login,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const LoginScreen()),
+      ),
       GoRoute(
         path: tutorial,
-        builder: (context, state) => const TutorialScreen(),
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const TutorialScreen()),
       ),
       GoRoute(
         path: noInternet,
-        builder: (context, state) => const NoInternetScreen(),
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const NoInternetScreen()),
       ),
       ShellRoute(
-        builder: (context, state, child) {
+        pageBuilder: (context, state, child) {
           final isParent = state.uri.path.startsWith('/parent');
-          return BottomNavScaffold(isParent: isParent, child: child);
+          return _noTransitionPage(
+            state,
+            BottomNavScaffold(isParent: isParent, child: child),
+          );
         },
         routes: [
           GoRoute(
             path: childHome,
-            builder: (context, state) => const HomeScreen(),
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const HomeScreen()),
           ),
           GoRoute(
             path: quests,
-            builder: (context, state) => const QuestsScreen(),
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const QuestsScreen()),
           ),
           GoRoute(
             path: rewards,
-            builder: (context, state) => const RewardListScreen(),
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const RewardListScreen()),
           ),
           GoRoute(
             path: profile,
-            builder: (context, state) => const ProfileScreen(),
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const ProfileScreen()),
           ),
           GoRoute(
             path: parentDashboard,
-            builder: (context, state) => const DashboardScreen(),
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const DashboardScreen()),
           ),
           GoRoute(
             path: parentRewards,
-            builder: (context, state) => const RewardManagementScreen(),
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const RewardManagementScreen()),
           ),
           GoRoute(
             path: parentGoals,
-            builder: (context, state) => const GoalSettingScreen(),
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const GoalSettingScreen()),
           ),
           GoRoute(
             path: parentNotifications,
-            builder: (context, state) => const ParentNotificationsScreen(),
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const ParentNotificationsScreen()),
           ),
           GoRoute(
             path: parentSettings,
-            builder: (context, state) => const ParentSettingsScreen(),
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const ParentSettingsScreen()),
           ),
         ],
       ),
       GoRoute(
         path: subject,
-        builder: (context, state) => const SubjectScreen(),
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const SubjectScreen()),
       ),
       GoRoute(
         path: chapter,
-        builder: (context, state) => const ChapterScreen(),
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const ChapterScreen()),
       ),
       GoRoute(
         path: levelSession,
-        builder: (context, state) => const LevelSessionScreen(),
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const LevelSessionScreen()),
       ),
       GoRoute(
         path: completion,
-        builder: (context, state) => const CompletionScreen(),
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const CompletionScreen()),
       ),
       GoRoute(
         path: memory,
-        builder: (context, state) => const MemoryChallengeScreen(),
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const MemoryChallengeScreen()),
       ),
       GoRoute(
         path: comingSoon,
-        builder: (context, state) => const ComingSoonScreen(),
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const ComingSoonScreen()),
       ),
     ],
   );
+
+  static Page<void> _noTransitionPage(GoRouterState state, Widget child) {
+    return NoTransitionPage<void>(key: state.pageKey, child: child);
+  }
 }
 
 class ComingSoonScreen extends StatelessWidget {
