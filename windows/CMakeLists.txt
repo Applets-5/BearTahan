@@ -1,3 +1,6 @@
+# Fix for Firebase C++ SDK CMake policy compatibility
+set(CMAKE_POLICY_VERSION_MINIMUM "3.5" CACHE STRING "" FORCE)
+
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
 project(bear_tahan LANGUAGES CXX)
