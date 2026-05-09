@@ -32,30 +32,56 @@ class LoginScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.xxl),
-                  TextField(
-                    decoration: const InputDecoration(
+                  
+                  // Login Fields
+                  const TextField(
+                    decoration: InputDecoration(
                       prefixIcon: Icon(Icons.person),
-                      hintText: 'Child name',
+                      hintText: 'Email or Child name',
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  TextField(
-                    decoration: const InputDecoration(
+                  const TextField(
+                    decoration: InputDecoration(
                       prefixIcon: Icon(Icons.lock),
-                      hintText: 'Parent PIN',
+                      hintText: 'Password or Parent PIN',
                     ),
                     obscureText: true,
                   ),
                   const SizedBox(height: AppSpacing.xl),
+                  
+                  // Login Action
                   PrimaryButton(
-                    label: 'Start Learning',
+                    label: 'Log In / Start Learning',
                     icon: Icons.play_arrow_rounded,
                     onPressed: () => context.go(AppRouter.childHome),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextButton(
                     onPressed: () => context.go(AppRouter.parentDashboard),
-                    child: const Text('Parent Mode'),
+                    child: const Text('Parent Mode (Bypass for now)'),
+                  ),
+
+                  const SizedBox(height: AppSpacing.xl),
+                  
+                  // Registration Section
+                  Divider(color: Colors.grey.shade300),
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'New to BearTahan?',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      TextButton(
+                        onPressed: () => context.push(AppRouter.parentRegister),
+                        child: const Text(
+                          'Create Master Account',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

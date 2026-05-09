@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/auth/login_screen.dart';
+import '../screens/auth/parent_register_screen.dart';
 import '../screens/child/chapter_screen.dart';
 import '../screens/child/completion_screen.dart';
 import '../screens/child/home_screen.dart';
@@ -23,6 +24,7 @@ import '../widgets/common/bottom_nav_bar.dart';
 
 class AppRouter {
   static const login = '/login';
+  static const parentRegister = '/parent-register';
   static const childHome = '/child-home';
   static const subject = '/subject';
   static const chapter = '/chapter';
@@ -43,11 +45,36 @@ class AppRouter {
 
   static final router = GoRouter(
     initialLocation: login,
+    // THE AUTH GATE: This intercepts every navigation request
+    redirect: (context, state) {
+      final isLoggedIn = FirebaseAuth.instance.currentUser != null;
+      
+      // Is the user trying to access the login or register page?
+      final isAuthRoute = state.uri.path == login || state.uri.path == parentRegister;
+
+      // If they are NOT logged in and trying to go anywhere else, force them to Login
+      if (!isLoggedIn && !isAuthRoute) {
+        return login;
+      }
+
+      // If they ARE logged in, but trying to view the Login/Register page, force them to the Dashboard
+      if (isLoggedIn && isAuthRoute) {
+        return parentDashboard; 
+      }
+
+      // Otherwise, let them go where they intended
+      return null;
+    },
     routes: [
       GoRoute(
         path: login,
         pageBuilder: (context, state) =>
             _noTransitionPage(state, const LoginScreen()),
+      ),
+      GoRoute(
+        path: parentRegister,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const ParentRegisterScreen()),
       ),
       GoRoute(
         path: tutorial,
