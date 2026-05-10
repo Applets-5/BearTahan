@@ -30,14 +30,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // 2. Trigger the Google Sign-In flow
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      
+
       if (googleUser == null) {
         setState(() => _isLoading = false);
-        return; 
+        return;
       }
 
       // 3. Obtain auth details
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // 4. Create a new Firebase credential
       final OAuthCredential credential = GoogleAuthProvider.credential(
@@ -46,29 +47,36 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       // 5. Sign in to Firebase Auth
-      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
       User? user = userCredential.user;
 
       if (user != null) {
         // 6. Check if user exists in the database. If not, create them (handles both Login & Register seamlessly!)
-        DocumentSnapshot parentDoc = await FirebaseFirestore.instance.collection('parents').doc(user.uid).get();
+        DocumentSnapshot parentDoc = await FirebaseFirestore.instance
+            .collection('parents')
+            .doc(user.uid)
+            .get();
 
         if (!parentDoc.exists) {
-          await FirebaseFirestore.instance.collection('parents').doc(user.uid).set({
-            'uid': user.uid,
-            'name': user.displayName ?? 'Parent',
-            'email': user.email,
-            'role': 'parent',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+          await FirebaseFirestore.instance
+              .collection('parents')
+              .doc(user.uid)
+              .set({
+                'uid': user.uid,
+                'name': user.displayName ?? 'Parent',
+                'email': user.email,
+                'role': 'parent',
+                'createdAt': FieldValue.serverTimestamp(),
+              });
         }
 
         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(content: Text('Logged in successfully!')),
-           );
-           // Route them straight to the parent dashboard!
-           context.go(AppRouter.parentDashboard);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Logged in successfully!')),
+          );
+          // Route them straight to the parent dashboard!
+          context.go(AppRouter.parentDashboard);
         }
       }
     } catch (e) {
@@ -76,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
         debugPrint('Google Sign-In failed: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(content: Text('Sign in failed. Please try again.')),
+            const SnackBar(content: Text('Sign in failed. Please try again.')),
           );
         }
       }
@@ -145,7 +153,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   _isLoading
                       ? const CircularProgressIndicator() // Show a loading spinner when clicked!
                       : OutlinedButton.icon(
-                          onPressed: _signInWithGoogle, // The function is now linked!
+                          onPressed:
+                              _signInWithGoogle, // The function is now linked!
                           icon: Image.asset(
                             'assets/images/google.webp',
                             height: 24,
@@ -154,10 +163,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           label: const Text(
                             'Sign in with Google',
                             style: TextStyle(
-                              color: Colors.black54, 
+                              color: Colors.black54,
                               fontSize: 16,
-                              fontWeight: FontWeight.w600, 
-                              fontFamily: 'Roboto', 
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Roboto',
                             ),
                           ),
                           style: OutlinedButton.styleFrom(
@@ -169,9 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            side: BorderSide(
-                              color: Colors.grey.shade300,
-                            ),
+                            side: BorderSide(color: Colors.grey.shade300),
                             elevation: 0,
                           ),
                         ),
@@ -185,10 +192,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: WrapAlignment.center,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Text('New to BearTahan?', style: TextStyle(color: Colors.grey)),
+                      const Text(
+                        'New to BearTahan?',
+                        style: TextStyle(color: Colors.grey),
+                      ),
                       TextButton(
                         onPressed: () => context.push(AppRouter.parentRegister),
-                        child: const Text('Create Master Account', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text(
+                          'Create Master Account',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ],
                   ),

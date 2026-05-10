@@ -5,9 +5,13 @@ import 'package:bear_tahan/screens/auth/login_screen.dart';
 
 void main() {
   testWidgets('Login Screen shows core branding and buttons', (tester) async {
-    debugPrint("Logical Width: ${tester.view.physicalSize.width / tester.view.devicePixelRatio}");
-    debugPrint("Logical Height: ${tester.view.physicalSize.height / tester.view.devicePixelRatio}");
-    tester.view.physicalSize = const Size(1344, 2992); 
+    debugPrint(
+      "Logical Width: ${tester.view.physicalSize.width / tester.view.devicePixelRatio}",
+    );
+    debugPrint(
+      "Logical Height: ${tester.view.physicalSize.height / tester.view.devicePixelRatio}",
+    );
+    tester.view.physicalSize = const Size(1344, 2992);
     tester.view.devicePixelRatio = 3.5;
     await tester.pumpWidget(
       const ProviderScope(
@@ -18,7 +22,9 @@ void main() {
       ),
     );
 
-    debugPrint("Verified Logical Width: ${tester.view.physicalSize.width / tester.view.devicePixelRatio}");
+    debugPrint(
+      "Verified Logical Width: ${tester.view.physicalSize.width / tester.view.devicePixelRatio}",
+    );
 
     await tester.pumpAndSettle();
 

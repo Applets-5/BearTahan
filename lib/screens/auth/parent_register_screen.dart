@@ -244,10 +244,10 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty){
+                      if (value == null || value.isEmpty) {
                         return 'Please enter an email';
                       }
-                      if (!value.contains('@')){
+                      if (!value.contains('@')) {
                         return 'Please enter a valid email';
                       }
                       return null;
@@ -281,7 +281,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                         return 'Please enter a password';
                       }
                       if (value.length < 6) {
-                        return  'Password must be at least 6 characters';
+                        return 'Password must be at least 6 characters';
                       }
                       return null;
                     },
