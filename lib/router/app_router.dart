@@ -48,9 +48,10 @@ class AppRouter {
     // THE AUTH GATE: This intercepts every navigation request
     redirect: (context, state) {
       final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-      
+
       // Is the user trying to access the login or register page?
-      final isAuthRoute = state.uri.path == login || state.uri.path == parentRegister;
+      final isAuthRoute =
+          state.uri.path == login || state.uri.path == parentRegister;
 
       // If they are NOT logged in and trying to go anywhere else, force them to Login
       if (!isLoggedIn && !isAuthRoute) {
@@ -59,7 +60,7 @@ class AppRouter {
 
       // If they ARE logged in, but trying to view the Login/Register page, force them to the Dashboard
       if (isLoggedIn && isAuthRoute) {
-        return parentDashboard; 
+        return parentDashboard;
       }
 
       // Otherwise, let them go where they intended

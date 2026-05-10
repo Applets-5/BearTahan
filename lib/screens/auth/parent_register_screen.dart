@@ -13,12 +13,13 @@ class ParentRegisterScreen extends StatefulWidget {
 
 class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   // Controllers for form fields
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   // Firebase Instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -36,10 +37,11 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
 
     try {
       // 1. Create the user in Firebase Auth
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
       User? user = userCredential.user;
 
@@ -55,7 +57,9 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Parent Account created successfully!')),
+            const SnackBar(
+              content: Text('Parent Account created successfully!'),
+            ),
           );
           context.go('/parent-dashboard');
         }
@@ -78,20 +82,22 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
     try {
       // 1. Initialize GoogleSignIn correctly
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId:'806620359391-2nr55hj064iklg42bmor2lifsiq1bavq.apps.googleusercontent.com',
+        clientId:
+            '806620359391-2nr55hj064iklg42bmor2lifsiq1bavq.apps.googleusercontent.com',
       );
 
       // 2. Trigger the Google Sign-In flow
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      
+
       // If user closes the popup without logging in
       if (googleUser == null) {
         setState(() => _isLoading = false);
-        return; 
+        return;
       }
 
       // 3. Obtain auth details (the tokens)
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // 4. Create a new Firebase credential using both tokens
       final OAuthCredential credential = GoogleAuthProvider.credential(
@@ -100,12 +106,17 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
       );
 
       // 5. Sign in to Firebase Auth
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
+      UserCredential userCredential = await _auth.signInWithCredential(
+        credential,
+      );
       User? user = userCredential.user;
 
       if (user != null) {
         // 6. Check if this Google user already has a parent document in Firestore
-        DocumentSnapshot parentDoc = await _firestore.collection('parents').doc(user.uid).get();
+        DocumentSnapshot parentDoc = await _firestore
+            .collection('parents')
+            .doc(user.uid)
+            .get();
 
         if (!parentDoc.exists) {
           // If it's a new user, create their master account in Firestore
@@ -119,10 +130,12 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
         }
 
         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(content: Text('Signed in with Google successfully!')),
-           );
-           context.go('/parent-dashboard');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Signed in with Google successfully!'),
+            ),
+          );
+          context.go('/parent-dashboard');
         }
       }
     } catch (e) {
@@ -131,7 +144,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
         debugPrint('Google Sign-In failed: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(content: Text('Sign in failed. Please try again.')),
+            SnackBar(content: Text('Sign in failed. Please try again.')),
           );
         }
       }
@@ -181,7 +194,10 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Form(
               key: _formKey,
               child: Column(
@@ -199,16 +215,20 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // Name Field
                   TextFormField(
                     controller: _nameController,
                     decoration: InputDecoration(
                       labelText: 'Full Name',
                       prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    validator: (value) => value == null || value.isEmpty ? 'Please enter your name' : null,
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Please enter your name'
+                        : null,
                   ),
                   const SizedBox(height: 16),
 
@@ -219,11 +239,15 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                     decoration: InputDecoration(
                       labelText: 'Email',
                       prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'Please enter an email';
-                      if (!value.contains('@')) return 'Please enter a valid email';
+                      if (value == null || value.isEmpty)
+                        return 'Please enter an email';
+                      if (!value.contains('@'))
+                        return 'Please enter a valid email';
                       return null;
                     },
                   ),
@@ -237,14 +261,24 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                       labelText: 'Password',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
                       ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'Please enter a password';
-                      if (value.length < 6) return 'Password must be at least 6 characters';
+                      if (value == null || value.isEmpty)
+                        return 'Please enter a password';
+                      if (value.length < 6)
+                        return 'Password must be at least 6 characters';
                       return null;
                     },
                   ),
@@ -258,14 +292,25 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                       labelText: 'Confirm Password',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscureConfirmPassword =
+                              !_obscureConfirmPassword,
+                        ),
                       ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'Please confirm your password';
-                      if (value != _passwordController.text) return 'Passwords do not match';
+                      if (value == null || value.isEmpty)
+                        return 'Please confirm your password';
+                      if (value != _passwordController.text)
+                        return 'Passwords do not match';
                       return null;
                     },
                   ),
@@ -278,13 +323,18 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                           onPressed: _registerWithEmailAndPassword,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          child: const Text('Create Account', style: TextStyle(fontSize: 16)),
+                          child: const Text(
+                            'Create Account',
+                            style: TextStyle(fontSize: 16),
+                          ),
                         ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Divider
                   Row(
                     children: [
@@ -296,7 +346,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                       Expanded(child: Divider(color: Colors.grey.shade400)),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 24),
 
                   // Official-Style Google Sign-In Button
@@ -307,12 +357,13 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                           icon: Image.asset(
                             'assets/images/google.webp',
                             height: 24,
-                            width: 24, 
+                            width: 24,
                           ),
                           label: const Text(
                             'Sign in with Google',
                             style: TextStyle(
-                              color: Colors.black54, // The standard Google grey text
+                              color: Colors
+                                  .black54, // The standard Google grey text
                               fontSize: 16,
                               fontWeight: FontWeight.w600, // Medium-bold font
                               fontFamily: 'Roboto', // Google's brand font
@@ -320,11 +371,18 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                           ),
                           style: OutlinedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8), // Standard subtle curve
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
                             ),
-                            side: BorderSide(color: Colors.grey.shade300), // Light grey border
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                8,
+                              ), // Standard subtle curve
+                            ),
+                            side: BorderSide(
+                              color: Colors.grey.shade300,
+                            ), // Light grey border
                             elevation: 0, // Flat design
                           ),
                         ),

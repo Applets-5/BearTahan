@@ -32,7 +32,7 @@ class LoginScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.xxl),
-                  
+
                   // Login Fields
                   const TextField(
                     decoration: InputDecoration(
@@ -49,7 +49,7 @@ class LoginScreen extends StatelessWidget {
                     obscureText: true,
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  
+
                   // Login Action
                   PrimaryButton(
                     label: 'Log In / Start Learning',
@@ -63,7 +63,7 @@ class LoginScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: AppSpacing.xl),
-                  
+
                   // Registration Section
                   Divider(color: Colors.grey.shade300),
                   const SizedBox(height: AppSpacing.md),
