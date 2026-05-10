@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 
 class ParentRegisterScreen extends StatefulWidget {
-  const ParentRegisterScreen({Key? key}) : super(key: key);
+  const ParentRegisterScreen({super.key});
 
   @override
   State<ParentRegisterScreen> createState() => _ParentRegisterScreenState();
