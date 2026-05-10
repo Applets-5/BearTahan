@@ -181,19 +181,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Registration Section
                   Divider(color: Colors.grey.shade300),
                   const SizedBox(height: AppSpacing.md),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Text(
-                        'New to BearTahan?',
-                        style: TextStyle(color: Colors.grey),
-                      ),
+                      const Text('New to BearTahan?', style: TextStyle(color: Colors.grey)),
                       TextButton(
                         onPressed: () => context.push(AppRouter.parentRegister),
-                        child: const Text(
-                          'Create Master Account',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                        child: const Text('Create Master Account', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),

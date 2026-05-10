@@ -19,7 +19,7 @@ class BearTahanApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Bear Tahan',
+      title: 'BearTahan',
       theme: AppTheme.lightTheme,
       routerConfig: AppRouter.router,
       debugShowCheckedModeBanner: false,
