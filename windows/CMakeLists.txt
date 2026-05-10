@@ -109,3 +109,6 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# Suppress LNK4099 PDB warnings from Firebase prebuilt libs
+target_link_options(${BINARY_NAME} PRIVATE "/ignore:4099")

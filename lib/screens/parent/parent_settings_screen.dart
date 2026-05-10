@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 
@@ -15,6 +16,26 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
   bool sound = true;
   bool claims = true;
   bool goals = true;
+
+  Future<void> _logout(BuildContext context) async {
+    try {
+      // Sign out of Google to clear the chosen account
+      await GoogleSignIn().signOut();
+      // Sign out of Firebase to clear the session
+      await FirebaseAuth.instance.signOut();
+
+      if (context.mounted) {
+        // Route back to the login screen
+        context.go(AppRouter.login);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +95,18 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
             onPressed: () => context.go(AppRouter.childHome),
             icon: const Icon(Icons.logout),
             label: const Text('Switch to Kid Mode'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: () => _logout(context),
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            label: const Text(
+              'Log Out Master Account',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.redAccent),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           FilledButton.icon(
