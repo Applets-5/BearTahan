@@ -30,20 +30,27 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Save to Firestore sub-collection: parents/{uid}/children
-        await FirebaseFirestore.instance
-            .collection('parents')
-            .doc(user.uid)
-            .collection('children')
-            .add({
-              'name': name,
-              'avatar': '🐻', // Default avatar
-              'stars': 0,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
+      if (user == null) {
+        throw Exception('No logged in parent found.');
+      }
 
-        if (mounted) context.go(AppRouter.selectProfile);
+      // Save to Firestore sub-collection: parents/{uid}/children/{childId}
+      final childRef = await FirebaseFirestore.instance
+          .collection('parents')
+          .doc(user.uid)
+          .collection('children')
+          .add({
+            'name': name,
+            'avatar': '🐻',
+            'stars': 0,
+            'activeOutfitID': null,
+            'hasSelectedStarterMascot': false,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+      if (mounted) {
+        context.go(AppRouter.mascotSelectionFor(childRef.id));
       }
     } catch (e) {
       debugPrint('Error adding child: $e');

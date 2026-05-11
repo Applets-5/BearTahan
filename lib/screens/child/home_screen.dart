@@ -9,7 +9,9 @@ import '../../widgets/common/star_balance_chip.dart';
 import '../../widgets/common/subject_card.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.childId});
+
+  final String? childId;
 
   static const subjects = [
     (
@@ -55,15 +57,18 @@ class HomeScreen extends StatelessWidget {
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _Header()),
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(
+              padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg,
                 AppSpacing.md,
                 AppSpacing.lg,
                 AppSpacing.sm,
               ),
-              child: MascotWidget(message: 'Pick a subject to start!'),
+              child: ActiveMascotWidget(
+                childId: childId,
+                message: 'Pick a subject to start!',
+              ),
             ),
           ),
           SliverToBoxAdapter(
@@ -88,7 +93,7 @@ class HomeScreen extends StatelessWidget {
                   icon: s.$3,
                   color: s.$4,
                   progress: s.$5,
-                  onTap: () => context.go(AppRouter.subject),
+                  onTap: () => context.go(AppRouter.subjectFor(childId)),
                 );
               },
               separatorBuilder: (context, index) =>

@@ -6,7 +6,9 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/primary_button.dart';
 
 class ChapterScreen extends StatelessWidget {
-  const ChapterScreen({super.key});
+  const ChapterScreen({super.key, this.childId});
+
+  final String? childId;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +75,8 @@ class ChapterScreen extends StatelessWidget {
               PrimaryButton(
                 label: 'Start Summary',
                 icon: Icons.play_arrow_rounded,
-                onPressed: () => context.push(AppRouter.levelSession),
+                onPressed: () =>
+                    context.push(AppRouter.levelSessionFor(childId)),
               ),
             ],
           ),

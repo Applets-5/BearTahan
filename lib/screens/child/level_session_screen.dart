@@ -6,7 +6,9 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/primary_button.dart';
 
 class LevelSessionScreen extends StatefulWidget {
-  const LevelSessionScreen({super.key});
+  const LevelSessionScreen({super.key, this.childId});
+
+  final String? childId;
 
   @override
   State<LevelSessionScreen> createState() => _LevelSessionScreenState();
@@ -87,7 +89,8 @@ class _LevelSessionScreenState extends State<LevelSessionScreen> {
                 PrimaryButton(
                   label: 'Next',
                   icon: Icons.arrow_forward_rounded,
-                  onPressed: () => context.go(AppRouter.completion),
+                  onPressed: () =>
+                      context.go(AppRouter.completionFor(widget.childId)),
                 ),
               ],
             ],

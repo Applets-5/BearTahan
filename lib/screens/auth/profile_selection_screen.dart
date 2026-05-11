@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../../router/app_router.dart';
+import '../../widgets/common/mascot_widget.dart';
 
 class ProfileSelectionScreen extends StatelessWidget {
   const ProfileSelectionScreen({super.key});
@@ -43,42 +44,55 @@ class ProfileSelectionScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xxxl),
 
-                      // Use Wrap instead of GridView for automatic row centering
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.xxl,
                         ),
                         child: LayoutBuilder(
                           builder: (context, constraints) {
-                            // Calculate width for 2 columns minus spacing
                             final cardWidth =
                                 (constraints.maxWidth - AppSpacing.xl) / 2;
 
                             return Wrap(
                               spacing: AppSpacing.xl,
                               runSpacing: AppSpacing.xl,
-                              alignment: WrapAlignment
-                                  .center, // THIS CENTERS THE LAST ITEM
+                              alignment: WrapAlignment.center,
                               children: [
                                 ...children.map((doc) {
                                   final data =
                                       doc.data() as Map<String, dynamic>;
+                                  final hasSelectedMascot =
+                                      data['hasSelectedStarterMascot'] ==
+                                          true &&
+                                      data['activeOutfitID'] != null;
+
                                   return SizedBox(
                                     width: cardWidth,
                                     child: _ChildCard(
                                       name: data['name'] ?? 'Kid',
                                       avatar: data['avatar'] ?? '🐻',
-                                      onTap: () =>
-                                          context.go(AppRouter.childHome),
+                                      activeOutfitId:
+                                          data['activeOutfitID'] as String?,
+                                      onTap: () {
+                                        if (hasSelectedMascot) {
+                                          context.go(
+                                            AppRouter.childHomeFor(doc.id),
+                                          );
+                                        } else {
+                                          context.go(
+                                            AppRouter.mascotSelectionFor(
+                                              doc.id,
+                                            ),
+                                          );
+                                        }
+                                      },
                                     ),
                                   );
                                 }),
 
-                                // The Add Child card
                                 SizedBox(
                                   width: cardWidth,
                                   child: _AddChildCard(
-                                    // If empty, we make it larger/centered as per your existing logic
                                     isCentered: children.isEmpty,
                                     onTap: () =>
                                         context.go(AppRouter.createProfile),
@@ -104,18 +118,24 @@ class ProfileSelectionScreen extends StatelessWidget {
 class _ChildCard extends StatelessWidget {
   final String name;
   final String avatar;
+  final String? activeOutfitId;
   final VoidCallback onTap;
 
   const _ChildCard({
     required this.name,
     required this.avatar,
+    required this.activeOutfitId,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final imagePath = activeOutfitId == null
+        ? null
+        : MascotWidget.outfitImages[activeOutfitId];
+
     return AspectRatio(
-      aspectRatio: 0.8, // Maintains the card shape
+      aspectRatio: 0.8,
       child: InkWell(
         onTap: onTap,
         borderRadius: AppRadius.r(AppRadius.lg),
@@ -131,12 +151,22 @@ class _ChildCard extends StatelessWidget {
               Container(
                 width: 64,
                 height: 64,
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
                   borderRadius: AppRadius.r(AppRadius.md),
                 ),
                 child: Center(
-                  child: Text(avatar, style: const TextStyle(fontSize: 32)),
+                  child: imagePath == null
+                      ? Text(avatar, style: const TextStyle(fontSize: 32))
+                      : Image.asset(
+                          imagePath,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => Text(
+                            avatar,
+                            style: const TextStyle(fontSize: 32),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
