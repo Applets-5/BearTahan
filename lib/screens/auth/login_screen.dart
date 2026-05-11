@@ -50,7 +50,10 @@ class LoginScreen extends StatelessWidget {
                   PrimaryButton(
                     label: 'Start Learning',
                     icon: Icons.play_arrow_rounded,
-                    onPressed: () => context.go(AppRouter.childHome),
+                    //onPressed: () => context.go(AppRouter.childHome),
+                    onPressed: () => context.go(
+  '${AppRouter.mascotSelection}?childId=demo_child_001',
+),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextButton(

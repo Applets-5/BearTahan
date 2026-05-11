@@ -11,6 +11,7 @@ import '../screens/child/profile_screen.dart';
 import '../screens/child/quests_screen.dart';
 import '../screens/child/reward_list_screen.dart';
 import '../screens/child/subject_screen.dart';
+import '../screens/child/mascot_selection_screen.dart';
 import '../screens/parent/dashboard_screen.dart';
 import '../screens/parent/goal_setting_screen.dart';
 import '../screens/parent/parent_notifications_screen.dart';
@@ -23,6 +24,7 @@ import '../widgets/common/bottom_nav_bar.dart';
 
 class AppRouter {
   static const login = '/login';
+  static const mascotSelection = '/mascot-selection';
   static const childHome = '/child-home';
   static const subject = '/subject';
   static const chapter = '/chapter';
@@ -67,6 +69,7 @@ class AppRouter {
             BottomNavScaffold(isParent: isParent, child: child),
           );
         },
+
         routes: [
           GoRoute(
             path: childHome,
@@ -114,6 +117,18 @@ class AppRouter {
                 _noTransitionPage(state, const ParentSettingsScreen()),
           ),
         ],
+      ),
+      GoRoute(
+        path: mascotSelection,
+        pageBuilder: (context, state) {
+          final childId =
+              state.uri.queryParameters['childId'] ?? 'demo_child_001';
+
+          return _noTransitionPage(
+            state,
+            MascotSelectionScreen(childId: childId),
+          );
+        },
       ),
       GoRoute(
         path: subject,
