@@ -245,7 +245,7 @@ class _MascotOutfitCard extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
               color: isSelected
-                  ? AppColors.primary.withOpacity(0.10)
+                  ? AppColors.primary.withValues(alpha: 0.10)
                   : Colors.white,
               borderRadius: AppRadius.r(AppRadius.xl),
               border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
@@ -273,7 +273,7 @@ class _MascotOutfitCard extends StatelessWidget {
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.45),
+                  color: Colors.white.withValues(alpha: 0.45),
                   borderRadius: AppRadius.r(AppRadius.xl),
                 ),
               ),
