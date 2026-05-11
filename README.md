@@ -71,7 +71,7 @@ flutter test --reporter expanded
 
 All tests must pass locally before you push. If a test fails, fix it first — do not push broken tests.
 
-For a full guide on how to write tests and use AI to generate them, read [`TESTING_GUIDE.md`](./TESTING_GUIDE.md).
+For a full guide on how to write tests and use AI to generate them, read [`TESTING_GUIDE.md`](https://docs.google.com/document/d/1zSLGKhDw6b9D-MITOAOiu5wWx9foBHhS08Ejwoxq3xE/edit?usp=sharing).
 
 ---
 
