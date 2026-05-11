@@ -31,6 +31,7 @@ class SubjectScreen extends ConsumerWidget {
                   completedCount: completedCount,
                   totalCount: 8,
                   progress: progress,
+                  subjectId: subjectId,
                   onBack: () => context.go(AppRouter.childHomeFor(childId)),
                 ),
               ),
@@ -88,11 +89,47 @@ class _SubjectHeader extends StatelessWidget {
     required this.completedCount,
     required this.totalCount,
     required this.progress,
+    required this.subjectId,
   });
   final VoidCallback onBack;
   final int completedCount;
   final int totalCount;
   final double progress;
+  final String subjectId;
+
+  String _getSubjectName() {
+    switch (subjectId) {
+      case 'bm':
+        return 'Bahasa Melayu';
+      case 'english':
+        return 'English';
+      case 'mandarin':
+        return 'Mandarin';
+      case 'math':
+        return 'Mathematics';
+      case 'science':
+        return 'Science';
+      default:
+        return 'Subject';
+    }
+  }
+
+  Color _getSubjectColor() {
+    switch (subjectId) {
+      case 'bm':
+        return AppColors.subjectBm;
+      case 'english':
+        return AppColors.subjectEnglish;
+      case 'mandarin':
+        return AppColors.subjectMandarin;
+      case 'math':
+        return AppColors.subjectMath;
+      case 'science':
+        return AppColors.subjectScience;
+      default:
+        return AppColors.primary;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +141,7 @@ class _SubjectHeader extends StatelessWidget {
         AppSpacing.xxxl,
       ),
       decoration: BoxDecoration(
-        color: AppColors.subjectBm,
+        color: _getSubjectColor(),
         borderRadius: const BorderRadius.vertical(
           bottom: Radius.circular(AppRadius.xxl),
         ),
@@ -120,7 +157,7 @@ class _SubjectHeader extends StatelessWidget {
               label: const Text('Back', style: AppTextStyles.whiteSmall),
             ),
             const SizedBox(height: AppSpacing.sm),
-            const Text('Bahasa Melayu', style: AppTextStyles.whiteTitle),
+            Text(_getSubjectName(), style: AppTextStyles.whiteTitle),
             Text(
               '$completedCount/$totalCount levels completed',
               style: AppTextStyles.whiteSmall,

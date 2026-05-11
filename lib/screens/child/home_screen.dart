@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../models/subject.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
@@ -55,6 +56,8 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final subjectProgressAsync = ref.watch(subjectProgressProvider);
+
     return SafeArea(
       child: CustomScrollView(
         slivers: [
@@ -84,28 +87,77 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            sliver: SliverList.separated(
-              itemBuilder: (context, index) {
-                final s = subjectsList[index];
-                return SubjectCard(
-                  name: s.$1,
-                  subtitle: s.$2,
-                  icon: s.$3,
-                  color: s.$4,
-                  progress: s.$5,
-                  onTap: () => context.go(AppRouter.subjectFor(childId)),
-                );
-              },
-              separatorBuilder: (context, index) =>
-                  const SizedBox(height: AppSpacing.md),
-              itemCount: subjectsList.length,
+          subjectProgressAsync.when(
+            data: (progressList) {
+              return SliverPadding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                sliver: SliverList.separated(
+                  itemBuilder: (context, index) {
+                    final s = subjectsList[index];
+                    // Match progress from DB using ID
+                    final subjectId = _getSubjectId(s.$1);
+                    final dbSubject = progressList.firstWhere(
+                      (dbS) => dbS.id == subjectId,
+                      orElse: () => Subject(
+                        id: subjectId,
+                        name: s.$1,
+                        subtitle: s.$2,
+                        icon: s.$3,
+                        color: s.$4,
+                        progress: 0,
+                      ),
+                    );
+
+                    return SubjectCard(
+                      name: s.$1,
+                      subtitle: s.$2,
+                      icon: s.$3,
+                      color: s.$4,
+                      progress: dbSubject.progress,
+                      onTap: () => context.go(
+                        Uri(
+                          path: AppRouter.subject,
+                          queryParameters: {
+                            'childId': childId ?? '',
+                            'subjectId': subjectId,
+                          },
+                        ).toString(),
+                      ),
+                    );
+                  },
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: AppSpacing.md),
+                  itemCount: subjectsList.length,
+                ),
+              );
+            },
+            loading: () => const SliverToBoxAdapter(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (err, _) => SliverToBoxAdapter(
+              child: Center(child: Text('Error: $err')),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _getSubjectId(String name) {
+    switch (name) {
+      case 'Bahasa Melayu':
+        return 'bm';
+      case 'English':
+        return 'english';
+      case 'Mandarin':
+        return 'mandarin';
+      case 'Mathematics':
+        return 'math';
+      case 'Science':
+        return 'science';
+      default:
+        return name.toLowerCase();
+    }
   }
 }
 

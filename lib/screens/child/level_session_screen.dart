@@ -30,6 +30,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   int currentQuestionIndex = 0;
   int score = 0;
   int? selected;
+  List<Question>? shuffledQuestions;
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +39,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     return Scaffold(
       body: SafeArea(
         child: questionsAsync.when(
-          data: (questions) {
-            if (questions.isEmpty) {
+          data: (rawQuestions) {
+            if (rawQuestions.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -55,6 +56,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               );
             }
 
+            // Shuffle and pick 10 questions once per session
+            if (shuffledQuestions == null) {
+              final List<Question> temp = List.from(rawQuestions)..shuffle();
+              shuffledQuestions = temp.take(10).toList();
+            }
+            
+            final questions = shuffledQuestions!;
             final question = questions[currentQuestionIndex];
             final isLastQuestion = currentQuestionIndex == questions.length - 1;
             final progress = (currentQuestionIndex + 1) / questions.length;

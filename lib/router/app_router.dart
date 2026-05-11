@@ -215,7 +215,11 @@ class AppRouter {
         path: subject,
         pageBuilder: (context, state) {
           final childId = state.uri.queryParameters['childId'];
-          return _noTransitionPage(state, SubjectScreen(childId: childId));
+          final subjectId = state.uri.queryParameters['subjectId'] ?? 'bm';
+          return _noTransitionPage(
+            state,
+            SubjectScreen(childId: childId, subjectId: subjectId),
+          );
         },
       ),
       GoRoute(

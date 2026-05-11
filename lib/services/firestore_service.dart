@@ -6,18 +6,29 @@ import '../models/question.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  Stream<UserProfile> streamUserProfile(String uid) {
+  Stream<UserProfile> streamUserProfile(String parentId, String childId) {
     return _db
-        .collection('users')
-        .doc(uid)
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
         .snapshots()
-        .map((doc) => UserProfile.fromFirestore(doc.id, doc.data() ?? {}));
+        .map((doc) {
+      final data = doc.data() ?? {};
+      // Map 'stars' to 'starBalance' if that's what's used in the DB
+      if (data.containsKey('stars') && !data.containsKey('starBalance')) {
+        data['starBalance'] = data['stars'];
+      }
+      return UserProfile.fromFirestore(doc.id, data);
+    });
   }
 
-  Stream<List<Subject>> streamSubjectProgress(String uid) {
+  Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
     return _db
-        .collection('users')
-        .doc(uid)
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
         .collection('subjectProgress')
         .snapshots()
         .map((snapshot) => snapshot.docs
@@ -37,39 +48,46 @@ class FirestoreService {
         .toList();
   }
 
-  Future<void> updateLevelProgress(String uid, String subjectId, String levelId, int stars) async {
-    final levelDocRef = _db
-        .collection('users')
-        .doc(uid)
+  Future<void> updateLevelProgress(String parentId, String childId, String subjectId, String levelId, int stars) async {
+    final childDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+
+    final levelDocRef = childDocRef
         .collection('subjectProgress')
         .doc(subjectId)
         .collection('levels')
         .doc(levelId);
 
-    final userDocRef = _db.collection('users').doc(uid);
-
     await _db.runTransaction((transaction) async {
       final levelSnapshot = await transaction.get(levelDocRef);
-      final userSnapshot = await transaction.get(userDocRef);
+      final childSnapshot = await transaction.get(childDocRef);
 
-      final int previousStars = (levelSnapshot.data()?['stars'] ?? 0).toInt();
-      final int currentBalance = (userSnapshot.data()?['starBalance'] ?? 0).toInt();
+      final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0).toInt();
+      final childData = childSnapshot.data() ?? {};
+      final int currentBalance = (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
 
-      // Update level stars to latest result as requested
-      transaction.set(levelDocRef, {'stars': stars}, SetOptions(merge: true));
-
-      // Only increment balance if they improved their best score for this level
-      if (stars > previousStars) {
-        final int improvement = stars - previousStars;
-        transaction.update(userDocRef, {'starBalance': currentBalance + improvement});
+      // Logic: Status of level remains highest stars
+      if (stars > previousBestStars) {
+        transaction.set(levelDocRef, {'stars': stars}, SetOptions(merge: true));
+        
+        // Total star count increment by difference
+        final int improvement = stars - previousBestStars;
+        final String balanceField = childData.containsKey('stars') ? 'stars' : 'starBalance';
+        transaction.update(childDocRef, {balanceField: currentBalance + improvement});
       }
+      // If stars <= previousBestStars, we do nothing (keep highest stars and don't change balance)
     });
   }
 
-  Stream<Map<String, int>> streamLevelStars(String uid, String subjectId) {
+  Stream<Map<String, int>> streamLevelStars(String parentId, String childId, String subjectId) {
     return _db
-        .collection('users')
-        .doc(uid)
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
         .collection('subjectProgress')
         .doc(subjectId)
         .collection('levels')
@@ -88,12 +106,22 @@ class FirestoreService {
       print('Seeding mock data for user: $uid');
       // Set user profile
       await _db.collection('users').doc(uid).set({
-        'name': 'Adryan',
-        'starBalance': 150,
+        'name': 'Olaf',
+        'starBalance': 2,
         'activeMascotOutfit': 'Hero Cape',
         'parentId': 'scKBgki4JkM7fBSsQDXUgo58Dnl1',
       }, SetOptions(merge: true));
       print('User profile seeded successfully');
+
+      // Set level 1 progress for BM to 2 stars
+      await _db
+          .collection('users')
+          .doc(uid)
+          .collection('subjectProgress')
+          .doc('bm')
+          .collection('levels')
+          .doc('l1')
+          .set({'stars': 2}, SetOptions(merge: true));
 
       // Set subject progress
       final subjects = [

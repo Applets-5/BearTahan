@@ -43,11 +43,18 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
   Future<void> _saveProgress() async {
     if (_saved) return;
     final stars = _calculateStars();
-    final uid = ref.read(userIdProvider);
+    final parentId = ref.read(parentIdProvider);
+    final childId = ref.read(childIdProvider);
     
+    if (parentId.isEmpty || childId == null || childId.isEmpty) {
+      debugPrint('Missing parentId or childId, cannot save progress');
+      return;
+    }
+
     try {
       await ref.read(firestoreServiceProvider).updateLevelProgress(
-        uid, 
+        parentId,
+        childId, 
         widget.subjectId, 
         widget.levelId, 
         stars
