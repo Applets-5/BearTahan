@@ -59,7 +59,8 @@ class PrimaryButton extends StatelessWidget {
                   Flexible(
                     child: Text(
                       label,
-                      overflow: TextOverflow.ellipsis, // Optional: adds '...' if still too long
+                      overflow: TextOverflow
+                          .ellipsis, // Optional: adds '...' if still too long
                       textAlign: TextAlign.center,
                     ),
                   ),
