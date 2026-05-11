@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,10 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/primary_button.dart';
 
 class MascotSelectionScreen extends StatefulWidget {
-  const MascotSelectionScreen({
-    super.key,
-    required this.childId,
-  });
+  const MascotSelectionScreen({super.key, required this.childId});
 
   final String childId;
 
@@ -67,28 +65,30 @@ class _MascotSelectionScreenState extends State<MascotSelectionScreen> {
     });
 
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('No logged in parent found.');
+      }
+
       await FirebaseFirestore.instance
+          .collection('parents')
+          .doc(user.uid)
           .collection('children')
           .doc(widget.childId)
-          .set(
-        {
-          'activeOutfitID': selectedOutfitId,
-          'hasSelectedStarterMascot': true,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+          .set({
+            'activeOutfitID': selectedOutfitId,
+            'hasSelectedStarterMascot': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
       if (!mounted) return;
-      context.go(AppRouter.childHome);
+      context.go(AppRouter.childHomeFor(widget.childId));
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to save outfit: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save outfit: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -102,7 +102,9 @@ class _MascotSelectionScreenState extends State<MascotSelectionScreen> {
     if (!outfit.unlocked) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${outfit.name} is locked. Keep learning to unlock it!'),
+          content: Text(
+            '${outfit.name} is locked. Keep learning to unlock it!',
+          ),
         ),
       );
       return;
@@ -152,11 +154,11 @@ class _MascotSelectionScreenState extends State<MascotSelectionScreen> {
                     itemCount: outfits.length,
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: AppSpacing.md,
-                      crossAxisSpacing: AppSpacing.md,
-                      childAspectRatio: 0.9,
-                    ),
+                          crossAxisCount: 3,
+                          mainAxisSpacing: AppSpacing.md,
+                          crossAxisSpacing: AppSpacing.md,
+                          childAspectRatio: 0.9,
+                        ),
                     itemBuilder: (context, index) {
                       final outfit = outfits[index];
                       final isSelected = selectedOutfitId == outfit.id;
@@ -214,6 +216,26 @@ class _MascotOutfitCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final borderColor = isSelected ? AppColors.primary : AppColors.border;
 
+    Widget bearImage = Image.asset(
+      outfit.imagePath,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) => Icon(
+        Icons.pets_rounded,
+        color: AppColors.mutedText,
+        size: AppSpacing.xxxl,
+      ),
+    );
+
+    if (!outfit.unlocked) {
+      bearImage = ColorFiltered(
+        colorFilter: const ColorFilter.mode(
+          AppColors.mutedText,
+          BlendMode.srcIn,
+        ),
+        child: bearImage,
+      );
+    }
+
     return InkWell(
       onTap: onTap,
       borderRadius: AppRadius.r(AppRadius.xl),
@@ -226,34 +248,36 @@ class _MascotOutfitCard extends StatelessWidget {
                   ? AppColors.primary.withOpacity(0.10)
                   : Colors.white,
               borderRadius: AppRadius.r(AppRadius.xl),
-              border: Border.all(
-                color: borderColor,
-                width: isSelected ? 2 : 1,
-              ),
+              border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
             ),
-            child: Opacity(
-              opacity: outfit.unlocked ? 1 : 0.35,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Image.asset(
-                      outfit.imagePath,
-                      fit: BoxFit.contain,
-                    ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(child: bearImage),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  outfit.unlocked ? outfit.name : 'Locked',
+                  style: AppTextStyles.tiny.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: outfit.unlocked
+                        ? AppColors.foreground
+                        : AppColors.mutedText,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    outfit.name,
-                    style: AppTextStyles.tiny.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
+
+          if (!outfit.unlocked)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.45),
+                  borderRadius: AppRadius.r(AppRadius.xl),
+                ),
+              ),
+            ),
 
           if (!outfit.unlocked)
             const Positioned(
@@ -263,6 +287,17 @@ class _MascotOutfitCard extends StatelessWidget {
                 Icons.lock_outline_rounded,
                 size: 18,
                 color: AppColors.mutedText,
+              ),
+            ),
+
+          if (isSelected && outfit.unlocked)
+            const Positioned(
+              top: 8,
+              right: 8,
+              child: Icon(
+                Icons.check_circle_rounded,
+                size: 20,
+                color: AppColors.primary,
               ),
             ),
         ],

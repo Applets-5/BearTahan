@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/mascot_widget.dart';
 import '../../widgets/common/primary_button.dart';
 
 // Changed from StatelessWidget to StatefulWidget
@@ -108,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               child: Column(
                 children: [
-                  const MascotWidget(size: 116),
+                  const _LoginAppIcon(),
                   const SizedBox(height: AppSpacing.xxl),
                   const Text('BearTahan', style: AppTextStyles.title),
                   const SizedBox(height: AppSpacing.sm),
@@ -142,8 +141,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     icon: Icons.play_arrow_rounded,
                     //onPressed: () => context.go(AppRouter.childHome),
                     onPressed: () => context.go(
-  '${AppRouter.mascotSelection}?childId=demo_child_001',
-),
+                      '${AppRouter.mascotSelection}?childId=demo_child_001',
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextButton(
@@ -213,6 +212,27 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LoginAppIcon extends StatelessWidget {
+  const _LoginAppIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 116,
+      height: 116,
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: AppRadius.r(AppRadius.xxl),
+      ),
+      child: const Icon(
+        Icons.school_rounded,
+        color: AppColors.primary,
+        size: 56,
       ),
     );
   }
