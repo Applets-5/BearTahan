@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
+import '../models/question.dart';
 import '../services/firestore_service.dart';
 
 final firestoreServiceProvider = Provider((ref) => FirestoreService());
@@ -16,4 +17,13 @@ final userProfileProvider = StreamProvider<UserProfile>((ref) {
 final subjectProgressProvider = StreamProvider<List<Subject>>((ref) {
   final uid = ref.watch(userIdProvider);
   return ref.watch(firestoreServiceProvider).streamSubjectProgress(uid);
+});
+
+final questionsProvider = FutureProvider.family<List<Question>, String>((ref, prefix) {
+  return ref.watch(firestoreServiceProvider).getQuestions(prefix);
+});
+
+final levelStarsProvider = StreamProvider.family<Map<String, int>, String>((ref, subjectId) {
+  final uid = ref.watch(userIdProvider);
+  return ref.watch(firestoreServiceProvider).streamLevelStars(uid, subjectId);
 });

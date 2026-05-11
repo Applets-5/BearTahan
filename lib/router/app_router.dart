@@ -47,11 +47,22 @@ class AppRouter {
 
   static String chapterFor(String? childId) => withChildId(chapter, childId);
 
-  static String levelSessionFor(String? childId) =>
-      withChildId(levelSession, childId);
+  static String levelSessionFor(String? childId, {String? levelPrefix}) {
+    final params = <String, String>{};
+    if (childId != null && childId.isNotEmpty) params['childId'] = childId;
+    if (levelPrefix != null && levelPrefix.isNotEmpty) {
+      params['levelPrefix'] = levelPrefix;
+    }
+    return Uri(path: levelSession, queryParameters: params).toString();
+  }
 
-  static String completionFor(String? childId) =>
-      withChildId(completion, childId);
+  static String completionFor(String? childId, {int? score, int? total}) {
+    final params = <String, String>{};
+    if (childId != null && childId.isNotEmpty) params['childId'] = childId;
+    if (score != null) params['score'] = score.toString();
+    if (total != null) params['total'] = total.toString();
+    return Uri(path: completion, queryParameters: params).toString();
+  }
   static const selectProfile = '/select-profile';
   static const createProfile = '/create-profile';
   static const subject = '/subject';
@@ -218,14 +229,42 @@ class AppRouter {
         path: levelSession,
         pageBuilder: (context, state) {
           final childId = state.uri.queryParameters['childId'];
-          return _noTransitionPage(state, LevelSessionScreen(childId: childId));
+          final levelPrefix = state.uri.queryParameters['levelPrefix'] ?? 'bm_c1_l1_';
+          // Extract subject and level from prefix (e.g., bm_c1_l1_ -> bm and l1)
+          final parts = levelPrefix.split('_');
+          final subjectId = parts.isNotEmpty ? parts[0] : 'bm';
+          final levelId = parts.length >= 3 ? parts[2] : 'l1';
+          
+          return _noTransitionPage(
+            state,
+            LevelSessionScreen(
+              childId: childId, 
+              levelPrefix: levelPrefix,
+              subjectId: subjectId,
+              levelId: levelId,
+            ),
+          );
         },
       ),
       GoRoute(
         path: completion,
         pageBuilder: (context, state) {
           final childId = state.uri.queryParameters['childId'];
-          return _noTransitionPage(state, CompletionScreen(childId: childId));
+          final score = int.tryParse(state.uri.queryParameters['score'] ?? '0') ?? 0;
+          final total = int.tryParse(state.uri.queryParameters['total'] ?? '0') ?? 0;
+          final levelId = state.uri.queryParameters['levelId'] ?? 'l1';
+          final subjectId = state.uri.queryParameters['subjectId'] ?? 'bm';
+
+          return _noTransitionPage(
+            state,
+            CompletionScreen(
+              childId: childId, 
+              score: score, 
+              total: total,
+              levelId: levelId,
+              subjectId: subjectId,
+            ),
+          );
         },
       ),
       GoRoute(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/mascot_widget.dart';
@@ -8,12 +10,12 @@ import '../../widgets/common/progress_bar_card.dart';
 import '../../widgets/common/star_balance_chip.dart';
 import '../../widgets/common/subject_card.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key, this.childId});
 
   final String? childId;
 
-  static const subjects = [
+  static const subjectsList = [
     (
       'Bahasa Melayu',
       'Membaca & Menulis',
@@ -52,7 +54,7 @@ class HomeScreen extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       child: CustomScrollView(
         slivers: [
@@ -86,7 +88,7 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpacing.lg),
             sliver: SliverList.separated(
               itemBuilder: (context, index) {
-                final s = subjects[index];
+                final s = subjectsList[index];
                 return SubjectCard(
                   name: s.$1,
                   subtitle: s.$2,
@@ -98,7 +100,7 @@ class HomeScreen extends StatelessWidget {
               },
               separatorBuilder: (context, index) =>
                   const SizedBox(height: AppSpacing.md),
-              itemCount: subjects.length,
+              itemCount: subjectsList.length,
             ),
           ),
         ],
@@ -107,9 +109,11 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userProfileAsync = ref.watch(userProfileProvider);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -143,7 +147,11 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          const StarBalanceChip(count: 120),
+          userProfileAsync.when(
+            data: (profile) => StarBalanceChip(count: profile.starBalance),
+            loading: () => const StarBalanceChip(count: 0),
+            error: (_, __) => const StarBalanceChip(count: 0),
+          ),
         ],
       ),
     );

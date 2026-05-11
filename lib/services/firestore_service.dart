@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
+import '../models/question.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -22,6 +23,64 @@ class FirestoreService {
         .map((snapshot) => snapshot.docs
             .map((doc) => Subject.fromFirestore(doc.id, doc.data()))
             .toList());
+  }
+
+  Future<List<Question>> getQuestions(String prefix) async {
+    final snapshot = await _db
+        .collection('questions')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: prefix)
+        .where(FieldPath.documentId, isLessThan: prefix + '\uf8ff')
+        .get();
+
+    return snapshot.docs
+        .map((doc) => Question.fromFirestore(doc.id, doc.data()))
+        .toList();
+  }
+
+  Future<void> updateLevelProgress(String uid, String subjectId, String levelId, int stars) async {
+    final levelDocRef = _db
+        .collection('users')
+        .doc(uid)
+        .collection('subjectProgress')
+        .doc(subjectId)
+        .collection('levels')
+        .doc(levelId);
+
+    final userDocRef = _db.collection('users').doc(uid);
+
+    await _db.runTransaction((transaction) async {
+      final levelSnapshot = await transaction.get(levelDocRef);
+      final userSnapshot = await transaction.get(userDocRef);
+
+      final int previousStars = (levelSnapshot.data()?['stars'] ?? 0).toInt();
+      final int currentBalance = (userSnapshot.data()?['starBalance'] ?? 0).toInt();
+
+      // Update level stars to latest result as requested
+      transaction.set(levelDocRef, {'stars': stars}, SetOptions(merge: true));
+
+      // Only increment balance if they improved their best score for this level
+      if (stars > previousStars) {
+        final int improvement = stars - previousStars;
+        transaction.update(userDocRef, {'starBalance': currentBalance + improvement});
+      }
+    });
+  }
+
+  Stream<Map<String, int>> streamLevelStars(String uid, String subjectId) {
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('subjectProgress')
+        .doc(subjectId)
+        .collection('levels')
+        .snapshots()
+        .map((snapshot) {
+      final Map<String, int> stars = {};
+      for (var doc in snapshot.docs) {
+        stars[doc.id] = (doc.data()['stars'] ?? 0).toInt();
+      }
+      return stars;
+    });
   }
 
   Future<void> seedMockData(String uid) async {
