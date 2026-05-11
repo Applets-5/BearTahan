@@ -82,7 +82,7 @@ class _MascotSelectionScreenState extends State<MascotSelectionScreen> {
           }, SetOptions(merge: true));
 
       if (!mounted) return;
-      context.go(AppRouter.childHomeFor(widget.childId));
+      context.go(AppRouter.selectProfile);
     } catch (e) {
       if (!mounted) return;
 
