@@ -7,7 +7,9 @@ import '../../widgets/common/level_tile.dart';
 import '../../widgets/common/locked_level_tile.dart';
 
 class SubjectScreen extends StatelessWidget {
-  const SubjectScreen({super.key});
+  const SubjectScreen({super.key, this.childId});
+
+  final String? childId;
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +18,7 @@ class SubjectScreen extends StatelessWidget {
         slivers: [
           SliverToBoxAdapter(
             child: _SubjectHeader(
-              onBack: () => context.go(AppRouter.childHome),
+              onBack: () => context.go(AppRouter.childHomeFor(childId)),
             ),
           ),
           SliverPadding(
@@ -45,7 +47,9 @@ class SubjectScreen extends StatelessWidget {
                       : 0,
                   isBoss: boss,
                   onTap: () => context.push(
-                    boss ? AppRouter.chapter : AppRouter.levelSession,
+                    boss
+                        ? AppRouter.chapterFor(childId)
+                        : AppRouter.levelSessionFor(childId),
                   ),
                 );
               },

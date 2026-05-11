@@ -7,7 +7,9 @@ import '../../widgets/common/mascot_widget.dart';
 import '../../widgets/common/primary_button.dart';
 
 class CompletionScreen extends StatelessWidget {
-  const CompletionScreen({super.key});
+  const CompletionScreen({super.key, this.childId});
+
+  final String? childId;
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +20,7 @@ class CompletionScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const MascotWidget(size: 100),
+              ActiveMascotWidget(childId: childId, size: 100),
               const SizedBox(height: AppSpacing.lg),
               const Icon(
                 Icons.emoji_events_rounded,
@@ -58,14 +60,14 @@ class CompletionScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.xl),
               PrimaryButton(
                 label: 'Continue',
-                onPressed: () => context.go(AppRouter.subject),
+                onPressed: () => context.go(AppRouter.subjectFor(childId)),
               ),
               const SizedBox(height: AppSpacing.md),
               PrimaryButton(
                 label: 'Try Again',
                 backgroundColor: AppColors.muted,
                 foregroundColor: AppColors.mutedText,
-                onPressed: () => context.go(AppRouter.levelSession),
+                onPressed: () => context.go(AppRouter.levelSessionFor(childId)),
               ),
             ],
           ),
