@@ -121,14 +121,23 @@ class AppRouter {
             _noTransitionPage(state, const SubjectScreen()),
       ),
       GoRoute(
-        path: chapter,
-        pageBuilder: (context, state) =>
-            _noTransitionPage(state, const ChapterScreen()),
-      ),
-      GoRoute(
-        path: levelSession,
-        pageBuilder: (context, state) =>
-            _noTransitionPage(state, const LevelSessionScreen()),
+        path: AppRouter.levelSession,
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+
+          if (extra == null) {
+            return _noTransitionPage(state, const HomeScreen());
+          }
+
+          return _noTransitionPage(
+            state,
+            LevelSessionScreen(
+              levelId: extra['levelId'] as String,
+              chapterId: extra['chapterId'] as String,
+              levelTitle: extra['levelTitle'] as String,
+            ),
+          );
+        },
       ),
       GoRoute(
         path: completion,

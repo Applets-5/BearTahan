@@ -1,0 +1,194 @@
+[
+  {
+    "id": "bm_c1_l1_q01",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 1,
+    "prompt": "Apakah huruf tiada dalam vokal?",
+    "options": [
+      { "id": "A", "text": "a" },
+      { "id": "B", "text": "v" },
+      { "id": "C", "text": "i" },
+      { "id": "D", "text": "e" }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q02",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 1,
+    "prompt": "Pilih gambar yang betul untuk perkataan 'bola'.",
+    "options": [
+      { "id": "A", "text": "bola" },
+      { "id": "B", "text": "ikan" },
+      { "id": "C", "text": "pokok" },
+      { "id": "D", "text": "rumah" }
+    ],
+    "correctAnswerId": "A",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q03",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 1,
+    "prompt": "Huruf vokal ialah...",
+    "options": [
+      { "id": "A", "text": "a, e, i, o, u" },
+      { "id": "B", "text": "b, c, d, f, g" },
+      { "id": "C", "text": "m, n, p, r, s" },
+      { "id": "D", "text": "k, l, t, w, y" }
+    ],
+    "correctAnswerId": "A",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q04",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 1,
+    "prompt": "Berapa banyak huruf dalam perkataan 'ibu'?",
+    "options": [
+      { "id": "A", "text": "2" },
+      { "id": "B", "text": "3" },
+      { "id": "C", "text": "4" },
+      { "id": "D", "text": "5" }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q05",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 1,
+    "prompt": "Namakan ahli keluarga ini.",
+    "options": [
+      { "id": "A", "text": "anjing" },
+      { "id": "B", "text": "arnab" },
+      { "id": "C", "text": "kucing" },
+      { "id": "D", "text": "itik" }
+    ],
+    "correctAnswerId": "C",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q06",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 2,
+    "prompt": "Susun suku kata ini untuk membentuk perkataan: 'ma' + 'ka' + 'nan'",
+    "options": [
+      { "id": "A", "text": "nakmama" },
+      { "id": "B", "text": "makanan" },
+      { "id": "C", "text": "kanmaan" },
+      { "id": "D", "text": "namaak" }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q07",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 2,
+    "prompt": "Pilih ejaan yang betul.",
+    "options": [
+      { "id": "A", "text": "rmah" },
+      { "id": "B", "text": "ruumah" },
+      { "id": "C", "text": "rumah" },
+      { "id": "D", "text": "rummah" }
+    ],
+    "correctAnswerId": "C",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q08",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 2,
+    "prompt": "Ayat yang betul ialah...",
+    "options": [
+      { "id": "A", "text": "Saya nama Ali." },
+      { "id": "B", "text": "Nama saya Ali." },
+      { "id": "C", "text": "Ali nama saya." },
+      { "id": "D", "text": "Saya Ali nama." }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q09",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 2,
+    "prompt": "Apa maksud perkataan 'gembira'?",
+    "options": [
+      { "id": "A", "text": "sedih" },
+      { "id": "B", "text": "marah" },
+      { "id": "C", "text": "sakit" },
+      { "id": "D", "text": "seronok" }
+    ],
+    "correctAnswerId": "D",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q10",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 2,
+    "prompt": "Lengkapkan ayat: 'Ali ___ buku di atas meja.'",
+    "options": [
+      { "id": "A", "text": "makan" },
+      { "id": "B", "text": "minum" },
+      { "id": "C", "text": "letak" },
+      { "id": "D", "text": "tidur" }
+    ],
+    "correctAnswerId": "C",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q11",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 3,
+    "prompt": "Baca petikan ini dan jawab soalan: 'Aini suka makan buah. Buah kesukaannya ialah mangga.' Apakah buah kesukaan Aini?",
+    "options": [
+      { "id": "A", "text": "Betik" },
+      { "id": "B", "text": "Mangga" },
+      { "id": "C", "text": "Durian" },
+      { "id": "D", "text": "Pisang" }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q12",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "difficulty": 3,
+    "prompt": "Pilih ayat yang menggunakan tanda baca yang betul.",
+    "options": [
+      { "id": "A", "text": "Di mana awak tinggal" },
+      { "id": "B", "text": "Di mana awak tinggal?" },
+      { "id": "C", "text": "di mana awak tinggal?" },
+      { "id": "D", "text": "Di mana awak tinggal!" }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  }
+]
