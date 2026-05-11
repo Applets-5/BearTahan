@@ -76,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SnackBar(content: Text('Logged in successfully!')),
           );
           // Route them straight to the parent dashboard!
-          context.go(AppRouter.parentDashboard);
+          context.go(AppRouter.selectProfile);
         }
       }
     } catch (e) {

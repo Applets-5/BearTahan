@@ -16,9 +16,20 @@ class BottomNavScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final path = GoRouterState.of(context).uri.path;
+
+    // Routes where navbar should NOT appear
+    const noNavRoutes = [
+      AppRouter.selectProfile,
+      AppRouter.tutorial,
+      AppRouter.noInternet,
+    ];
+
+    final showNav = !noNavRoutes.contains(path);
+
     return Scaffold(
       body: child,
-      bottomNavigationBar: AppBottomNavBar(isParent: isParent),
+      bottomNavigationBar: showNav ? AppBottomNavBar(isParent: isParent) : null,
     );
   }
 }

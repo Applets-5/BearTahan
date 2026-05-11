@@ -21,11 +21,16 @@ import '../screens/shared/no_internet_screen.dart';
 import '../screens/shared/tutorial_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/bottom_nav_bar.dart';
+import '../screens/auth/profile_selection_screen.dart';
+import '../screens/auth/create_profile_screen.dart';
+import 'go_router_refresh_stream.dart';
 
 class AppRouter {
   static const login = '/login';
   static const parentRegister = '/parent-register';
   static const childHome = '/child-home';
+  static const selectProfile = '/select-profile';
+  static const createProfile = '/create-profile';
   static const subject = '/subject';
   static const chapter = '/chapter';
   static const levelSession = '/level-session';
@@ -45,6 +50,9 @@ class AppRouter {
 
   static final router = GoRouter(
     initialLocation: login,
+    refreshListenable: GoRouterRefreshStream(
+      FirebaseAuth.instance.authStateChanges(),
+    ),
     // THE AUTH GATE: This intercepts every navigation request
     redirect: (context, state) {
       final isLoggedIn = FirebaseAuth.instance.currentUser != null;
@@ -60,7 +68,7 @@ class AppRouter {
 
       // If they ARE logged in, but trying to view the Login/Register page, force them to the Dashboard
       if (isLoggedIn && isAuthRoute) {
-        return parentDashboard;
+        return selectProfile;
       }
 
       // Otherwise, let them go where they intended
@@ -76,6 +84,16 @@ class AppRouter {
         path: parentRegister,
         pageBuilder: (context, state) =>
             _noTransitionPage(state, const ParentRegisterScreen()),
+      ),
+      GoRoute(
+        path: selectProfile,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const ProfileSelectionScreen()),
+      ),
+      GoRoute(
+        path: createProfile,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const CreateProfileScreen()),
       ),
       GoRoute(
         path: tutorial,
@@ -116,6 +134,7 @@ class AppRouter {
             pageBuilder: (context, state) =>
                 _noTransitionPage(state, const ProfileScreen()),
           ),
+
           GoRoute(
             path: parentDashboard,
             pageBuilder: (context, state) =>
