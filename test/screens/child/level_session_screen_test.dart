@@ -17,11 +17,15 @@ void main() {
   );
 
   group('shuffledQuestions', () {
-    testWidgets('should only contain 10 questions even if pool is larger', (tester) async {
+    testWidgets('should only contain 10 questions even if pool is larger', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            questionsProvider('test_prefix').overrideWith((ref) => Future.value(questionPool)),
+            questionsProvider(
+              'test_prefix',
+            ).overrideWith((ref) => Future.value(questionPool)),
           ],
           child: const MaterialApp(
             home: LevelSessionScreen(levelPrefix: 'test_prefix'),
@@ -35,11 +39,15 @@ void main() {
       expect(state.shuffledQuestions.length, 10);
     });
 
-    testWidgets('should not reset questions or progress on widget rebuild', (tester) async {
+    testWidgets('should not reset questions or progress on widget rebuild', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            questionsProvider('test_prefix').overrideWith((ref) => Future.value(questionPool)),
+            questionsProvider(
+              'test_prefix',
+            ).overrideWith((ref) => Future.value(questionPool)),
           ],
           child: const MaterialApp(
             home: LevelSessionScreen(levelPrefix: 'test_prefix'),
@@ -49,7 +57,8 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      final stateBefore = tester.state(find.byType(LevelSessionScreen)) as dynamic;
+      final stateBefore =
+          tester.state(find.byType(LevelSessionScreen)) as dynamic;
       final firstQuestionId = stateBefore.shuffledQuestions[0].id;
 
       // Select an answer to move state and trigger some internal updates
@@ -60,18 +69,23 @@ void main() {
       tester.element(find.byType(LevelSessionScreen)).markNeedsBuild();
       await tester.pump();
 
-      final stateAfter = tester.state(find.byType(LevelSessionScreen)) as dynamic;
+      final stateAfter =
+          tester.state(find.byType(LevelSessionScreen)) as dynamic;
       expect(stateAfter.shuffledQuestions[0].id, firstQuestionId);
       expect(stateAfter.currentQuestionIndex, 0);
     });
   });
 
   group('score', () {
-    testWidgets('should increment when tapping the correct option', (tester) async {
+    testWidgets('should increment when tapping the correct option', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            questionsProvider('test_prefix').overrideWith((ref) => Future.value(questionPool.take(1).toList())),
+            questionsProvider('test_prefix').overrideWith(
+              (ref) => Future.value(questionPool.take(1).toList()),
+            ),
           ],
           child: const MaterialApp(
             home: LevelSessionScreen(levelPrefix: 'test_prefix'),
@@ -89,11 +103,15 @@ void main() {
       expect(state.score, 1);
     });
 
-    testWidgets('should not increment when tapping a wrong option', (tester) async {
+    testWidgets('should not increment when tapping a wrong option', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            questionsProvider('test_prefix').overrideWith((ref) => Future.value(questionPool.take(1).toList())),
+            questionsProvider('test_prefix').overrideWith(
+              (ref) => Future.value(questionPool.take(1).toList()),
+            ),
           ],
           child: const MaterialApp(
             home: LevelSessionScreen(levelPrefix: 'test_prefix'),
@@ -111,41 +129,50 @@ void main() {
       expect(state.score, 0);
     });
 
-    testWidgets('should not change score if tapping other options after selection', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            questionsProvider('test_prefix').overrideWith((ref) => Future.value(questionPool.take(1).toList())),
-          ],
-          child: const MaterialApp(
-            home: LevelSessionScreen(levelPrefix: 'test_prefix'),
+    testWidgets(
+      'should not change score if tapping other options after selection',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              questionsProvider('test_prefix').overrideWith(
+                (ref) => Future.value(questionPool.take(1).toList()),
+              ),
+            ],
+            child: const MaterialApp(
+              home: LevelSessionScreen(levelPrefix: 'test_prefix'),
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // First tap correct
-      await tester.tap(find.text('Option A'));
-      await tester.pump();
-      
-      final state = tester.state(find.byType(LevelSessionScreen)) as dynamic;
-      expect(state.score, 1);
+        // First tap correct
+        await tester.tap(find.text('Option A'));
+        await tester.pump();
 
-      // Tap wrong option - score should not change
-      await tester.tap(find.text('Option B'));
-      await tester.pump();
+        final state = tester.state(find.byType(LevelSessionScreen)) as dynamic;
+        expect(state.score, 1);
 
-      expect(state.score, 1);
-    });
+        // Tap wrong option - score should not change
+        await tester.tap(find.text('Option B'));
+        await tester.pump();
+
+        expect(state.score, 1);
+      },
+    );
   });
 
   group('navigation', () {
-    testWidgets('should display Finish button on the last question', (tester) async {
+    testWidgets('should display Finish button on the last question', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            questionsProvider('test_prefix').overrideWith((ref) => Future.value(questionPool.take(1).toList())),
+            questionsProvider('test_prefix').overrideWith(
+              (ref) => Future.value(questionPool.take(1).toList()),
+            ),
           ],
           child: const MaterialApp(
             home: LevelSessionScreen(levelPrefix: 'test_prefix'),
@@ -162,11 +189,15 @@ void main() {
       expect(find.text('Finish'), findsOneWidget);
     });
 
-    testWidgets('should allow closing the session via the close button', (tester) async {
+    testWidgets('should allow closing the session via the close button', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            questionsProvider('test_prefix').overrideWith((ref) => Future.value(questionPool.take(1).toList())),
+            questionsProvider('test_prefix').overrideWith(
+              (ref) => Future.value(questionPool.take(1).toList()),
+            ),
           ],
           child: const MaterialApp(
             home: LevelSessionScreen(levelPrefix: 'test_prefix'),

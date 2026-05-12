@@ -12,7 +12,8 @@ class ParentSettingsScreen extends ConsumerStatefulWidget {
   const ParentSettingsScreen({super.key});
 
   @override
-  ConsumerState<ParentSettingsScreen> createState() => _ParentSettingsScreenState();
+  ConsumerState<ParentSettingsScreen> createState() =>
+      _ParentSettingsScreenState();
 }
 
 class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
@@ -24,7 +25,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
     try {
       // Clear local state
       ref.read(childIdProvider.notifier).update(null);
-      
+
       // Sign out of Google to clear the chosen account
       await GoogleSignIn().signOut();
       // Sign out of Firebase to clear the session

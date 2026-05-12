@@ -22,42 +22,63 @@ final parentIdProvider = Provider<String>((ref) {
 class ChildIdNotifier extends Notifier<String?> {
   @override
   String? build() => null;
-  
+
   void update(String? id) => state = id;
 }
 
-final childIdProvider = NotifierProvider<ChildIdNotifier, String?>(ChildIdNotifier.new);
+final childIdProvider = NotifierProvider<ChildIdNotifier, String?>(
+  ChildIdNotifier.new,
+);
 
-final userProfileProvider = StreamProvider.family<UserProfile, String>((ref, childId) {
-  final parentId = ref.watch(parentIdProvider);
-  
-  if (childId.isEmpty) {
-    return const Stream.empty();
-  }
-  
-  return ref.watch(firestoreServiceProvider).streamUserProfile(parentId, childId);
-});
-
-final subjectProgressProvider = StreamProvider.family<List<Subject>, String>((ref, childId) {
+final userProfileProvider = StreamProvider.family<UserProfile, String>((
+  ref,
+  childId,
+) {
   final parentId = ref.watch(parentIdProvider);
 
   if (childId.isEmpty) {
     return const Stream.empty();
   }
 
-  return ref.watch(firestoreServiceProvider).streamSubjectProgress(parentId, childId);
+  return ref
+      .watch(firestoreServiceProvider)
+      .streamUserProfile(parentId, childId);
 });
 
-final questionsProvider = FutureProvider.family<List<Question>, String>((ref, prefix) {
+final subjectProgressProvider = StreamProvider.family<List<Subject>, String>((
+  ref,
+  childId,
+) {
+  final parentId = ref.watch(parentIdProvider);
+
+  if (childId.isEmpty) {
+    return const Stream.empty();
+  }
+
+  return ref
+      .watch(firestoreServiceProvider)
+      .streamSubjectProgress(parentId, childId);
+});
+
+final questionsProvider = FutureProvider.family<List<Question>, String>((
+  ref,
+  prefix,
+) {
   return ref.watch(firestoreServiceProvider).getQuestions(prefix);
 });
 
-final levelStarsProvider = StreamProvider.family<Map<String, int>, ({String childId, String subjectId})>((ref, arg) {
-  final parentId = ref.watch(parentIdProvider);
+final levelStarsProvider =
+    StreamProvider.family<
+      Map<String, int>,
+      ({String childId, String subjectId})
+    >((ref, arg) {
+      final parentId = ref.watch(parentIdProvider);
 
-  if (arg.childId.isEmpty) {
-    return const Stream.empty();
-  }
+      if (arg.childId.isEmpty) {
+        return const Stream.empty();
+      }
 
-  return ref.watch(firestoreServiceProvider).streamLevelStars(parentId, arg.childId, arg.subjectId);
-});
+      return ref
+          .watch(firestoreServiceProvider)
+          .streamLevelStars(parentId, arg.childId, arg.subjectId);
+    });

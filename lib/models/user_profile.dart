@@ -28,8 +28,8 @@ class UserProfile {
       activeMascotOutfit: data['activeMascotOutfit'] ?? 'default',
       parentId: data['parentId'],
       streakCount: (data['streakCount'] ?? 0).toInt(),
-      lastActivityDate: data['lastActivityDate'] != null 
-          ? (data['lastActivityDate'] as Timestamp).toDate() 
+      lastActivityDate: data['lastActivityDate'] != null
+          ? (data['lastActivityDate'] as Timestamp).toDate()
           : null,
     );
   }

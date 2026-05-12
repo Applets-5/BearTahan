@@ -31,16 +31,17 @@ class Question {
 
     // Process question text safely with multiple aliases
     String text = extractText(
-      data['text'] ?? 
-      data['questionText'] ?? 
-      data['question'] ?? 
-      data['prompt'] ?? 
-      data['q'] ?? 
-      ''
+      data['text'] ??
+          data['questionText'] ??
+          data['question'] ??
+          data['prompt'] ??
+          data['q'] ??
+          '',
     );
 
     // Process image URL safely
-    dynamic rawImage = data['imageUrl'] ?? data['image'] ?? data['img'] ?? data['picture'];
+    dynamic rawImage =
+        data['imageUrl'] ?? data['image'] ?? data['img'] ?? data['picture'];
     String? finalImageUrl;
     if (rawImage is String) {
       finalImageUrl = rawImage;
@@ -49,21 +50,24 @@ class Question {
     }
 
     // Process answer index safely (handles numbers, strings, and letters like "A", "B")
-    dynamic rawIndex = data['correctanswerid'] ??
-                       data['correctAnswerId'] ??
-                       data['correctAnswerIndex'] ?? 
-                       data['answerIndex'] ?? 
-                       data['correctIndex'] ??
-                       data['correctAnswer'] ??
-                       data['answer'];
-    
+    dynamic rawIndex =
+        data['correctanswerid'] ??
+        data['correctAnswerId'] ??
+        data['correctAnswerIndex'] ??
+        data['answerIndex'] ??
+        data['correctIndex'] ??
+        data['correctAnswer'] ??
+        data['answer'];
+
     int finalIndex = 0;
     if (rawIndex is num) {
       finalIndex = rawIndex.toInt();
     } else if (rawIndex is String) {
       String upper = rawIndex.trim().toUpperCase();
       // Handle letter-based answers (A, B, C, D...)
-      if (upper.length == 1 && upper.codeUnitAt(0) >= 65 && upper.codeUnitAt(0) <= 90) {
+      if (upper.length == 1 &&
+          upper.codeUnitAt(0) >= 65 &&
+          upper.codeUnitAt(0) <= 90) {
         finalIndex = upper.codeUnitAt(0) - 65;
       } else {
         finalIndex = int.tryParse(upper) ?? 0;
@@ -73,7 +77,9 @@ class Question {
     return Question(
       id: id,
       text: text,
-      options: (data['options'] as List? ?? []).map((e) => extractText(e)).toList(),
+      options: (data['options'] as List? ?? [])
+          .map((e) => extractText(e))
+          .toList(),
       correctAnswerIndex: finalIndex,
       imageUrl: finalImageUrl,
     );

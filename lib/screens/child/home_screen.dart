@@ -57,7 +57,9 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final effectiveChildId = childId ?? '';
-    final subjectProgressAsync = ref.watch(subjectProgressProvider(effectiveChildId));
+    final subjectProgressAsync = ref.watch(
+      subjectProgressProvider(effectiveChildId),
+    );
 
     return SafeArea(
       child: CustomScrollView(
@@ -135,9 +137,8 @@ class HomeScreen extends ConsumerWidget {
             loading: () => const SliverToBoxAdapter(
               child: Center(child: CircularProgressIndicator()),
             ),
-            error: (err, _) => SliverToBoxAdapter(
-              child: Center(child: Text('Error: $err')),
-            ),
+            error: (err, _) =>
+                SliverToBoxAdapter(child: Center(child: Text('Error: $err'))),
           ),
         ],
       ),
@@ -199,9 +200,14 @@ class _Header extends ConsumerWidget {
                   size: AppSpacing.lg,
                 ),
                 userProfileAsync.when(
-                  data: (profile) => Text(' ${profile.streakCount}', style: AppTextStyles.bodyBold),
-                  loading: () => const Text(' -', style: AppTextStyles.bodyBold),
-                  error: (_, __) => const Text(' 0', style: AppTextStyles.bodyBold),
+                  data: (profile) => Text(
+                    ' ${profile.streakCount}',
+                    style: AppTextStyles.bodyBold,
+                  ),
+                  loading: () =>
+                      const Text(' -', style: AppTextStyles.bodyBold),
+                  error: (_, __) =>
+                      const Text(' 0', style: AppTextStyles.bodyBold),
                 ),
               ],
             ),

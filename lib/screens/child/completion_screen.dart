@@ -43,24 +43,28 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
   Future<void> _saveProgress() async {
     if (_saved) return;
     final stars = _calculateStars();
-    
+
     // Use widget.childId if provided, otherwise fallback to provider (though widget.childId should be there)
     final childId = widget.childId ?? ref.read(childIdProvider);
     final parentId = ref.read(parentIdProvider);
-    
+
     if (parentId.isEmpty || childId == null || childId.isEmpty) {
-      debugPrint('Missing parentId ($parentId) or childId ($childId), cannot save progress');
+      debugPrint(
+        'Missing parentId ($parentId) or childId ($childId), cannot save progress',
+      );
       return;
     }
 
     try {
-      await ref.read(firestoreServiceProvider).updateLevelProgress(
-        parentId,
-        childId, 
-        widget.subjectId, 
-        widget.levelId, 
-        stars
-      );
+      await ref
+          .read(firestoreServiceProvider)
+          .updateLevelProgress(
+            parentId,
+            childId,
+            widget.subjectId,
+            widget.levelId,
+            stars,
+          );
       setState(() => _saved = true);
     } catch (e) {
       debugPrint('Error saving progress: $e');
@@ -97,8 +101,10 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 style: AppTextStyles.title,
                 textAlign: TextAlign.center,
               ),
-              Text('You got ${widget.score} out of ${widget.total} correct!',
-                  style: AppTextStyles.small),
+              Text(
+                'You got ${widget.score} out of ${widget.total} correct!',
+                style: AppTextStyles.small,
+              ),
               const SizedBox(height: AppSpacing.md),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -130,14 +136,16 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
               const SizedBox(height: AppSpacing.xl),
               PrimaryButton(
                 label: 'Continue',
-                onPressed: () => context.go(AppRouter.subjectFor(widget.childId)),
+                onPressed: () =>
+                    context.go(AppRouter.subjectFor(widget.childId)),
               ),
               const SizedBox(height: AppSpacing.md),
               PrimaryButton(
                 label: 'Try Again',
                 backgroundColor: AppColors.muted,
                 foregroundColor: AppColors.mutedText,
-                onPressed: () => context.go(AppRouter.levelSessionFor(widget.childId)),
+                onPressed: () =>
+                    context.go(AppRouter.levelSessionFor(widget.childId)),
               ),
             ],
           ),
