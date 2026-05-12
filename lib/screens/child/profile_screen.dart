@@ -63,14 +63,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     Expanded(
                       child: Consumer(
                         builder: (context, ref, child) {
-                          final progressAsync = ref.watch(subjectProgressProvider(childId));
+                          final progressAsync = ref.watch(
+                            subjectProgressProvider(childId),
+                          );
                           return progressAsync.maybeWhen(
                             data: (list) {
-                              final totalProgress = list.fold(0, (sum, s) => sum + s.progress);
+                              final totalProgress = list.fold(
+                                0,
+                                (sum, s) => sum + s.progress,
+                              );
                               return StatCard(
                                 icon: Icons.menu_book,
                                 label: 'Progress',
-                                value: '${totalProgress ~/ (list.isEmpty ? 1 : list.length)}%',
+                                value:
+                                    '${totalProgress ~/ (list.isEmpty ? 1 : list.length)}%',
                                 color: AppColors.primary,
                               );
                             },
@@ -106,7 +112,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, _) => Center(child: Text('Error loading profile: $err')),
+            error: (err, _) =>
+                Center(child: Text('Error loading profile: $err')),
           ),
           if (showPin)
             _PinModal(

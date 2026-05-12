@@ -14,13 +14,13 @@ class FirestoreService {
         .doc(childId)
         .snapshots()
         .map((doc) {
-      final data = doc.data() ?? {};
-      // Map 'stars' to 'starBalance' if that's what's used in the DB
-      if (data.containsKey('stars') && !data.containsKey('starBalance')) {
-        data['starBalance'] = data['stars'];
-      }
-      return UserProfile.fromFirestore(doc.id, data);
-    });
+          final data = doc.data() ?? {};
+          // Map 'stars' to 'starBalance' if that's what's used in the DB
+          if (data.containsKey('stars') && !data.containsKey('starBalance')) {
+            data['starBalance'] = data['stars'];
+          }
+          return UserProfile.fromFirestore(doc.id, data);
+        });
   }
 
   Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
@@ -31,9 +31,11 @@ class FirestoreService {
         .doc(childId)
         .collection('subjectProgress')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Subject.fromFirestore(doc.id, doc.data()))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Subject.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
   }
 
   Future<List<Question>> getQuestions(String prefix) async {
@@ -48,7 +50,13 @@ class FirestoreService {
         .toList();
   }
 
-  Future<void> updateLevelProgress(String parentId, String childId, String subjectId, String levelId, int stars) async {
+  Future<void> updateLevelProgress(
+    String parentId,
+    String childId,
+    String subjectId,
+    String levelId,
+    int stars,
+  ) async {
     final childDocRef = _db
         .collection('parents')
         .doc(parentId)
@@ -65,13 +73,16 @@ class FirestoreService {
       final levelSnapshot = await transaction.get(levelDocRef);
       final childSnapshot = await transaction.get(childDocRef);
 
-      final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0).toInt();
+      final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0)
+          .toInt();
       final childData = childSnapshot.data() ?? {};
-      final int currentBalance = (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
+      final int currentBalance =
+          (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
 
       // Streak Logic
       int newStreak = (childData['streakCount'] ?? 0).toInt();
-      final Timestamp? lastActivityTimestamp = childData['lastActivityDate'] as Timestamp?;
+      final Timestamp? lastActivityTimestamp =
+          childData['lastActivityDate'] as Timestamp?;
       final DateTime now = DateTime.now();
       final DateTime today = DateTime(now.year, now.month, now.day);
 
@@ -84,7 +95,11 @@ class FirestoreService {
         });
       } else {
         final DateTime lastActivity = lastActivityTimestamp.toDate();
-        final DateTime lastActivityDay = DateTime(lastActivity.year, lastActivity.month, lastActivity.day);
+        final DateTime lastActivityDay = DateTime(
+          lastActivity.year,
+          lastActivity.month,
+          lastActivity.day,
+        );
         final difference = today.difference(lastActivityDay).inDays;
 
         if (difference == 1) {
@@ -108,20 +123,26 @@ class FirestoreService {
       // Logic: Status of level remains highest stars
       if (stars > previousBestStars) {
         transaction.set(levelDocRef, {'stars': stars}, SetOptions(merge: true));
-        
+
         // Total star count increment by difference
         final int improvement = stars - previousBestStars;
-        final String balanceField = childData.containsKey('stars') ? 'stars' : 'starBalance';
-        transaction.update(childDocRef, {balanceField: currentBalance + improvement});
+        final String balanceField = childData.containsKey('stars')
+            ? 'stars'
+            : 'starBalance';
+        transaction.update(childDocRef, {
+          balanceField: currentBalance + improvement,
+        });
 
         // Update subject progress
-        final subjectDocRef = childDocRef.collection('subjectProgress').doc(subjectId);
+        final subjectDocRef = childDocRef
+            .collection('subjectProgress')
+            .doc(subjectId);
         final levelsSnapshot = await childDocRef
             .collection('subjectProgress')
             .doc(subjectId)
             .collection('levels')
             .get();
-        
+
         // Count how many levels have at least 1 star
         int completedLevels = 0;
         final Map<String, int> starMap = {};
@@ -130,7 +151,7 @@ class FirestoreService {
           starMap[doc.id] = s;
           if (s > 0) completedLevels++;
         }
-        
+
         // Ensure the current level is counted if it was just updated and not yet in levelsSnapshot
         if (stars > 0 && (starMap[levelId] ?? 0) == 0) {
           completedLevels++;
@@ -145,7 +166,11 @@ class FirestoreService {
     });
   }
 
-  Stream<Map<String, int>> streamLevelStars(String parentId, String childId, String subjectId) {
+  Stream<Map<String, int>> streamLevelStars(
+    String parentId,
+    String childId,
+    String subjectId,
+  ) {
     return _db
         .collection('parents')
         .doc(parentId)
@@ -156,12 +181,12 @@ class FirestoreService {
         .collection('levels')
         .snapshots()
         .map((snapshot) {
-      final Map<String, int> stars = {};
-      for (var doc in snapshot.docs) {
-        stars[doc.id] = (doc.data()['stars'] ?? 0).toInt();
-      }
-      return stars;
-    });
+          final Map<String, int> stars = {};
+          for (var doc in snapshot.docs) {
+            stars[doc.id] = (doc.data()['stars'] ?? 0).toInt();
+          }
+          return stars;
+        });
   }
 
   Future<void> seedMockData(String uid) async {

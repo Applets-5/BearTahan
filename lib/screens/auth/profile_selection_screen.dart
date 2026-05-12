@@ -76,7 +76,9 @@ class ProfileSelectionScreen extends ConsumerWidget {
                                       activeOutfitId:
                                           data['activeOutfitID'] as String?,
                                       onTap: () {
-                                        ref.read(childIdProvider.notifier).update(doc.id);
+                                        ref
+                                            .read(childIdProvider.notifier)
+                                            .update(doc.id);
                                         if (hasSelectedMascot) {
                                           context.go(
                                             AppRouter.childHomeFor(doc.id),

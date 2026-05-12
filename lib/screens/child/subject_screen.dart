@@ -17,7 +17,9 @@ class SubjectScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final effectiveChildId = childId ?? '';
-    final starsAsync = ref.watch(levelStarsProvider((childId: effectiveChildId, subjectId: subjectId)));
+    final starsAsync = ref.watch(
+      levelStarsProvider((childId: effectiveChildId, subjectId: subjectId)),
+    );
 
     return Scaffold(
       body: starsAsync.when(
@@ -45,23 +47,30 @@ class SubjectScreen extends ConsumerWidget {
                   itemBuilder: (context, index) {
                     final levelId = 'l${index + 1}';
                     final stars = starMap[levelId] ?? 0;
-                    
-                    // Logic: Level 1 is always unlocked. 
+
+                    // Logic: Level 1 is always unlocked.
                     // Others unlock if the previous level has at least 1 star.
-                    bool isUnlocked = index == 0 || (starMap['l$index'] ?? 0) > 0;
+                    bool isUnlocked =
+                        index == 0 || (starMap['l$index'] ?? 0) > 0;
 
                     if (!isUnlocked) {
                       final isBoss = index == 4;
                       return LockedLevelTile(
-                        title: isBoss ? 'Chapter Summary' : 'Level ${index + 1}',
-                        subtitle: isBoss ? 'Boss challenge' : 'Complete previous level to unlock',
+                        title: isBoss
+                            ? 'Chapter Summary'
+                            : 'Level ${index + 1}',
+                        subtitle: isBoss
+                            ? 'Boss challenge'
+                            : 'Complete previous level to unlock',
                       );
                     }
 
                     final boss = index == 4;
                     return LevelTile(
                       title: boss ? 'Chapter Summary' : 'Level ${index + 1}',
-                      subtitle: boss ? 'Boss challenge' : 'Practice words and sounds',
+                      subtitle: boss
+                          ? 'Boss challenge'
+                          : 'Practice words and sounds',
                       stars: stars,
                       isBoss: boss,
                       onTap: () => context.push(
