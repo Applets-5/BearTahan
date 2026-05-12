@@ -1,28 +1,42 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../models/question.dart';
+import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/primary_button.dart';
 
-class LevelSessionScreen extends StatefulWidget {
-  const LevelSessionScreen({super.key, this.childId});
+class LevelSessionScreen extends ConsumerStatefulWidget {
+  const LevelSessionScreen({
+    super.key,
+    this.childId,
+    this.levelPrefix = 'bm_c1_l1_',
+    this.subjectId = 'bm',
+    this.levelId = 'l1',
+  });
 
   final String? childId;
+  final String levelPrefix;
+  final String subjectId;
+  final String levelId;
 
   @override
-  State<LevelSessionScreen> createState() => _LevelSessionScreenState();
+  ConsumerState<LevelSessionScreen> createState() => _LevelSessionScreenState();
 }
 
-class _LevelSessionScreenState extends State<LevelSessionScreen> {
+class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
+  int currentQuestionIndex = 0;
+  int score = 0;
   Timer? _sessionTimer;
   int _elapsedSeconds = 0;
   bool _timerStarted = false;
 
   int? selected;
-  final options = const ['Kucing', 'Rumah', 'Buku', 'Bola'];
+  List<Question>? shuffledQuestions;
 
   @override
   void initState() {
@@ -88,133 +102,185 @@ class _LevelSessionScreenState extends State<LevelSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final questionsAsync = ref.watch(questionsProvider(widget.levelPrefix));
+
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            children: [
-              Row(
+        child: questionsAsync.when(
+          data: (rawQuestions) {
+            if (rawQuestions.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('No questions found for this level.'),
+                    const SizedBox(height: AppSpacing.md),
+                    PrimaryButton(
+                      label: 'Go Back',
+                      onPressed: () => context.pop(),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            // Shuffle and pick 10 questions once per session
+            if (shuffledQuestions == null) {
+              final List<Question> temp = List.from(rawQuestions)..shuffle();
+              shuffledQuestions = temp.take(10).toList();
+            }
+
+            final questions = shuffledQuestions!;
+            final question = questions[currentQuestionIndex];
+            final isLastQuestion = currentQuestionIndex == questions.length - 1;
+            final progress = (currentQuestionIndex + 1) / questions.length;
+
+            return Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
                 children: [
-                  IconButton(
-                    onPressed: () => context.pop(),
-                    icon: const Icon(Icons.close, color: AppColors.mutedText),
-                  ),
-                  const Expanded(
-                    child: LinearProgressIndicator(
-                      value: .45,
-                      minHeight: AppSpacing.md,
-                      color: AppColors.subjectBm,
-                      backgroundColor: AppColors.muted,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  const Icon(Icons.star, color: AppColors.star),
-                  const Text('3/10', style: AppTextStyles.bodyBold),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Question 4/10',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.timer, size: 18, color: Colors.blue),
-                        const SizedBox(width: 6),
-                        Text(
-                          _formatElapsedTime(),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => context.pop(),
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppColors.mutedText,
                         ),
-                      ],
-                    ),
+                      ),
+                      Expanded(
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: AppSpacing.md,
+                          color: AppColors.subjectBm,
+                          backgroundColor: AppColors.muted,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      const Icon(Icons.star, color: AppColors.star),
+                      Text(
+                        '${currentQuestionIndex + 1}/${questions.length}',
+                        style: AppTextStyles.bodyBold,
+                      ),
+                    ],
                   ),
+                  const Spacer(),
+                  Text(
+                    question.text,
+                    style: AppTextStyles.cardTitle,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  if (question.imageUrl != null &&
+                      question.imageUrl!.isNotEmpty)
+                    Container(
+                      height: 104,
+                      width: 104,
+                      decoration: BoxDecoration(
+                        color: AppColors.imagePlaceholder,
+                        borderRadius: AppRadius.r(AppRadius.xl),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: AppRadius.r(AppRadius.xl),
+                        child: Image.network(
+                          question.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.image,
+                                color: AppColors.mutedText,
+                                size: 48,
+                              ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: AppSpacing.xl),
+                  ...List.generate(
+                    question.options.length,
+                    (index) => _option(index, question),
+                  ),
+                  const Spacer(),
+                  if (selected != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: selected == question.correctAnswerIndex
+                            ? AppColors.accentLight
+                            : AppColors.destructiveLight,
+                        borderRadius: AppRadius.r(AppRadius.lg),
+                      ),
+                      child: Text(
+                        selected == question.correctAnswerIndex
+                            ? 'Correct! Well done!'
+                            : 'Not quite! The answer is "${question.options[question.correctAnswerIndex]}".',
+                        style: AppTextStyles.bodyBold,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    PrimaryButton(
+                      label: isLastQuestion ? 'Finish' : 'Next',
+                      icon: Icons.arrow_forward_rounded,
+                      onPressed: () {
+                        if (isLastQuestion) {
+                          final params = {
+                            'childId': widget.childId ?? '',
+                            'score': score.toString(),
+                            'total': questions.length.toString(),
+                            'levelId': widget.levelId,
+                            'subjectId': widget.subjectId,
+                          };
+                          context.go(
+                            Uri(
+                              path: AppRouter.completion,
+                              queryParameters: params,
+                            ).toString(),
+                          );
+                        } else {
+                          setState(() {
+                            currentQuestionIndex++;
+                            selected = null;
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ],
               ),
-              const Spacer(),
-              const Text(
-                'What word matches this picture?',
-                style: AppTextStyles.cardTitle,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                height: 104,
-                width: 104,
-                decoration: BoxDecoration(
-                  color: AppColors.imagePlaceholder,
-                  borderRadius: AppRadius.r(AppRadius.xl),
-                ),
-                child: const Icon(
-                  Icons.image,
-                  color: AppColors.mutedText,
-                  size: 48,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              ...List.generate(options.length, _option),
-              const Spacer(),
-              if (selected != null) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: selected == 1
-                        ? AppColors.accentLight
-                        : AppColors.destructiveLight,
-                    borderRadius: AppRadius.r(AppRadius.lg),
-                  ),
-                  child: Text(
-                    selected == 1
-                        ? 'Correct! Well done!'
-                        : 'Not quite! The answer is "Rumah".',
-                    style: AppTextStyles.bodyBold,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                PrimaryButton(
-                  label: 'Next',
-                  icon: Icons.arrow_forward_rounded,
-                  onPressed: _completeSession,
-                ),
-              ],
-            ],
-          ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text('Error: $err')),
         ),
       ),
     );
   }
 
-  Widget _option(int index) {
+  Widget _option(int index, Question question) {
     final picked = selected == index;
-    final correct = selected != null && index == 1;
-    final color = correct
+    final isCorrect = index == question.correctAnswerIndex;
+    final showCorrect = selected != null && isCorrect;
+    final showWrong = picked && !isCorrect;
+
+    final color = showCorrect
         ? AppColors.accentLight
-        : picked
+        : showWrong
         ? AppColors.destructiveLight
         : AppColors.card;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: InkWell(
-        onTap: selected == null ? () => setState(() => selected = index) : null,
+        onTap: selected == null
+            ? () {
+                setState(() {
+                  selected = index;
+                  if (index == question.correctAnswerIndex) {
+                    score++;
+                  }
+                });
+              }
+            : null,
         borderRadius: AppRadius.r(AppRadius.lg),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -222,9 +288,9 @@ class _LevelSessionScreenState extends State<LevelSessionScreen> {
             color: color,
             borderRadius: AppRadius.r(AppRadius.lg),
             border: Border.all(
-              color: correct
+              color: showCorrect
                   ? AppColors.accent
-                  : picked
+                  : showWrong
                   ? AppColors.destructive
                   : AppColors.border,
             ),
@@ -240,7 +306,12 @@ class _LevelSessionScreenState extends State<LevelSessionScreen> {
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
-              Text(options[index], style: AppTextStyles.bodyBold),
+              Expanded(
+                child: Text(
+                  question.options[index],
+                  style: AppTextStyles.bodyBold,
+                ),
+              ),
             ],
           ),
         ),

@@ -5,20 +5,26 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 
-class ParentSettingsScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/data_providers.dart';
+
+class ParentSettingsScreen extends ConsumerStatefulWidget {
   const ParentSettingsScreen({super.key});
 
   @override
-  State<ParentSettingsScreen> createState() => _ParentSettingsScreenState();
+  ConsumerState<ParentSettingsScreen> createState() => _ParentSettingsScreenState();
 }
 
-class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
+class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
   bool sound = true;
   bool claims = true;
   bool goals = true;
 
   Future<void> _logout(BuildContext context) async {
     try {
+      // Clear local state
+      ref.read(childIdProvider.notifier).update(null);
+      
       // Sign out of Google to clear the chosen account
       await GoogleSignIn().signOut();
       // Sign out of Firebase to clear the session

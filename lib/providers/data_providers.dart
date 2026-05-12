@@ -1,0 +1,63 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../models/subject.dart';
+import '../models/user_profile.dart';
+import '../models/question.dart';
+import '../services/firestore_service.dart';
+import '../router/app_router.dart';
+
+final firestoreServiceProvider = Provider((ref) => FirestoreService());
+
+final authStateProvider = StreamProvider<User?>((ref) {
+  return FirebaseAuth.instance.authStateChanges();
+});
+
+final parentIdProvider = Provider<String>((ref) {
+  final user = ref.watch(authStateProvider).value;
+  return user?.uid ?? '';
+});
+
+// In Riverpod 3.0, StateProvider is removed. Use NotifierProvider instead.
+class ChildIdNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  
+  void update(String? id) => state = id;
+}
+
+final childIdProvider = NotifierProvider<ChildIdNotifier, String?>(ChildIdNotifier.new);
+
+final userProfileProvider = StreamProvider.family<UserProfile, String>((ref, childId) {
+  final parentId = ref.watch(parentIdProvider);
+  
+  if (childId.isEmpty) {
+    return const Stream.empty();
+  }
+  
+  return ref.watch(firestoreServiceProvider).streamUserProfile(parentId, childId);
+});
+
+final subjectProgressProvider = StreamProvider.family<List<Subject>, String>((ref, childId) {
+  final parentId = ref.watch(parentIdProvider);
+
+  if (childId.isEmpty) {
+    return const Stream.empty();
+  }
+
+  return ref.watch(firestoreServiceProvider).streamSubjectProgress(parentId, childId);
+});
+
+final questionsProvider = FutureProvider.family<List<Question>, String>((ref, prefix) {
+  return ref.watch(firestoreServiceProvider).getQuestions(prefix);
+});
+
+final levelStarsProvider = StreamProvider.family<Map<String, int>, ({String childId, String subjectId})>((ref, arg) {
+  final parentId = ref.watch(parentIdProvider);
+
+  if (arg.childId.isEmpty) {
+    return const Stream.empty();
+  }
+
+  return ref.watch(firestoreServiceProvider).streamLevelStars(parentId, arg.childId, arg.subjectId);
+});

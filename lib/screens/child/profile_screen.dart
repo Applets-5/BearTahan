@@ -1,87 +1,112 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/mascot_widget.dart';
 import '../../widgets/parent/stat_card.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool showPin = false;
 
   @override
   Widget build(BuildContext context) {
+    final childId = ref.watch(childIdProvider) ?? '';
+    final userProfileAsync = ref.watch(userProfileProvider(childId));
+
     return SafeArea(
       child: Stack(
         children: [
-          ListView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            children: [
-              const Text('Profile', style: AppTextStyles.screenTitle),
-              const SizedBox(height: AppSpacing.lg),
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.xxl),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: AppRadius.r(AppRadius.xl),
-                  boxShadow: AppShadows.card,
+          userProfileAsync.when(
+            data: (profile) => ListView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              children: [
+                const Text('Profile', style: AppTextStyles.screenTitle),
+                const SizedBox(height: AppSpacing.lg),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.xxl),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: AppRadius.r(AppRadius.xl),
+                    boxShadow: AppShadows.card,
+                  ),
+                  child: Column(
+                    children: [
+                      ActiveMascotWidget(childId: childId, size: 96),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(profile.name, style: AppTextStyles.cardTitle),
+                      const Text('Tap to edit name', style: AppTextStyles.tiny),
+                    ],
+                  ),
                 ),
-                child: const Column(
+                const SizedBox(height: AppSpacing.md),
+                Row(
                   children: [
-                    MascotWidget(size: 96),
-                    SizedBox(height: AppSpacing.md),
-                    Text('Aina', style: AppTextStyles.cardTitle),
-                    Text('Tap to edit name', style: AppTextStyles.tiny),
+                    Expanded(
+                      child: StatCard(
+                        icon: Icons.star,
+                        label: 'Available',
+                        value: profile.starBalance.toString(),
+                        color: AppColors.star,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Consumer(
+                        builder: (context, ref, child) {
+                          final progressAsync = ref.watch(subjectProgressProvider(childId));
+                          return progressAsync.maybeWhen(
+                            data: (list) {
+                              final totalProgress = list.fold(0, (sum, s) => sum + s.progress);
+                              return StatCard(
+                                icon: Icons.menu_book,
+                                label: 'Progress',
+                                value: '${totalProgress ~/ (list.isEmpty ? 1 : list.length)}%',
+                                color: AppColors.primary,
+                              );
+                            },
+                            orElse: () => const StatCard(
+                              icon: Icons.menu_book,
+                              label: 'Progress',
+                              value: '0%',
+                              color: AppColors.primary,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: StatCard(
+                        icon: Icons.local_fire_department,
+                        label: 'Streak',
+                        value: '${profile.streakCount}d',
+                        color: AppColors.destructive,
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const Row(
-                children: [
-                  Expanded(
-                    child: StatCard(
-                      icon: Icons.star,
-                      label: 'Available',
-                      value: '120',
-                      color: AppColors.star,
-                    ),
-                  ),
-                  SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: StatCard(
-                      icon: Icons.menu_book,
-                      label: 'Lessons',
-                      value: '24',
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: StatCard(
-                      icon: Icons.local_fire_department,
-                      label: 'Streak',
-                      value: '5d',
-                      color: AppColors.destructive,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _ActivityCard(),
-              const SizedBox(height: AppSpacing.md),
-              FilledButton.icon(
-                onPressed: () => setState(() => showPin = true),
-                icon: const Icon(Icons.login),
-                label: const Text('Parent Mode'),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.md),
+                _ActivityCard(),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton.icon(
+                  onPressed: () => setState(() => showPin = true),
+                  icon: const Icon(Icons.login),
+                  label: const Text('Parent Mode'),
+                ),
+              ],
+            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error loading profile: $err')),
           ),
           if (showPin)
             _PinModal(
