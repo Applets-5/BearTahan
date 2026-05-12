@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -15,8 +17,74 @@ class LevelSessionScreen extends StatefulWidget {
 }
 
 class _LevelSessionScreenState extends State<LevelSessionScreen> {
+  Timer? _sessionTimer;
+  int _elapsedSeconds = 0;
+  bool _timerStarted = false;
+
   int? selected;
   final options = const ['Kucing', 'Rumah', 'Buku', 'Bola'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startSessionTimer();
+    });
+  }
+
+  @override
+  void dispose() {
+    _stopSessionTimer();
+    super.dispose();
+  }
+
+  void _startSessionTimer() {
+    if (_timerStarted) return;
+    _timerStarted = true;
+    _sessionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        _elapsedSeconds++;
+      });
+    });
+  }
+
+  void _stopSessionTimer() {
+    _sessionTimer?.cancel();
+    _sessionTimer = null;
+  }
+
+  String _formatElapsedTime() {
+    final minutes = (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_elapsedSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  Future<void> _completeSession() async {
+    _stopSessionTimer();
+
+    try {
+      if (widget.childId != null) {
+        await FirebaseFirestore.instance
+            .collection('children')
+            .doc(widget.childId)
+            .collection('attempts')
+            .add({
+              'levelId': 'example_level', // Hardcoded for mockup
+              'score': 100, // Hardcoded for mockup
+              'stars': 3, // Hardcoded for mockup
+              'elapsedTimeSeconds': _elapsedSeconds,
+              'completedAt': FieldValue.serverTimestamp(),
+            });
+      }
+    } catch (e) {
+      debugPrint('Error saving attempt: $e');
+    }
+
+    if (mounted) {
+      context.go(AppRouter.completionFor(widget.childId));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +111,42 @@ class _LevelSessionScreenState extends State<LevelSessionScreen> {
                   const SizedBox(width: AppSpacing.md),
                   const Icon(Icons.star, color: AppColors.star),
                   const Text('3/10', style: AppTextStyles.bodyBold),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Question 4/10',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.timer, size: 18, color: Colors.blue),
+                        const SizedBox(width: 6),
+                        Text(
+                          _formatElapsedTime(),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
               const Spacer(),
@@ -89,8 +193,7 @@ class _LevelSessionScreenState extends State<LevelSessionScreen> {
                 PrimaryButton(
                   label: 'Next',
                   icon: Icons.arrow_forward_rounded,
-                  onPressed: () =>
-                      context.go(AppRouter.completionFor(widget.childId)),
+                  onPressed: _completeSession,
                 ),
               ],
             ],
