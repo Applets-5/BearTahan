@@ -100,7 +100,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  if (question.imageUrl != null)
+                  if (question.imageUrl != null && question.imageUrl!.isNotEmpty)
                     Container(
                       height: 104,
                       width: 104,
@@ -116,20 +116,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                           errorBuilder: (context, error, stackTrace) =>
                               const Icon(Icons.image, color: AppColors.mutedText, size: 48),
                         ),
-                      ),
-                    )
-                  else
-                    Container(
-                      height: 104,
-                      width: 104,
-                      decoration: BoxDecoration(
-                        color: AppColors.imagePlaceholder,
-                        borderRadius: AppRadius.r(AppRadius.xl),
-                      ),
-                      child: const Icon(
-                        Icons.image,
-                        color: AppColors.mutedText,
-                        size: 48,
                       ),
                     ),
                   const SizedBox(height: AppSpacing.xl),

@@ -9,33 +9,39 @@ import '../router/app_router.dart';
 
 final firestoreServiceProvider = Provider((ref) => FirestoreService());
 
+final authStateProvider = StreamProvider<User?>((ref) {
+  return FirebaseAuth.instance.authStateChanges();
+});
+
 final parentIdProvider = Provider<String>((ref) {
-  return FirebaseAuth.instance.currentUser?.uid ?? '';
+  final user = ref.watch(authStateProvider).value;
+  return user?.uid ?? '';
 });
 
-// This provider extracts the childId from the current route's query parameters
-final childIdProvider = Provider<String?>((ref) {
-  final router = AppRouter.router;
-  final queryParams = router.routerDelegate.currentConfiguration.uri.queryParameters;
-  return queryParams['childId'];
-});
-
-final userProfileProvider = StreamProvider<UserProfile>((ref) {
-  final parentId = ref.watch(parentIdProvider);
-  final childId = ref.watch(childIdProvider);
+// In Riverpod 3.0, StateProvider is removed. Use NotifierProvider instead.
+class ChildIdNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
   
-  if (childId == null || childId.isEmpty) {
+  void update(String? id) => state = id;
+}
+
+final childIdProvider = NotifierProvider<ChildIdNotifier, String?>(ChildIdNotifier.new);
+
+final userProfileProvider = StreamProvider.family<UserProfile, String>((ref, childId) {
+  final parentId = ref.watch(parentIdProvider);
+  
+  if (childId.isEmpty) {
     return const Stream.empty();
   }
   
   return ref.watch(firestoreServiceProvider).streamUserProfile(parentId, childId);
 });
 
-final subjectProgressProvider = StreamProvider<List<Subject>>((ref) {
+final subjectProgressProvider = StreamProvider.family<List<Subject>, String>((ref, childId) {
   final parentId = ref.watch(parentIdProvider);
-  final childId = ref.watch(childIdProvider);
 
-  if (childId == null || childId.isEmpty) {
+  if (childId.isEmpty) {
     return const Stream.empty();
   }
 
@@ -46,13 +52,12 @@ final questionsProvider = FutureProvider.family<List<Question>, String>((ref, pr
   return ref.watch(firestoreServiceProvider).getQuestions(prefix);
 });
 
-final levelStarsProvider = StreamProvider.family<Map<String, int>, String>((ref, subjectId) {
+final levelStarsProvider = StreamProvider.family<Map<String, int>, ({String childId, String subjectId})>((ref, arg) {
   final parentId = ref.watch(parentIdProvider);
-  final childId = ref.watch(childIdProvider);
 
-  if (childId == null || childId.isEmpty) {
+  if (arg.childId.isEmpty) {
     return const Stream.empty();
   }
 
-  return ref.watch(firestoreServiceProvider).streamLevelStars(parentId, childId, subjectId);
+  return ref.watch(firestoreServiceProvider).streamLevelStars(parentId, arg.childId, arg.subjectId);
 });

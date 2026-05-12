@@ -1,16 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../../router/app_router.dart';
 import '../../widgets/common/mascot_widget.dart';
+import '../../providers/data_providers.dart';
 
-class ProfileSelectionScreen extends StatelessWidget {
+class ProfileSelectionScreen extends ConsumerWidget {
   const ProfileSelectionScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -74,6 +76,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                                       activeOutfitId:
                                           data['activeOutfitID'] as String?,
                                       onTap: () {
+                                        ref.read(childIdProvider.notifier).update(doc.id);
                                         if (hasSelectedMascot) {
                                           context.go(
                                             AppRouter.childHomeFor(doc.id),

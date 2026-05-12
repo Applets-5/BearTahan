@@ -56,12 +56,13 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final subjectProgressAsync = ref.watch(subjectProgressProvider);
+    final effectiveChildId = childId ?? '';
+    final subjectProgressAsync = ref.watch(subjectProgressProvider(effectiveChildId));
 
     return SafeArea(
       child: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _Header()),
+          SliverToBoxAdapter(child: _Header(childId: effectiveChildId)),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -162,9 +163,12 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _Header extends ConsumerWidget {
+  const _Header({required this.childId});
+  final String childId;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userProfileAsync = ref.watch(userProfileProvider);
+    final userProfileAsync = ref.watch(userProfileProvider(childId));
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -187,14 +191,18 @@ class _Header extends ConsumerWidget {
               color: AppColors.destructiveLight,
               borderRadius: AppRadius.r(AppRadius.xl),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.local_fire_department,
                   color: AppColors.destructive,
                   size: AppSpacing.lg,
                 ),
-                Text(' 5', style: AppTextStyles.bodyBold),
+                userProfileAsync.when(
+                  data: (profile) => Text(' ${profile.streakCount}', style: AppTextStyles.bodyBold),
+                  loading: () => const Text(' -', style: AppTextStyles.bodyBold),
+                  error: (_, __) => const Text(' 0', style: AppTextStyles.bodyBold),
+                ),
               ],
             ),
           ),

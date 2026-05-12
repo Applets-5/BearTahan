@@ -16,7 +16,8 @@ class SubjectScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final starsAsync = ref.watch(levelStarsProvider(subjectId));
+    final effectiveChildId = childId ?? '';
+    final starsAsync = ref.watch(levelStarsProvider((childId: effectiveChildId, subjectId: subjectId)));
 
     return Scaffold(
       body: starsAsync.when(

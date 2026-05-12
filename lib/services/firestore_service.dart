@@ -69,6 +69,42 @@ class FirestoreService {
       final childData = childSnapshot.data() ?? {};
       final int currentBalance = (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
 
+      // Streak Logic
+      int newStreak = (childData['streakCount'] ?? 0).toInt();
+      final Timestamp? lastActivityTimestamp = childData['lastActivityDate'] as Timestamp?;
+      final DateTime now = DateTime.now();
+      final DateTime today = DateTime(now.year, now.month, now.day);
+
+      if (lastActivityTimestamp == null) {
+        // First time activity
+        newStreak = 1;
+        transaction.update(childDocRef, {
+          'streakCount': newStreak,
+          'lastActivityDate': Timestamp.fromDate(today),
+        });
+      } else {
+        final DateTime lastActivity = lastActivityTimestamp.toDate();
+        final DateTime lastActivityDay = DateTime(lastActivity.year, lastActivity.month, lastActivity.day);
+        final difference = today.difference(lastActivityDay).inDays;
+
+        if (difference == 1) {
+          // Consecutive day
+          newStreak += 1;
+          transaction.update(childDocRef, {
+            'streakCount': newStreak,
+            'lastActivityDate': Timestamp.fromDate(today),
+          });
+        } else if (difference > 1) {
+          // Missed days, reset streak
+          newStreak = 1;
+          transaction.update(childDocRef, {
+            'streakCount': newStreak,
+            'lastActivityDate': Timestamp.fromDate(today),
+          });
+        }
+        // If difference == 0 (same day), we don't change streak or date
+      }
+
       // Logic: Status of level remains highest stars
       if (stars > previousBestStars) {
         transaction.set(levelDocRef, {'stars': stars}, SetOptions(merge: true));
@@ -77,8 +113,35 @@ class FirestoreService {
         final int improvement = stars - previousBestStars;
         final String balanceField = childData.containsKey('stars') ? 'stars' : 'starBalance';
         transaction.update(childDocRef, {balanceField: currentBalance + improvement});
+
+        // Update subject progress
+        final subjectDocRef = childDocRef.collection('subjectProgress').doc(subjectId);
+        final levelsSnapshot = await childDocRef
+            .collection('subjectProgress')
+            .doc(subjectId)
+            .collection('levels')
+            .get();
+        
+        // Count how many levels have at least 1 star
+        int completedLevels = 0;
+        final Map<String, int> starMap = {};
+        for (var doc in levelsSnapshot.docs) {
+          final s = (doc.data()['stars'] ?? 0).toInt();
+          starMap[doc.id] = s;
+          if (s > 0) completedLevels++;
+        }
+        
+        // Ensure the current level is counted if it was just updated and not yet in levelsSnapshot
+        if (stars > 0 && (starMap[levelId] ?? 0) == 0) {
+          completedLevels++;
+        }
+
+        final int progressPercentage = ((completedLevels / 8) * 100).toInt();
+        transaction.set(subjectDocRef, {
+          'progress': progressPercentage,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
-      // If stars <= previousBestStars, we do nothing (keep highest stars and don't change balance)
     });
   }
 

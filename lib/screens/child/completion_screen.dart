@@ -43,11 +43,13 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
   Future<void> _saveProgress() async {
     if (_saved) return;
     final stars = _calculateStars();
+    
+    // Use widget.childId if provided, otherwise fallback to provider (though widget.childId should be there)
+    final childId = widget.childId ?? ref.read(childIdProvider);
     final parentId = ref.read(parentIdProvider);
-    final childId = ref.read(childIdProvider);
     
     if (parentId.isEmpty || childId == null || childId.isEmpty) {
-      debugPrint('Missing parentId or childId, cannot save progress');
+      debugPrint('Missing parentId ($parentId) or childId ($childId), cannot save progress');
       return;
     }
 
