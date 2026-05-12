@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -26,8 +27,10 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
       // Clear local state
       ref.read(childIdProvider.notifier).update(null);
 
-      // Sign out of Google to clear the chosen account
-      await GoogleSignIn().signOut();
+      if (!kIsWeb && defaultTargetPlatform != TargetPlatform.windows) {
+        // Sign out of Google to clear the chosen account where the plugin exists.
+        await GoogleSignIn().signOut();
+      }
       // Sign out of Firebase to clear the session
       await FirebaseAuth.instance.signOut();
 
