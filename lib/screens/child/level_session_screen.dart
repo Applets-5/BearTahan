@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,8 +31,74 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
 class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   int currentQuestionIndex = 0;
   int score = 0;
+  Timer? _sessionTimer;
+  int _elapsedSeconds = 0;
+  bool _timerStarted = false;
+
   int? selected;
   List<Question>? shuffledQuestions;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startSessionTimer();
+    });
+  }
+
+  @override
+  void dispose() {
+    _stopSessionTimer();
+    super.dispose();
+  }
+
+  void _startSessionTimer() {
+    if (_timerStarted) return;
+    _timerStarted = true;
+    _sessionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        _elapsedSeconds++;
+      });
+    });
+  }
+
+  void _stopSessionTimer() {
+    _sessionTimer?.cancel();
+    _sessionTimer = null;
+  }
+
+  String _formatElapsedTime() {
+    final minutes = (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_elapsedSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  Future<void> _completeSession() async {
+    _stopSessionTimer();
+
+    try {
+      if (widget.childId != null) {
+        await FirebaseFirestore.instance
+            .collection('children')
+            .doc(widget.childId)
+            .collection('attempts')
+            .add({
+              'levelId': 'example_level', // Hardcoded for mockup
+              'score': 100, // Hardcoded for mockup
+              'stars': 3, // Hardcoded for mockup
+              'elapsedTimeSeconds': _elapsedSeconds,
+              'completedAt': FieldValue.serverTimestamp(),
+            });
+      }
+    } catch (e) {
+      debugPrint('Error saving attempt: $e');
+    }
+
+    if (mounted) {
+      context.go(AppRouter.completionFor(widget.childId));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +129,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               final List<Question> temp = List.from(rawQuestions)..shuffle();
               shuffledQuestions = temp.take(10).toList();
             }
-            
+
             final questions = shuffledQuestions!;
             final question = questions[currentQuestionIndex];
             final isLastQuestion = currentQuestionIndex == questions.length - 1;
@@ -75,7 +143,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     children: [
                       IconButton(
                         onPressed: () => context.pop(),
-                        icon: const Icon(Icons.close, color: AppColors.mutedText),
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppColors.mutedText,
+                        ),
                       ),
                       Expanded(
                         child: LinearProgressIndicator(
@@ -100,7 +171,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  if (question.imageUrl != null && question.imageUrl!.isNotEmpty)
+                  if (question.imageUrl != null &&
+                      question.imageUrl!.isNotEmpty)
                     Container(
                       height: 104,
                       width: 104,
@@ -114,7 +186,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                           question.imageUrl!,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.image, color: AppColors.mutedText, size: 48),
+                              const Icon(
+                                Icons.image,
+                                color: AppColors.mutedText,
+                                size: 48,
+                              ),
                         ),
                       ),
                     ),
@@ -154,10 +230,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                             'levelId': widget.levelId,
                             'subjectId': widget.subjectId,
                           };
-                          context.go(Uri(
-                            path: AppRouter.completion,
-                            queryParameters: params,
-                          ).toString());
+                          context.go(
+                            Uri(
+                              path: AppRouter.completion,
+                              queryParameters: params,
+                            ).toString(),
+                          );
                         } else {
                           setState(() {
                             currentQuestionIndex++;
@@ -187,8 +265,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final color = showCorrect
         ? AppColors.accentLight
         : showWrong
-            ? AppColors.destructiveLight
-            : AppColors.card;
+        ? AppColors.destructiveLight
+        : AppColors.card;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -213,8 +291,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               color: showCorrect
                   ? AppColors.accent
                   : showWrong
-                      ? AppColors.destructive
-                      : AppColors.border,
+                  ? AppColors.destructive
+                  : AppColors.border,
             ),
             boxShadow: AppShadows.card,
           ),
