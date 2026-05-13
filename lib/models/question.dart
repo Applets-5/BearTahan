@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class Question {
   final String id;
   final String text;
@@ -14,8 +16,8 @@ class Question {
   });
 
   factory Question.fromFirestore(String id, Map<String, dynamic> data) {
-    print('DEBUG: Parsing question document: $id');
-    print('DEBUG: Raw data: $data');
+    debugPrint('DEBUG: Parsing question document: $id');
+    debugPrint('DEBUG: Raw data: $data');
 
     String extractText(dynamic value) {
       if (value is String) return value;

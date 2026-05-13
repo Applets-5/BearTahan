@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
+import 'package:flutter/foundation.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -42,7 +43,7 @@ class FirestoreService {
     final snapshot = await _db
         .collection('questions')
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: prefix)
-        .where(FieldPath.documentId, isLessThan: prefix + '\uf8ff')
+        .where(FieldPath.documentId, isLessThan: '$prefix\uf8ff')
         .get();
 
     return snapshot.docs
@@ -191,7 +192,7 @@ class FirestoreService {
 
   Future<void> seedMockData(String uid) async {
     try {
-      print('Seeding mock data for user: $uid');
+      debugPrint('Seeding mock data for user: $uid');
       // Set user profile
       await _db.collection('users').doc(uid).set({
         'name': 'Olaf',
@@ -199,7 +200,7 @@ class FirestoreService {
         'activeMascotOutfit': 'Hero Cape',
         'parentId': 'scKBgki4JkM7fBSsQDXUgo58Dnl1',
       }, SetOptions(merge: true));
-      print('User profile seeded successfully');
+      debugPrint('User profile seeded successfully');
 
       // Set level 1 progress for BM to 2 stars
       await _db
@@ -263,11 +264,11 @@ class FirestoreService {
             .collection('subjectProgress')
             .doc(id)
             .set(subject, SetOptions(merge: true));
-        print('Subject seeded: $id');
+        debugPrint('Subject seeded: $id');
       }
-      print('All mock data seeded successfully');
+      debugPrint('All mock data seeded successfully');
     } catch (e) {
-      print('Error seeding mock data: $e');
+      debugPrint('Error seeding mock data: $e');
       rethrow;
     }
   }
