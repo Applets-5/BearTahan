@@ -20,6 +20,58 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // 3. Create the Email/Password login function
+  Future<void> _signInWithEmail() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter both email and password.')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logged in successfully!')),
+        );
+        // Navigate to dashboard after successful login
+        context.go('${AppRouter.mascotSelection}?childId=demo_child_001');
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'Sign in failed. Please try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   /// Handles Direct Google Login
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
@@ -133,15 +185,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: AppSpacing.xxl),
 
                   // Login Fields
-                  const TextField(
-                    decoration: InputDecoration(
+                  TextField(
+                    controller: _emailController, // Attach controller
+                    decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.person),
                       hintText: 'Email or Child name',
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  const TextField(
-                    decoration: InputDecoration(
+
+                  // Update the Password Field
+                  TextField(
+                    controller: _passwordController, // Attach controller
+                    decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.lock),
                       hintText: 'Password or Parent PIN',
                     ),
@@ -149,15 +205,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xl),
 
-                  // Login Action
-                  PrimaryButton(
-                    label: 'Log In / Start Learning',
-                    icon: Icons.play_arrow_rounded,
-                    //onPressed: () => context.go(AppRouter.childHome),
-                    onPressed: () => context.go(
-                      '${AppRouter.mascotSelection}?childId=demo_child_001',
-                    ),
-                  ),
+                  // Update the Login Action Button
+                  _isLoading
+                      ? const CircularProgressIndicator() // Show loader for email login too
+                      : PrimaryButton(
+                          label: 'Log In / Start Learning',
+                          icon: Icons.play_arrow_rounded,
+                          onPressed:
+                              _signInWithEmail, // Link the new function here!
+                        ),
                   const SizedBox(height: AppSpacing.md),
                   TextButton(
                     onPressed: () => context.go(AppRouter.parentDashboard),
