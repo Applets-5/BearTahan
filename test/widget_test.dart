@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bear_tahan/screens/auth/login_screen.dart';
-import 'package:bear_tahan/screens/auth/forgot_password_screen.dart';
+//import 'package:bear_tahan/screens/auth/forgot_password_screen.dart';
 import 'package:bear_tahan/providers/data_providers.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:firebase_auth/firebase_auth.dart';
