@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -8,113 +9,262 @@ import '../../router/app_router.dart';
 import '../../widgets/common/mascot_widget.dart';
 import '../../providers/data_providers.dart';
 
-class ProfileSelectionScreen extends ConsumerWidget {
+class ProfileSelectionScreen extends ConsumerStatefulWidget {
   const ProfileSelectionScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileSelectionScreen> createState() =>
+      _ProfileSelectionScreenState();
+}
+
+class _ProfileSelectionScreenState
+    extends ConsumerState<ProfileSelectionScreen> {
+  bool showPin = false;
+
+  Future<void> _enterParentMode() async {
+    final settingsAsync = ref.read(parentSettingsProvider);
+    final settings = settingsAsync.value ?? {};
+    final biometricsEnabled = settings['biometricsEnabled'] ?? false;
+
+    if (biometricsEnabled) {
+      final security = ref.read(securityServiceProvider);
+      final success = await security.authenticateWithBiometrics();
+      if (success && mounted) {
+        context.go(AppRouter.parentDashboard);
+        return;
+      }
+    }
+
+    if (mounted) {
+      setState(() => showPin = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('parents')
-            .doc(user?.uid)
-            .collection('children')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Stack(
+        children: [
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('parents')
+                .doc(user?.uid)
+                .collection('children')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          final children = snapshot.data?.docs ?? [];
+              final children = snapshot.data?.docs ?? [];
 
-          return SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: AppSpacing.maxPhoneWidth,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Who\'s going to BearTahan?',
-                        style: AppTextStyles.title,
+              return SafeArea(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xxxl,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: AppSpacing.maxPhoneWidth,
                       ),
-                      const SizedBox(height: AppSpacing.xxxl),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Who\'s going to BearTahan?',
+                            style: AppTextStyles.title,
+                          ),
+                          const SizedBox(height: AppSpacing.xxxl),
 
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xxl,
-                        ),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final cardWidth =
-                                (constraints.maxWidth - AppSpacing.xl) / 2;
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xxl,
+                            ),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final cardWidth =
+                                    (constraints.maxWidth - AppSpacing.xl) / 2;
 
-                            return Wrap(
-                              spacing: AppSpacing.xl,
-                              runSpacing: AppSpacing.xl,
-                              alignment: WrapAlignment.center,
-                              children: [
-                                ...children.map((doc) {
-                                  final data =
-                                      doc.data() as Map<String, dynamic>;
-                                  final hasSelectedMascot =
-                                      data['hasSelectedStarterMascot'] ==
-                                          true &&
-                                      data['activeOutfitID'] != null;
+                                return Wrap(
+                                  spacing: AppSpacing.xl,
+                                  runSpacing: AppSpacing.xl,
+                                  alignment: WrapAlignment.center,
+                                  children: [
+                                    ...children.map((doc) {
+                                      final data =
+                                          doc.data() as Map<String, dynamic>;
+                                      final hasSelectedMascot =
+                                          data['hasSelectedStarterMascot'] ==
+                                              true &&
+                                          data['activeOutfitID'] != null;
 
-                                  return SizedBox(
-                                    width: cardWidth,
-                                    child: _ChildCard(
-                                      name: data['name'] ?? 'Kid',
-                                      avatar: data['avatar'] ?? '🐻',
-                                      activeOutfitId:
-                                          data['activeOutfitID'] as String?,
-                                      onTap: () {
-                                        ref
-                                            .read(childIdProvider.notifier)
-                                            .update(doc.id);
-                                        if (hasSelectedMascot) {
-                                          context.go(
-                                            AppRouter.childHomeFor(doc.id),
-                                          );
-                                        } else {
-                                          context.go(
-                                            AppRouter.mascotSelectionFor(
-                                              doc.id,
-                                            ),
-                                          );
-                                        }
-                                      },
+                                      return SizedBox(
+                                        width: cardWidth,
+                                        child: _ChildCard(
+                                          name: data['name'] ?? 'Kid',
+                                          avatar: data['avatar'] ?? '🐻',
+                                          activeOutfitId:
+                                              data['activeOutfitID'] as String?,
+                                          onTap: () {
+                                            ref
+                                                .read(childIdProvider.notifier)
+                                                .update(doc.id);
+                                            if (hasSelectedMascot) {
+                                              context.go(
+                                                AppRouter.childHomeFor(doc.id),
+                                              );
+                                            } else {
+                                              context.go(
+                                                AppRouter.mascotSelectionFor(
+                                                  doc.id,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                        ),
+                                      );
+                                    }),
+
+                                    SizedBox(
+                                      width: cardWidth,
+                                      child: _AddChildCard(
+                                        isCentered: children.isEmpty,
+                                        onTap: () =>
+                                            context.go(AppRouter.createProfile),
+                                      ),
                                     ),
-                                  );
-                                }),
-
-                                SizedBox(
-                                  width: cardWidth,
-                                  child: _AddChildCard(
-                                    isCentered: children.isEmpty,
-                                    onTap: () =>
-                                        context.go(AppRouter.createProfile),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xxxl),
+                          TextButton.icon(
+                            onPressed: _enterParentMode,
+                            icon: const Icon(Icons.dashboard),
+                            label: const Text('Parent Dashboard'),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+              );
+            },
+          ),
+          if (showPin)
+            _PinModal(
+              onClose: () => setState(() => showPin = false),
+              onEnter: () => context.go(AppRouter.parentDashboard),
             ),
-          );
-        },
+        ],
+      ),
+    );
+  }
+}
+
+// Reuse the _PinModal logic from profile_screen.dart (ideally move it to common)
+class _PinModal extends ConsumerStatefulWidget {
+  const _PinModal({required this.onClose, required this.onEnter});
+  final VoidCallback onClose;
+  final VoidCallback onEnter;
+
+  @override
+  ConsumerState<_PinModal> createState() => _PinModalState();
+}
+
+class _PinModalState extends ConsumerState<_PinModal> {
+  final _controller = TextEditingController();
+  String? _error;
+
+  void _verify() {
+    final settingsAsync = ref.read(parentSettingsProvider);
+    final storedPin = settingsAsync.value?['parentPin'];
+    final security = ref.read(securityServiceProvider);
+
+    if (security.verifyPin(_controller.text, storedPin)) {
+      widget.onEnter();
+    } else {
+      setState(() => _error = 'Invalid PIN. Try again.');
+      _controller.clear();
+    }
+  }
+
+  Future<void> _tryBiometrics() async {
+    final security = ref.read(securityServiceProvider);
+    if (await security.authenticateWithBiometrics()) {
+      widget.onEnter();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black38,
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.all(AppSpacing.xxl),
+          padding: const EdgeInsets.all(AppSpacing.xxl),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: AppRadius.r(AppRadius.xl),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Parent Security', style: AppTextStyles.cardTitle),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: _controller,
+                obscureText: true,
+                textAlign: TextAlign.center,
+                keyboardType: TextInputType.number,
+                maxLength: 4,
+                decoration: InputDecoration(
+                  hintText: 'Enter 4-digit PIN',
+                  errorText: _error,
+                  counterText: '',
+                ),
+                onSubmitted: (_) => _verify(),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _verify,
+                      child: const Text('Enter'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: widget.onClose,
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                ],
+              ),
+              if (!kIsWeb) ...[
+                const SizedBox(height: AppSpacing.md),
+                TextButton.icon(
+                  onPressed: _tryBiometrics,
+                  icon: const Icon(Icons.fingerprint),
+                  label: const Text('Use Biometrics'),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

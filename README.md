@@ -19,8 +19,10 @@ flutter pub get
 
 ```bash
 flutter doctor
-flutter run
+flutter run -d chrome --web-port 1563
 ```
+
+> **Web Development:** We use a fixed port (**1563**) to keep Google Sign-In working. If you are using VS Code, use the **"BearTahan (Web)"** debug configuration.
 
 > **Version check:** Run `flutter --version` and confirm you are on `3.41.9`.  
 > If not, run `flutter upgrade` or reinstall. Using a different version will cause CI failures.

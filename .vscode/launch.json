@@ -2,10 +2,22 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "SavEat",
+            "name": "BearTahan (Web)",
             "request": "launch",
             "type": "dart",
-            "args": ["--web-port", "1563"] 
+            "args": [
+                "--web-port",
+                "1563"
+            ]
+        },
+        {
+            "name": "BearTahan",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--web-port",
+                "1563"
+            ]
         }
     ]
 }

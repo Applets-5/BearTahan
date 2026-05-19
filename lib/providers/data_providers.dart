@@ -7,15 +7,25 @@ import '../models/question.dart';
 import '../services/firestore_service.dart';
 //import '../router/app_router.dart';
 
+import '../services/security_service.dart';
+
 final firestoreServiceProvider = Provider((ref) => FirestoreService());
+final securityServiceProvider = Provider((ref) => SecurityService());
+final firebaseAuthProvider = Provider((ref) => FirebaseAuth.instance);
 
 final authStateProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.authStateChanges();
+  return ref.watch(firebaseAuthProvider).authStateChanges();
 });
 
 final parentIdProvider = Provider<String>((ref) {
   final user = ref.watch(authStateProvider).value;
   return user?.uid ?? '';
+});
+
+final parentSettingsProvider = StreamProvider<Map<String, dynamic>>((ref) {
+  final parentId = ref.watch(parentIdProvider);
+  if (parentId.isEmpty) return const Stream.empty();
+  return ref.watch(firestoreServiceProvider).streamParentSettings(parentId);
 });
 
 // In Riverpod 3.0, StateProvider is removed. Use NotifierProvider instead.
