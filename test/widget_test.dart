@@ -20,12 +20,10 @@ void main() {
   testWidgets('Login Screen shows core branding and buttons', (tester) async {
     tester.view.physicalSize = const Size(1344, 2992);
     tester.view.devicePixelRatio = 3.5;
-    
+
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          firebaseAuthProvider.overrideWithValue(mockAuth),
-        ],
+        overrides: [firebaseAuthProvider.overrideWithValue(mockAuth)],
         child: const MaterialApp(
           debugShowCheckedModeBanner: false,
           home: LoginScreen(),

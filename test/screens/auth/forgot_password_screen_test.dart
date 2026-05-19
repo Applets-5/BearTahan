@@ -17,12 +17,8 @@ void main() {
 
   Widget createWidgetUnderTest() {
     return ProviderScope(
-      overrides: [
-        firebaseAuthProvider.overrideWithValue(mockAuth),
-      ],
-      child: const MaterialApp(
-        home: ForgotPasswordScreen(),
-      ),
+      overrides: [firebaseAuthProvider.overrideWithValue(mockAuth)],
+      child: const MaterialApp(home: ForgotPasswordScreen()),
     );
   }
 
@@ -31,7 +27,9 @@ void main() {
 
     expect(find.text('Reset Password'), findsOneWidget);
     expect(
-      find.text('Enter your email address and we\'ll send you a link to reset your password.'),
+      find.text(
+        'Enter your email address and we\'ll send you a link to reset your password.',
+      ),
       findsOneWidget,
     );
     expect(find.byType(TextField), findsOneWidget);
@@ -47,9 +45,12 @@ void main() {
     expect(find.text('Please enter your email address.'), findsOneWidget);
   });
 
-  testWidgets('calls sendPasswordResetEmail and pops when successful', (tester) async {
-    when(() => mockAuth.sendPasswordResetEmail(email: any(named: 'email')))
-        .thenAnswer((_) async => Future.value());
+  testWidgets('calls sendPasswordResetEmail and pops when successful', (
+    tester,
+  ) async {
+    when(
+      () => mockAuth.sendPasswordResetEmail(email: any(named: 'email')),
+    ).thenAnswer((_) async => Future.value());
 
     await tester.pumpWidget(createWidgetUnderTest());
 
@@ -57,9 +58,14 @@ void main() {
     await tester.tap(find.text('Send Reset Link'));
     await tester.pump();
 
-    verify(() => mockAuth.sendPasswordResetEmail(email: 'test@example.com')).called(1);
-    
+    verify(
+      () => mockAuth.sendPasswordResetEmail(email: 'test@example.com'),
+    ).called(1);
+
     // Check for success snackbar
-    expect(find.text('Password reset email sent! Please check your inbox.'), findsOneWidget);
+    expect(
+      find.text('Password reset email sent! Please check your inbox.'),
+      findsOneWidget,
+    );
   });
 }

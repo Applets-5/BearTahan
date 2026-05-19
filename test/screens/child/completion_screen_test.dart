@@ -20,9 +20,7 @@ void main() {
 
   Widget createWidget({int score = 0, int total = 0}) {
     return ProviderScope(
-      overrides: [
-        firebaseAuthProvider.overrideWithValue(mockAuth),
-      ],
+      overrides: [firebaseAuthProvider.overrideWithValue(mockAuth)],
       child: MaterialApp(
         home: CompletionScreen(
           score: score,
@@ -34,14 +32,18 @@ void main() {
   }
 
   group('CompletionScreen Stars', () {
-    testWidgets('should show 3 stars for a perfect score (100%)', (tester) async {
+    testWidgets('should show 3 stars for a perfect score (100%)', (
+      tester,
+    ) async {
       await tester.pumpWidget(createWidget(score: 10, total: 10));
       await tester.pumpAndSettle();
 
       final starIcons = find.byIcon(Icons.star);
       expect(starIcons, findsNWidgets(3));
-      
-      final coloredStars = tester.widgetList<Icon>(starIcons).where((icon) => icon.color == AppColors.star);
+
+      final coloredStars = tester
+          .widgetList<Icon>(starIcons)
+          .where((icon) => icon.color == AppColors.star);
       expect(coloredStars.length, 3);
     });
 
@@ -50,7 +52,9 @@ void main() {
       await tester.pumpAndSettle();
 
       final starIcons = find.byIcon(Icons.star);
-      final coloredStars = tester.widgetList<Icon>(starIcons).where((icon) => icon.color == AppColors.star);
+      final coloredStars = tester
+          .widgetList<Icon>(starIcons)
+          .where((icon) => icon.color == AppColors.star);
       expect(coloredStars.length, 2);
     });
 
@@ -59,7 +63,9 @@ void main() {
       await tester.pumpAndSettle();
 
       final starIcons = find.byIcon(Icons.star);
-      final coloredStars = tester.widgetList<Icon>(starIcons).where((icon) => icon.color == AppColors.star);
+      final coloredStars = tester
+          .widgetList<Icon>(starIcons)
+          .where((icon) => icon.color == AppColors.star);
       expect(coloredStars.length, 1);
     });
 
@@ -68,7 +74,9 @@ void main() {
       await tester.pumpAndSettle();
 
       final starIcons = find.byIcon(Icons.star);
-      final coloredStars = tester.widgetList<Icon>(starIcons).where((icon) => icon.color == AppColors.star);
+      final coloredStars = tester
+          .widgetList<Icon>(starIcons)
+          .where((icon) => icon.color == AppColors.star);
       expect(coloredStars.length, 0);
     });
   });
