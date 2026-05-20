@@ -5,6 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../router/app_router.dart';
+
 class ParentRegisterScreen extends StatefulWidget {
   const ParentRegisterScreen({super.key});
 
@@ -62,7 +64,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
               content: Text('Parent Account created successfully!'),
             ),
           );
-          context.go('/parent-dashboard');
+          context.go(AppRouter.parentDashboard);
         }
       }
     } on FirebaseAuthException catch (e) {
@@ -144,7 +146,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
               content: Text('Signed in with Google successfully!'),
             ),
           );
-          context.go('/parent-dashboard');
+          context.go(AppRouter.parentDashboard);
         }
       }
     } catch (e) {

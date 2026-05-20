@@ -65,11 +65,17 @@ class AppRouter {
     return Uri(path: levelSession, queryParameters: params).toString();
   }
 
-  static String completionFor(String? childId, {int? score, int? total}) {
+  static String completionFor(
+    String? childId, {
+    int? score,
+    int? total,
+    int? stars,
+  }) {
     final params = <String, String>{};
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
     if (score != null) params['score'] = score.toString();
     if (total != null) params['total'] = total.toString();
+    if (stars != null) params['stars'] = stars.toString();
     return Uri(path: completion, queryParameters: params).toString();
   }
 
@@ -219,8 +225,7 @@ class AppRouter {
       GoRoute(
         path: mascotSelection,
         pageBuilder: (context, state) {
-          final childId =
-              state.uri.queryParameters['childId'] ?? 'demo_child_001';
+          final childId = state.uri.queryParameters['childId'] ?? '';
 
           return _noTransitionPage(
             state,
@@ -276,8 +281,7 @@ class AppRouter {
               int.tryParse(state.uri.queryParameters['score'] ?? '0') ?? 0;
           final total =
               int.tryParse(state.uri.queryParameters['total'] ?? '0') ?? 0;
-          final stars =
-              int.tryParse(state.uri.queryParameters['stars'] ?? '0') ?? 0;
+          final stars = int.tryParse(state.uri.queryParameters['stars'] ?? '');
           final levelId = state.uri.queryParameters['levelId'] ?? 'l1';
           final subjectId = state.uri.queryParameters['subjectId'] ?? 'bm';
 

@@ -54,8 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Logged in successfully!')),
         );
-        // Navigate to dashboard after successful login
-        context.go('${AppRouter.mascotSelection}?childId=demo_child_001');
+        context.go(AppRouter.selectProfile);
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
