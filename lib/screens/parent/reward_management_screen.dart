@@ -71,9 +71,15 @@ class _RewardManagementScreenState
     return SafeArea(
       child: rewardsAsync.when(
         data: (rewards) {
-          final pendingClaims = rewards.where((r) => r.status == 'pending').toList();
-          final availableRewards = rewards.where((r) => r.status == 'available').toList();
-          final redeemedRewards = rewards.where((r) => r.status == 'redeemed').toList();
+          final pendingClaims = rewards
+              .where((r) => r.status == 'pending')
+              .toList();
+          final availableRewards = rewards
+              .where((r) => r.status == 'available')
+              .toList();
+          final redeemedRewards = rewards
+              .where((r) => r.status == 'redeemed')
+              .toList();
 
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -98,7 +104,10 @@ class _RewardManagementScreenState
                   ),
                 ],
               ),
-              const Text('Set goals for your child', style: AppTextStyles.small),
+              const Text(
+                'Set goals for your child',
+                style: AppTextStyles.small,
+              ),
               const SizedBox(height: AppSpacing.md),
               if (showForm)
                 _RewardForm(
@@ -299,11 +308,9 @@ class _RewardFormState extends ConsumerState<_RewardForm> {
               controller: _costController,
               decoration: const InputDecoration(hintText: 'Star cost'),
               keyboardType: TextInputType.number,
-              validator:
-                  (v) =>
-                      v == null || int.tryParse(v) == null
-                          ? 'Enter a valid number'
-                          : null,
+              validator: (v) => v == null || int.tryParse(v) == null
+                  ? 'Enter a valid number'
+                  : null,
             ),
             const SizedBox(height: AppSpacing.md),
             SizedBox(
@@ -312,13 +319,13 @@ class _RewardFormState extends ConsumerState<_RewardForm> {
                 onPressed: _isLoading ? null : _save,
                 child: _isLoading
                     ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : Text(widget.reward == null ? 'Create' : 'Save Changes'),
               ),
             ),

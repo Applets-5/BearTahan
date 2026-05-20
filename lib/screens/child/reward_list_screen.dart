@@ -18,8 +18,12 @@ class RewardListScreen extends ConsumerWidget {
     return SafeArea(
       child: rewardsAsync.when(
         data: (rewards) {
-          final availableRewards = rewards.where((r) => r.status == 'available').toList();
-          final pendingRewards = rewards.where((r) => r.status == 'pending').toList();
+          final availableRewards = rewards
+              .where((r) => r.status == 'available')
+              .toList();
+          final pendingRewards = rewards
+              .where((r) => r.status == 'pending')
+              .toList();
 
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -38,13 +42,18 @@ class RewardListScreen extends ConsumerWidget {
                         label: 'Available',
                         value: profile.starBalance.toString(),
                       ),
-                      loading: () => const _StarSummary(label: 'Available', value: '0'),
-                      error: (err, stack) => const _StarSummary(label: 'Available', value: '0'),
+                      loading: () =>
+                          const _StarSummary(label: 'Available', value: '0'),
+                      error: (err, stack) =>
+                          const _StarSummary(label: 'Available', value: '0'),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   const Expanded(
-                    child: _StarSummary(label: 'Lifetime', value: '340'), // Placeholder for lifetime stars
+                    child: _StarSummary(
+                      label: 'Lifetime',
+                      value: '340',
+                    ), // Placeholder for lifetime stars
                   ),
                 ],
               ),
