@@ -105,11 +105,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         .then((_) => _audioPlayer.onPlayerComplete.first);
 
     try {
-      if (widget.childId != null) {
+      final parentId = ref.read(parentIdProvider);
+      if (widget.childId != null && parentId.isNotEmpty) {
         await ref
             .read(firestoreServiceProvider)
             .updateLevelProgress(
-              'scKBgki4JkM7fBSsQDXUgo58Dnl1', // Hardcoded parent ID for now
+              parentId,
               widget.childId!,
               widget.subjectId,
               widget.levelId,
@@ -243,6 +244,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                         '${currentQuestionIndex + 1}/${questions.length}',
                         style: AppTextStyles.bodyBold,
                       ),
+                      const SizedBox(width: AppSpacing.sm),
+                      const Icon(Icons.timer, color: AppColors.mutedText),
+                      Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
                     ],
                   ),
                   const Spacer(),

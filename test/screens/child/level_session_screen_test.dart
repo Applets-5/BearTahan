@@ -212,20 +212,3 @@ void main() {
     });
   });
 }
-
-extension on State<LevelSessionScreen> {
-  List<Question> get shuffledQuestions {
-    final dynamicState = this as dynamic;
-    return dynamicState.shuffledQuestions;
-  }
-
-  int get currentQuestionIndex {
-    final dynamicState = this as dynamic;
-    return dynamicState.currentQuestionIndex;
-  }
-
-  int get score {
-    final dynamicState = this as dynamic;
-    return dynamicState.score;
-  }
-}

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/star_utils.dart';
 import '../../widgets/common/mascot_widget.dart';
 import '../../widgets/common/primary_button.dart';
 
@@ -15,7 +16,7 @@ class CompletionScreen extends ConsumerStatefulWidget {
     this.total = 0,
     this.levelId = 'l1',
     this.subjectId = 'bm',
-    this.stars = 0,
+    this.stars,
   });
 
   final String? childId;
@@ -23,7 +24,7 @@ class CompletionScreen extends ConsumerStatefulWidget {
   final int total;
   final String levelId;
   final String subjectId;
-  final int stars;
+  final int? stars;
 
   @override
   ConsumerState<CompletionScreen> createState() => _CompletionScreenState();
@@ -32,7 +33,14 @@ class CompletionScreen extends ConsumerStatefulWidget {
 class _CompletionScreenState extends ConsumerState<CompletionScreen> {
   @override
   Widget build(BuildContext context) {
-    final passed = widget.stars > 0;
+    final earnedStars =
+        widget.stars ??
+        StarUtils.calculateStars(
+          score: widget.score,
+          total: widget.total,
+          levelId: widget.levelId,
+        );
+    final passed = earnedStars > 0;
 
     return Scaffold(
       body: SafeArea(
@@ -66,7 +74,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                   (index) => Icon(
                     Icons.star,
                     size: 40,
-                    color: index < widget.stars
+                    color: index < earnedStars
                         ? AppColors.star
                         : AppColors.muted,
                   ),
@@ -82,7 +90,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 ),
                 child: Text(
                   passed
-                      ? '+${widget.stars} stars added to your wallet!'
+                      ? '+$earnedStars stars added to your wallet!'
                       : 'You need at least 50% to earn a star. Don\'t give up!',
                   style: AppTextStyles.bodyBold,
                   textAlign: TextAlign.center,
@@ -92,14 +100,22 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
               if (passed)
                 PrimaryButton(
                   label: 'Continue',
-                  onPressed: () =>
-                      context.go(AppRouter.subjectFor(widget.childId)),
+                  onPressed: () => context.go(
+                    AppRouter.subjectFor(
+                      widget.childId,
+                      subjectId: widget.subjectId,
+                    ),
+                  ),
                 )
               else
                 PrimaryButton(
                   label: 'Try Again',
-                  onPressed: () =>
-                      context.go(AppRouter.levelSessionFor(widget.childId)),
+                  onPressed: () => context.go(
+                    AppRouter.levelSessionFor(
+                      widget.childId,
+                      levelPrefix: '${widget.subjectId}_c1_${widget.levelId}_',
+                    ),
+                  ),
                 ),
               if (passed) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -107,8 +123,12 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                   label: 'Replay',
                   backgroundColor: AppColors.muted,
                   foregroundColor: AppColors.mutedText,
-                  onPressed: () =>
-                      context.go(AppRouter.levelSessionFor(widget.childId)),
+                  onPressed: () => context.go(
+                    AppRouter.levelSessionFor(
+                      widget.childId,
+                      levelPrefix: '${widget.subjectId}_c1_${widget.levelId}_',
+                    ),
+                  ),
                 ),
               ],
             ],
