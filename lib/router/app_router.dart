@@ -45,7 +45,13 @@ class AppRouter {
   static String childHomeFor(String? childId) =>
       withChildId(childHome, childId);
 
-  static String subjectFor(String? childId) => withChildId(subject, childId);
+  static String subjectFor(String? childId, {String? subjectId}) {
+    final params = <String, String>{};
+    if (childId != null && childId.isNotEmpty) params['childId'] = childId;
+    if (subjectId != null && subjectId.isNotEmpty)
+      params['subjectId'] = subjectId;
+    return Uri(path: subject, queryParameters: params).toString();
+  }
 
   static String chapterFor(String? childId) => withChildId(chapter, childId);
 
@@ -269,6 +275,8 @@ class AppRouter {
               int.tryParse(state.uri.queryParameters['score'] ?? '0') ?? 0;
           final total =
               int.tryParse(state.uri.queryParameters['total'] ?? '0') ?? 0;
+          final stars =
+              int.tryParse(state.uri.queryParameters['stars'] ?? '0') ?? 0;
           final levelId = state.uri.queryParameters['levelId'] ?? 'l1';
           final subjectId = state.uri.queryParameters['subjectId'] ?? 'bm';
 
@@ -278,6 +286,7 @@ class AppRouter {
               childId: childId,
               score: score,
               total: total,
+              stars: stars,
               levelId: levelId,
               subjectId: subjectId,
             ),
