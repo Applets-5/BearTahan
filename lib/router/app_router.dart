@@ -24,11 +24,13 @@ import '../theme/app_theme.dart';
 import '../widgets/common/bottom_nav_bar.dart';
 import '../screens/auth/profile_selection_screen.dart';
 import '../screens/auth/create_profile_screen.dart';
+import '../screens/auth/forgot_password_screen.dart';
 import 'go_router_refresh_stream.dart';
 
 class AppRouter {
   static const login = '/login';
   static const parentRegister = '/parent-register';
+  static const forgotPassword = '/forgot-password';
   static const mascotSelection = '/mascot-selection';
   static const childHome = '/child-home';
 
@@ -94,7 +96,9 @@ class AppRouter {
 
       // Is the user trying to access the login or register page?
       final isAuthRoute =
-          state.uri.path == login || state.uri.path == parentRegister;
+          state.uri.path == login ||
+          state.uri.path == parentRegister ||
+          state.uri.path == forgotPassword;
 
       // If they are NOT logged in and trying to go anywhere else, force them to Login
       if (!isLoggedIn && !isAuthRoute) {
@@ -119,6 +123,11 @@ class AppRouter {
         path: parentRegister,
         pageBuilder: (context, state) =>
             _noTransitionPage(state, const ParentRegisterScreen()),
+      ),
+      GoRoute(
+        path: forgotPassword,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const ForgotPasswordScreen()),
       ),
       GoRoute(
         path: selectProfile,

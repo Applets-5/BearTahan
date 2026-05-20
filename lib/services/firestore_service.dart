@@ -51,6 +51,22 @@ class FirestoreService {
         .toList();
   }
 
+  Stream<Map<String, dynamic>> streamParentSettings(String parentId) {
+    return _db.collection('parents').doc(parentId).snapshots().map((doc) {
+      return doc.data() ?? {};
+    });
+  }
+
+  Future<void> updateParentSettings(
+    String parentId,
+    Map<String, dynamic> settings,
+  ) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .set(settings, SetOptions(merge: true));
+  }
+
   Future<void> updateLevelProgress(
     String parentId,
     String childId,

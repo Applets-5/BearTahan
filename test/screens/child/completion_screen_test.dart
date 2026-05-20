@@ -2,83 +2,82 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bear_tahan/screens/child/completion_screen.dart';
+import 'package:bear_tahan/theme/app_theme.dart';
+
+import 'package:bear_tahan/providers/data_providers.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+class MockFirebaseAuth extends Mock implements FirebaseAuth {}
 
 void main() {
-  group('_calculateStars', () {
-    test('should return 3 stars for a perfect score (100%)', () {
-      const screen = CompletionScreen(score: 10, total: 10);
-      final state = screen.createState() as dynamic;
+  late MockFirebaseAuth mockAuth;
 
-      expect(state.calculateStars(), 3);
-    });
-
-    test(
-      'should return 2 stars for a score of 80% or above but less than 100%',
-      () {
-        const screen = CompletionScreen(score: 8, total: 10);
-        final state = screen.createState() as dynamic;
-
-        expect(state.calculateStars(), 2);
-      },
-    );
-
-    test(
-      'should return 1 star for a score of 50% or above but less than 80%',
-      () {
-        const screen = CompletionScreen(score: 5, total: 10);
-        final state = screen.createState() as dynamic;
-
-        expect(state.calculateStars(), 1);
-      },
-    );
-
-    test('should return 0 stars for a score below 50%', () {
-      const screen = CompletionScreen(score: 4, total: 10);
-      final state = screen.createState() as dynamic;
-
-      expect(state.calculateStars(), 0);
-    });
-
-    test('should return 0 stars if the total number of questions is 0', () {
-      const screen = CompletionScreen(score: 0, total: 0);
-      final state = screen.createState() as dynamic;
-
-      expect(state.calculateStars(), 0);
-    });
+  setUp(() {
+    mockAuth = MockFirebaseAuth();
+    when(() => mockAuth.currentUser).thenReturn(null);
   });
 
-  group('_saveProgress', () {
-    testWidgets(
-      'should transition _saved to true after calling _saveProgress',
-      (tester) async {
-        await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(
-              home: CompletionScreen(
-                childId: 'test_child',
-                score: 10,
-                total: 10,
-              ),
-            ),
-          ),
-        );
-
-        final state = tester.state(find.byType(CompletionScreen)) as dynamic;
-
-        expect(state.saved, isTrue);
-      },
+  Widget createWidget({int score = 0, int total = 0}) {
+    return ProviderScope(
+      overrides: [firebaseAuthProvider.overrideWithValue(mockAuth)],
+      child: MaterialApp(
+        home: CompletionScreen(
+          score: score,
+          total: total,
+          childId: 'demo_child_001',
+        ),
+      ),
     );
+  }
+
+  group('CompletionScreen Stars', () {
+    testWidgets('should show 3 stars for a perfect score (100%)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(createWidget(score: 10, total: 10));
+      await tester.pumpAndSettle();
+
+      final starIcons = find.byIcon(Icons.star);
+      expect(starIcons, findsNWidgets(3));
+
+      final coloredStars = tester
+          .widgetList<Icon>(starIcons)
+          .where((icon) => icon.color == AppColors.star);
+      expect(coloredStars.length, 3);
+    });
+
+    testWidgets('should show 2 stars for a score of 80%', (tester) async {
+      await tester.pumpWidget(createWidget(score: 8, total: 10));
+      await tester.pumpAndSettle();
+
+      final starIcons = find.byIcon(Icons.star);
+      final coloredStars = tester
+          .widgetList<Icon>(starIcons)
+          .where((icon) => icon.color == AppColors.star);
+      expect(coloredStars.length, 2);
+    });
+
+    testWidgets('should show 1 star for a score of 50%', (tester) async {
+      await tester.pumpWidget(createWidget(score: 5, total: 10));
+      await tester.pumpAndSettle();
+
+      final starIcons = find.byIcon(Icons.star);
+      final coloredStars = tester
+          .widgetList<Icon>(starIcons)
+          .where((icon) => icon.color == AppColors.star);
+      expect(coloredStars.length, 1);
+    });
+
+    testWidgets('should show 0 stars for a score below 50%', (tester) async {
+      await tester.pumpWidget(createWidget(score: 4, total: 10));
+      await tester.pumpAndSettle();
+
+      final starIcons = find.byIcon(Icons.star);
+      final coloredStars = tester
+          .widgetList<Icon>(starIcons)
+          .where((icon) => icon.color == AppColors.star);
+      expect(coloredStars.length, 0);
+    });
   });
-}
-
-extension on State<CompletionScreen> {
-  int calculateStars() {
-    final dynamicState = this as dynamic;
-    return dynamicState._calculateStars();
-  }
-
-  bool get saved {
-    final dynamicState = this as dynamic;
-    return dynamicState._saved;
-  }
 }

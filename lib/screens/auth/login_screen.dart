@@ -214,6 +214,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed:
                               _signInWithEmail, // Link the new function here!
                         ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextButton(
+                    onPressed: () => context.push(AppRouter.forgotPassword),
+                    child: const Text('Forgot Password?'),
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   TextButton(
                     onPressed: () => context.go(AppRouter.parentDashboard),
