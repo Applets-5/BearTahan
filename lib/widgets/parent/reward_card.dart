@@ -11,6 +11,8 @@ class RewardCard extends StatelessWidget {
     this.status = 'available',
     this.onPrimary,
     this.primaryLabel,
+    this.onEdit,
+    this.onDelete,
   });
 
   final String title;
@@ -19,6 +21,8 @@ class RewardCard extends StatelessWidget {
   final String status;
   final VoidCallback? onPrimary;
   final String? primaryLabel;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +49,38 @@ class RewardCard extends StatelessWidget {
             children: [
               Expanded(child: Text(title, style: AppTextStyles.bodyBold)),
               if (status != 'available') _StatusPill(label: status),
+              if (onEdit != null || onDelete != null)
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit' && onEdit != null) onEdit!();
+                    if (value == 'delete' && onDelete != null) onDelete!();
+                  },
+                  itemBuilder: (context) => [
+                    if (onEdit != null)
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, size: 20),
+                            SizedBox(width: 8),
+                            Text('Edit'),
+                          ],
+                        ),
+                      ),
+                    if (onDelete != null)
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, color: Colors.red, size: 20),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                  ],
+                  child: const Icon(Icons.more_vert),
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),

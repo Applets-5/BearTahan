@@ -2,10 +2,50 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
+import '../models/reward.dart';
 import 'package:flutter/foundation.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  Stream<List<Reward>> streamRewards(String parentId) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Reward.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
+  }
+
+  Future<void> addReward(String parentId, Reward reward) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .add(reward.toFirestore());
+  }
+
+  Future<void> updateReward(String parentId, Reward reward) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .doc(reward.id)
+        .update(reward.toFirestore());
+  }
+
+  Future<void> deleteReward(String parentId, String rewardId) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .doc(rewardId)
+        .delete();
+  }
 
   Stream<UserProfile> streamUserProfile(String parentId, String childId) {
     return _db

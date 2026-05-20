@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,6 +9,7 @@ import '../../models/question.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
 
 class LevelSessionScreen extends ConsumerStatefulWidget {
@@ -37,6 +39,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
   int? selected;
   List<Question>? shuffledQuestions;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -46,9 +49,18 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     });
   }
 
+  void _playFeedback(bool isCorrect) async {
+    if (isCorrect) {
+      await _audioPlayer.play(AssetSource('audio/correctAns.mp3'));
+    } else {
+      await _audioPlayer.play(AssetSource('audio/wrongAns.mp3'));
+    }
+  }
+
   @override
   void dispose() {
     _stopSessionTimer();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -74,29 +86,87 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     return '$minutes:$seconds';
   }
 
-  Future<void> _completeSession() async {
+  Future<void> _completeSession(int totalQuestions) async {
     _stopSessionTimer();
+
+    // Calculate stars based on score
+    final stars = StarUtils.calculateStars(
+      score: score,
+      total: totalQuestions,
+      levelId: widget.levelId,
+    );
+
+    // Play appropriate audio
+    final String audioPath = stars > 0
+        ? 'audio/levelPassed.mp3'
+        : 'audio/levelFailed.mp3';
+    final playFuture = _audioPlayer
+        .play(AssetSource(audioPath))
+        .then((_) => _audioPlayer.onPlayerComplete.first);
 
     try {
       if (widget.childId != null) {
-        await FirebaseFirestore.instance
-            .collection('children')
-            .doc(widget.childId)
-            .collection('attempts')
-            .add({
-              'levelId': 'example_level', // Hardcoded for mockup
-              'score': 100, // Hardcoded for mockup
-              'stars': 3, // Hardcoded for mockup
-              'elapsedTimeSeconds': _elapsedSeconds,
-              'completedAt': FieldValue.serverTimestamp(),
-            });
+        await ref
+            .read(firestoreServiceProvider)
+            .updateLevelProgress(
+              'scKBgki4JkM7fBSsQDXUgo58Dnl1', // Hardcoded parent ID for now
+              widget.childId!,
+              widget.subjectId,
+              widget.levelId,
+              stars,
+            );
       }
     } catch (e) {
       debugPrint('Error saving attempt: $e');
     }
 
+    // Wait for the audio to finish before navigating
+    await playFuture;
+
     if (mounted) {
-      context.go(AppRouter.completionFor(widget.childId));
+      final params = {
+        'childId': widget.childId ?? '',
+        'score': score.toString(),
+        'total': totalQuestions.toString(),
+        'levelId': widget.levelId,
+        'subjectId': widget.subjectId,
+        'stars': stars.toString(),
+      };
+      context.go(
+        Uri(path: AppRouter.completion, queryParameters: params).toString(),
+      );
+    }
+  }
+
+  Future<void> _handleExit() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit Quiz?'),
+        content: const Text(
+          'Are you sure you want to exit? Your progress will not be saved.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Exit', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(
+          AppRouter.subjectFor(widget.childId, subjectId: widget.subjectId),
+        );
+      }
     }
   }
 
@@ -117,7 +187,18 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     const SizedBox(height: AppSpacing.md),
                     PrimaryButton(
                       label: 'Go Back',
-                      onPressed: () => context.pop(),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go(
+                            AppRouter.subjectFor(
+                              widget.childId,
+                              subjectId: widget.subjectId,
+                            ),
+                          );
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -142,7 +223,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                   Row(
                     children: [
                       IconButton(
-                        onPressed: () => context.pop(),
+                        onPressed: _handleExit,
                         icon: const Icon(
                           Icons.close,
                           color: AppColors.mutedText,
@@ -201,20 +282,34 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                   ),
                   const Spacer(),
                   if (selected != null) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: selected == question.correctAnswerIndex
-                            ? AppColors.accentLight
-                            : AppColors.destructiveLight,
-                        borderRadius: AppRadius.r(AppRadius.lg),
-                      ),
-                      child: Text(
-                        selected == question.correctAnswerIndex
-                            ? 'Correct! Well done!'
-                            : 'Not quite! The answer is "${question.options[question.correctAnswerIndex]}".',
-                        style: AppTextStyles.bodyBold,
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutBack,
+                      builder: (context, value, child) {
+                        return Transform.scale(
+                          scale: value,
+                          child: Opacity(
+                            opacity: value.clamp(0.0, 1.0),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: selected == question.correctAnswerIndex
+                              ? AppColors.accentLight
+                              : AppColors.destructiveLight,
+                          borderRadius: AppRadius.r(AppRadius.lg),
+                        ),
+                        child: Text(
+                          selected == question.correctAnswerIndex
+                              ? 'Correct! Well done!'
+                              : 'Not quite! The answer is "${question.options[question.correctAnswerIndex]}".',
+                          style: AppTextStyles.bodyBold,
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -223,19 +318,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                       icon: Icons.arrow_forward_rounded,
                       onPressed: () {
                         if (isLastQuestion) {
-                          final params = {
-                            'childId': widget.childId ?? '',
-                            'score': score.toString(),
-                            'total': questions.length.toString(),
-                            'levelId': widget.levelId,
-                            'subjectId': widget.subjectId,
-                          };
-                          context.go(
-                            Uri(
-                              path: AppRouter.completion,
-                              queryParameters: params,
-                            ).toString(),
-                          );
+                          _completeSession(questions.length);
                         } else {
                           setState(() {
                             currentQuestionIndex++;
@@ -273,9 +356,17 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       child: InkWell(
         onTap: selected == null
             ? () {
+                final isCorrect = index == question.correctAnswerIndex;
+                if (isCorrect) {
+                  HapticFeedback.mediumImpact();
+                  _playFeedback(true);
+                } else {
+                  HapticFeedback.vibrate();
+                  _playFeedback(false);
+                }
                 setState(() {
                   selected = index;
-                  if (index == question.correctAnswerIndex) {
+                  if (isCorrect) {
                     score++;
                   }
                 });

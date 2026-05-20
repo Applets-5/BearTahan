@@ -1,54 +1,112 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/star_balance_chip.dart';
 import '../../widgets/parent/reward_card.dart';
 
-class RewardListScreen extends StatelessWidget {
+class RewardListScreen extends ConsumerWidget {
   const RewardListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rewardsAsync = ref.watch(rewardsProvider);
+    final childId = ref.watch(childIdProvider);
+    final userProfileAsync = ref.watch(userProfileProvider(childId ?? ''));
+
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        children: const [
-          Text('My Rewards', style: AppTextStyles.screenTitle),
-          Text('Spend stars on real-world treats!', style: AppTextStyles.small),
-          SizedBox(height: AppSpacing.lg),
-          Row(
+      child: rewardsAsync.when(
+        data: (rewards) {
+          final availableRewards = rewards
+              .where((r) => r.status == 'available')
+              .toList();
+          final pendingRewards = rewards
+              .where((r) => r.status == 'pending')
+              .toList();
+
+          return ListView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              Expanded(
-                child: _StarSummary(label: 'Available', value: '120'),
+              const Text('My Rewards', style: AppTextStyles.screenTitle),
+              const Text(
+                'Spend stars on real-world treats!',
+                style: AppTextStyles.small,
               ),
-              SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _StarSummary(label: 'Lifetime', value: '340'),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: userProfileAsync.when(
+                      data: (profile) => _StarSummary(
+                        label: 'Available',
+                        value: profile.starBalance.toString(),
+                      ),
+                      loading: () =>
+                          const _StarSummary(label: 'Available', value: '0'),
+                      error: (err, stack) =>
+                          const _StarSummary(label: 'Available', value: '0'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  const Expanded(
+                    child: _StarSummary(
+                      label: 'Lifetime',
+                      value: '340',
+                    ), // Placeholder for lifetime stars
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              if (pendingRewards.isNotEmpty) ...[
+                const Text('Pending Approval', style: AppTextStyles.tiny),
+                const SizedBox(height: AppSpacing.sm),
+                ...pendingRewards.map(
+                  (r) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: RewardCard(
+                      title: r.title,
+                      description: r.description,
+                      cost: r.cost,
+                      status: r.status,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              const Text('Available', style: AppTextStyles.tiny),
+              const SizedBox(height: AppSpacing.sm),
+              if (availableRewards.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                  child: Center(
+                    child: Text(
+                      'No rewards available yet. Ask your parent to add some!',
+                      style: AppTextStyles.small,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ...availableRewards.map(
+                (r) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: RewardCard(
+                    title: r.title,
+                    description: r.description,
+                    cost: r.cost,
+                    status: r.status,
+                    primaryLabel: 'Claim',
+                    onPrimary: () {
+                      // Handle claim logic
+                    },
+                  ),
+                ),
               ),
             ],
-          ),
-          SizedBox(height: AppSpacing.lg),
-          RewardCard(
-            title: 'Pizza Night',
-            description: 'Family pizza dinner this weekend',
-            cost: 80,
-            status: 'available',
-          ),
-          SizedBox(height: AppSpacing.md),
-          RewardCard(
-            title: 'Extra Screen Time',
-            description: '20 minutes after homework',
-            cost: 40,
-            status: 'pending',
-          ),
-          SizedBox(height: AppSpacing.md),
-          RewardCard(
-            title: 'Park Trip',
-            description: 'Sunday morning playground visit',
-            cost: 150,
-            status: 'available',
-          ),
-        ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => Center(child: Text('Error: $e')),
       ),
     );
   }
