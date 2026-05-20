@@ -44,13 +44,45 @@ class _ProfileSelectionScreenState
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
+    if (user == null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.account_circle_rounded,
+                  size: 64,
+                  color: AppColors.mutedText,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const Text(
+                  'Sign in before selecting a profile.',
+                  style: AppTextStyles.cardTitle,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                FilledButton.icon(
+                  onPressed: () => context.go(AppRouter.login),
+                  icon: const Icon(Icons.login_rounded),
+                  label: const Text('Go to Login'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         children: [
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('parents')
-                .doc(user?.uid)
+                .doc(user.uid)
                 .collection('children')
                 .snapshots(),
             builder: (context, snapshot) {

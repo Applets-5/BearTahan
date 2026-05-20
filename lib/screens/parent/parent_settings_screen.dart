@@ -23,6 +23,14 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
   bool _isSavingPin = false;
 
   Future<void> _updatePin() async {
+    final parentId = ref.read(parentIdProvider);
+    if (parentId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in before updating PIN')),
+      );
+      return;
+    }
+
     if (_pinController.text.length != 4) {
       ScaffoldMessenger.of(
         context,
@@ -37,7 +45,6 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
     }
 
     setState(() => _isSavingPin = true);
-    final parentId = ref.read(parentIdProvider);
     try {
       await ref.read(firestoreServiceProvider).updateParentSettings(parentId, {
         'parentPin': _pinController.text,
@@ -62,6 +69,15 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
 
   Future<void> _updateSetting(String key, dynamic value) async {
     final parentId = ref.read(parentIdProvider);
+    if (parentId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please sign in before updating settings'),
+        ),
+      );
+      return;
+    }
+
     try {
       await ref.read(firestoreServiceProvider).updateParentSettings(parentId, {
         key: value,
@@ -194,6 +210,10 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
               OutlinedButton.icon(
                 onPressed: () {
                   final childId = ref.read(childIdProvider);
+                  if (childId == null || childId.isEmpty) {
+                    context.go(AppRouter.selectProfile);
+                    return;
+                  }
                   context.go(AppRouter.childHomeFor(childId));
                 },
                 icon: const Icon(Icons.logout),
