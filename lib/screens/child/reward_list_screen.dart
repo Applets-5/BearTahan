@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/missing_child_profile.dart';
 import '../../widgets/common/star_balance_chip.dart';
 import '../../widgets/parent/reward_card.dart';
 
@@ -12,8 +14,21 @@ class RewardListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rewardsAsync = ref.watch(rewardsProvider);
-    final childId = ref.watch(childIdProvider);
-    final userProfileAsync = ref.watch(userProfileProvider(childId ?? ''));
+    final routeChildId = GoRouterState.of(
+      context,
+    ).uri.queryParameters['childId'];
+    final providerChildId = ref.watch(childIdProvider);
+    final childId = routeChildId?.isNotEmpty == true
+        ? routeChildId!
+        : providerChildId ?? '';
+
+    if (childId.isEmpty) {
+      return const MissingChildProfile(
+        message: 'Select a child profile to view rewards.',
+      );
+    }
+
+    final userProfileAsync = ref.watch(userProfileProvider(childId));
 
     return SafeArea(
       child: rewardsAsync.when(

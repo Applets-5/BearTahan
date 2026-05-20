@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/missing_child_profile.dart';
 import '../../widgets/common/mascot_widget.dart';
 import '../../widgets/parent/stat_card.dart';
 
@@ -40,7 +41,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final childId = ref.watch(childIdProvider) ?? '';
+    final routeChildId = GoRouterState.of(
+      context,
+    ).uri.queryParameters['childId'];
+    final providerChildId = ref.watch(childIdProvider);
+    final childId = routeChildId?.isNotEmpty == true
+        ? routeChildId!
+        : providerChildId ?? '';
+
+    if (childId.isEmpty) {
+      return const MissingChildProfile(
+        message: 'Select a child profile to view this page.',
+      );
+    }
+
     final userProfileAsync = ref.watch(userProfileProvider(childId));
 
     return SafeArea(
