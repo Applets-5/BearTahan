@@ -117,6 +117,39 @@ class _MascotSelectionScreenState extends State<MascotSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.childId.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Pick your bear')),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.person_add_alt_1_rounded,
+                  size: 64,
+                  color: AppColors.mutedText,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const Text(
+                  'Create a child profile before choosing a bear.',
+                  style: AppTextStyles.cardTitle,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                PrimaryButton(
+                  label: 'Create Profile',
+                  icon: Icons.add_rounded,
+                  onPressed: () => context.go(AppRouter.createProfile),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFFAF0),
       body: SafeArea(

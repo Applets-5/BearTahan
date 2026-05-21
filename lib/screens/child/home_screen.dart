@@ -206,7 +206,7 @@ class _Header extends ConsumerWidget {
                   ),
                   loading: () =>
                       const Text(' -', style: AppTextStyles.bodyBold),
-                  error: (_, __) =>
+                  error: (_, _) =>
                       const Text(' 0', style: AppTextStyles.bodyBold),
                 ),
               ],
@@ -216,7 +216,7 @@ class _Header extends ConsumerWidget {
           userProfileAsync.when(
             data: (profile) => StarBalanceChip(count: profile.starBalance),
             loading: () => const StarBalanceChip(count: 0),
-            error: (_, __) => const StarBalanceChip(count: 0),
+            error: (_, _) => const StarBalanceChip(count: 0),
           ),
         ],
       ),

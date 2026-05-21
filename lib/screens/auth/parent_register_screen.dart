@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../router/app_router.dart';
+import '../../services/parent_account_service.dart';
 
 class ParentRegisterScreen extends StatefulWidget {
   const ParentRegisterScreen({super.key});
@@ -23,7 +26,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
 
   // Firebase Instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ParentAccountService _parentAccountService = ParentAccountService();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -47,13 +50,10 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
 
       if (user != null) {
         // 2. Save the master Parent account data to Firestore
-        await _firestore.collection('parents').doc(user.uid).set({
-          'uid': user.uid,
-          'name': _nameController.text.trim(),
-          'email': user.email,
-          'role': 'parent',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        await _parentAccountService.createOrUpdateParentDocument(
+          user,
+          name: _nameController.text.trim(),
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -61,7 +61,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
               content: Text('Parent Account created successfully!'),
             ),
           );
-          context.go('/parent-dashboard');
+          context.go(AppRouter.parentDashboard);
         }
       }
     } on FirebaseAuthException catch (e) {
@@ -80,54 +80,48 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Initialize GoogleSignIn correctly
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId:
-            '806620359391-2nr55hj064iklg42bmor2lifsiq1bavq.apps.googleusercontent.com',
-      );
+      final UserCredential userCredential;
 
-      // 2. Trigger the Google Sign-In flow
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+        final googleProvider = GoogleAuthProvider()
+          ..addScope('email')
+          ..addScope('profile');
 
-      // If user closes the popup without logging in
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
+        userCredential = await _auth.signInWithProvider(googleProvider);
+      } else {
+        // 1. Initialize GoogleSignIn correctly
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          clientId:
+              '806620359391-2nr55hj064iklg42bmor2lifsiq1bavq.apps.googleusercontent.com',
+        );
+
+        // 2. Trigger the Google Sign-In flow
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+        // If user closes the popup without logging in
+        if (googleUser == null) {
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // 3. Obtain auth details (the tokens)
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+
+        // 4. Create a new Firebase credential using both tokens
+        final OAuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        // 5. Sign in to Firebase Auth
+        userCredential = await _auth.signInWithCredential(credential);
       }
-
-      // 3. Obtain auth details (the tokens)
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // 4. Create a new Firebase credential using both tokens
-      final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // 5. Sign in to Firebase Auth
-      UserCredential userCredential = await _auth.signInWithCredential(
-        credential,
-      );
       User? user = userCredential.user;
 
       if (user != null) {
         // 6. Check if this Google user already has a parent document in Firestore
-        DocumentSnapshot parentDoc = await _firestore
-            .collection('parents')
-            .doc(user.uid)
-            .get();
-
-        if (!parentDoc.exists) {
-          // If it's a new user, create their master account in Firestore
-          await _firestore.collection('parents').doc(user.uid).set({
-            'uid': user.uid,
-            'name': user.displayName ?? 'Parent',
-            'email': user.email,
-            'role': 'parent',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-        }
+        await _parentAccountService.createParentDocumentIfMissing(user);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -135,7 +129,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
               content: Text('Signed in with Google successfully!'),
             ),
           );
-          context.go('/parent-dashboard');
+          context.go(AppRouter.parentDashboard);
         }
       }
     } catch (e) {

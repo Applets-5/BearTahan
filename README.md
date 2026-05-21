@@ -19,8 +19,10 @@ flutter pub get
 
 ```bash
 flutter doctor
-flutter run
+flutter run -d chrome --web-port 1563
 ```
+
+> **Web Development:** We use a fixed port (**1563**) to keep Google Sign-In working. If you are using VS Code, use the **"BearTahan (Web)"** debug configuration.
 
 > **Version check:** Run `flutter --version` and confirm you are on `3.41.9`.  
 > If not, run `flutter upgrade` or reinstall. Using a different version will cause CI failures.
@@ -57,6 +59,18 @@ Run all tests before pushing:
 flutter test
 ```
 
+For the full local verification flow on Windows PowerShell:
+
+```powershell
+.\scripts\verify.ps1
+```
+
+To include an Android debug APK build:
+
+```powershell
+.\scripts\verify.ps1 -BuildApk
+```
+
 Run a specific test file:
 
 ```bash
@@ -77,13 +91,14 @@ For a full guide on how to write tests and use AI to generate them, read [`TESTI
 
 ## GitHub Actions (CI)
 
-Every push to any branch automatically triggers our CI pipeline on GitHub. It runs three checks in order:
+Every push to any branch automatically triggers our CI pipeline on GitHub. It runs separate checks so failures are easier to identify:
 
 | Check | What it does |
 |---|---|
 | `dart format` | Fails if code is not formatted |
 | `flutter analyze` | Fails if there are lint or type errors |
 | `flutter test` | Fails if any unit test fails |
+| `flutter build apk --debug` | Fails if Android/Gradle/Firebase build wiring is broken |
 
 After pushing, check the icon next to your commit on GitHub:
 
@@ -92,6 +107,8 @@ After pushing, check the icon next to your commit on GitHub:
 | 🟡 Yellow dot | CI is still running, wait |
 | ✅ Green tick | All checks passed |
 | ❌ Red cross | Something failed — click Details to see what |
+
+You should see multiple checks on each commit: **Format**, **Analyze**, **Test**, and **Android Debug Build**.
 
 **PRs to `sprint-1` or `main` cannot be merged unless CI is green.**  
 If your CI is red, fix the issue locally and push again.

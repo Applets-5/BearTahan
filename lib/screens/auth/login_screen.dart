@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../router/app_router.dart';
+import '../../services/parent_account_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/primary_button.dart';
 
@@ -18,57 +19,105 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
+  final _parentAccountService = ParentAccountService();
+
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // 3. Create the Email/Password login function
+  Future<void> _signInWithEmail() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter both email and password.')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logged in successfully!')),
+        );
+        context.go(AppRouter.selectProfile);
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'Sign in failed. Please try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   /// Handles Direct Google Login
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Initialize GoogleSignIn
-      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final UserCredential userCredential;
 
-      // 2. Trigger the Google Sign-In flow
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+        final googleProvider = GoogleAuthProvider()
+          ..addScope('email')
+          ..addScope('profile');
 
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
+        userCredential = await FirebaseAuth.instance.signInWithProvider(
+          googleProvider,
+        );
+      } else {
+        // 1. Initialize GoogleSignIn
+        final GoogleSignIn googleSignIn = GoogleSignIn();
+
+        // 2. Trigger the Google Sign-In flow
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+        if (googleUser == null) {
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // 3. Obtain auth details
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+
+        // 4. Create a new Firebase credential
+        final OAuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        // 5. Sign in to Firebase Auth
+        userCredential = await FirebaseAuth.instance.signInWithCredential(
+          credential,
+        );
       }
-
-      // 3. Obtain auth details
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // 4. Create a new Firebase credential
-      final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // 5. Sign in to Firebase Auth
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithCredential(credential);
       User? user = userCredential.user;
 
       if (user != null) {
-        // 6. Check if user exists in the database. If not, create them (handles both Login & Register seamlessly!)
-        DocumentSnapshot parentDoc = await FirebaseFirestore.instance
-            .collection('parents')
-            .doc(user.uid)
-            .get();
-
-        if (!parentDoc.exists) {
-          await FirebaseFirestore.instance
-              .collection('parents')
-              .doc(user.uid)
-              .set({
-                'uid': user.uid,
-                'name': user.displayName ?? 'Parent',
-                'email': user.email,
-                'role': 'parent',
-                'createdAt': FieldValue.serverTimestamp(),
-              });
-        }
+        await _parentAccountService.createParentDocumentIfMissing(user);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -119,15 +168,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: AppSpacing.xxl),
 
                   // Login Fields
-                  const TextField(
-                    decoration: InputDecoration(
+                  TextField(
+                    controller: _emailController, // Attach controller
+                    decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.person),
                       hintText: 'Email or Child name',
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  const TextField(
-                    decoration: InputDecoration(
+
+                  // Update the Password Field
+                  TextField(
+                    controller: _passwordController, // Attach controller
+                    decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.lock),
                       hintText: 'Password or Parent PIN',
                     ),
@@ -135,14 +188,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xl),
 
-                  // Login Action
-                  PrimaryButton(
-                    label: 'Log In / Start Learning',
-                    icon: Icons.play_arrow_rounded,
-                    //onPressed: () => context.go(AppRouter.childHome),
-                    onPressed: () => context.go(
-                      '${AppRouter.mascotSelection}?childId=demo_child_001',
-                    ),
+                  // Update the Login Action Button
+                  _isLoading
+                      ? const CircularProgressIndicator() // Show loader for email login too
+                      : PrimaryButton(
+                          label: 'Log In / Start Learning',
+                          icon: Icons.play_arrow_rounded,
+                          onPressed:
+                              _signInWithEmail, // Link the new function here!
+                        ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextButton(
+                    onPressed: () => context.push(AppRouter.forgotPassword),
+                    child: const Text('Forgot Password?'),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextButton(

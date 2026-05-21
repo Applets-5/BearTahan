@@ -2,9 +2,49 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
+import '../models/reward.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  Stream<List<Reward>> streamRewards(String parentId) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Reward.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
+  }
+
+  Future<void> addReward(String parentId, Reward reward) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .add(reward.toFirestore());
+  }
+
+  Future<void> updateReward(String parentId, Reward reward) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .doc(reward.id)
+        .update(reward.toFirestore());
+  }
+
+  Future<void> deleteReward(String parentId, String rewardId) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .doc(rewardId)
+        .delete();
+  }
 
   Stream<UserProfile> streamUserProfile(String parentId, String childId) {
     return _db
@@ -42,12 +82,28 @@ class FirestoreService {
     final snapshot = await _db
         .collection('questions')
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: prefix)
-        .where(FieldPath.documentId, isLessThan: prefix + '\uf8ff')
+        .where(FieldPath.documentId, isLessThan: '$prefix\uf8ff')
         .get();
 
     return snapshot.docs
         .map((doc) => Question.fromFirestore(doc.id, doc.data()))
         .toList();
+  }
+
+  Stream<Map<String, dynamic>> streamParentSettings(String parentId) {
+    return _db.collection('parents').doc(parentId).snapshots().map((doc) {
+      return doc.data() ?? {};
+    });
+  }
+
+  Future<void> updateParentSettings(
+    String parentId,
+    Map<String, dynamic> settings,
+  ) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .set(settings, SetOptions(merge: true));
   }
 
   Future<void> updateLevelProgress(
@@ -69,7 +125,7 @@ class FirestoreService {
         .collection('levels')
         .doc(levelId);
 
-    await _db.runTransaction((transaction) async {
+    final didImproveStars = await _db.runTransaction<bool>((transaction) async {
       final levelSnapshot = await transaction.get(levelDocRef);
       final childSnapshot = await transaction.get(childDocRef);
 
@@ -79,7 +135,8 @@ class FirestoreService {
       final int currentBalance =
           (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
 
-      // Streak Logic
+      final childUpdates = <String, dynamic>{};
+
       int newStreak = (childData['streakCount'] ?? 0).toInt();
       final Timestamp? lastActivityTimestamp =
           childData['lastActivityDate'] as Timestamp?;
@@ -87,12 +144,9 @@ class FirestoreService {
       final DateTime today = DateTime(now.year, now.month, now.day);
 
       if (lastActivityTimestamp == null) {
-        // First time activity
         newStreak = 1;
-        transaction.update(childDocRef, {
-          'streakCount': newStreak,
-          'lastActivityDate': Timestamp.fromDate(today),
-        });
+        childUpdates['streakCount'] = newStreak;
+        childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
       } else {
         final DateTime lastActivity = lastActivityTimestamp.toDate();
         final DateTime lastActivityDay = DateTime(
@@ -103,67 +157,49 @@ class FirestoreService {
         final difference = today.difference(lastActivityDay).inDays;
 
         if (difference == 1) {
-          // Consecutive day
           newStreak += 1;
-          transaction.update(childDocRef, {
-            'streakCount': newStreak,
-            'lastActivityDate': Timestamp.fromDate(today),
-          });
+          childUpdates['streakCount'] = newStreak;
+          childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
         } else if (difference > 1) {
-          // Missed days, reset streak
           newStreak = 1;
-          transaction.update(childDocRef, {
-            'streakCount': newStreak,
-            'lastActivityDate': Timestamp.fromDate(today),
-          });
+          childUpdates['streakCount'] = newStreak;
+          childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
         }
-        // If difference == 0 (same day), we don't change streak or date
       }
 
-      // Logic: Status of level remains highest stars
-      if (stars > previousBestStars) {
+      final didImprove = stars > previousBestStars;
+      if (didImprove) {
         transaction.set(levelDocRef, {'stars': stars}, SetOptions(merge: true));
 
-        // Total star count increment by difference
         final int improvement = stars - previousBestStars;
         final String balanceField = childData.containsKey('stars')
             ? 'stars'
             : 'starBalance';
-        transaction.update(childDocRef, {
-          balanceField: currentBalance + improvement,
-        });
-
-        // Update subject progress
-        final subjectDocRef = childDocRef
-            .collection('subjectProgress')
-            .doc(subjectId);
-        final levelsSnapshot = await childDocRef
-            .collection('subjectProgress')
-            .doc(subjectId)
-            .collection('levels')
-            .get();
-
-        // Count how many levels have at least 1 star
-        int completedLevels = 0;
-        final Map<String, int> starMap = {};
-        for (var doc in levelsSnapshot.docs) {
-          final s = (doc.data()['stars'] ?? 0).toInt();
-          starMap[doc.id] = s;
-          if (s > 0) completedLevels++;
-        }
-
-        // Ensure the current level is counted if it was just updated and not yet in levelsSnapshot
-        if (stars > 0 && (starMap[levelId] ?? 0) == 0) {
-          completedLevels++;
-        }
-
-        final int progressPercentage = ((completedLevels / 8) * 100).toInt();
-        transaction.set(subjectDocRef, {
-          'progress': progressPercentage,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        childUpdates[balanceField] = currentBalance + improvement;
       }
+
+      if (childUpdates.isNotEmpty) {
+        transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
+      }
+
+      return didImprove;
     });
+
+    if (!didImproveStars) return;
+
+    final subjectDocRef = childDocRef
+        .collection('subjectProgress')
+        .doc(subjectId);
+    final levelsSnapshot = await subjectDocRef.collection('levels').get();
+    final completedLevels = levelsSnapshot.docs.where((doc) {
+      return (doc.data()['stars'] ?? 0).toInt() > 0;
+    }).length;
+
+    final int progressPercentage = ((completedLevels / 8) * 100).toInt();
+    await subjectDocRef.set({
+      'progress': progressPercentage,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Stream<Map<String, int>> streamLevelStars(
@@ -187,88 +223,5 @@ class FirestoreService {
           }
           return stars;
         });
-  }
-
-  Future<void> seedMockData(String uid) async {
-    try {
-      print('Seeding mock data for user: $uid');
-      // Set user profile
-      await _db.collection('users').doc(uid).set({
-        'name': 'Olaf',
-        'starBalance': 2,
-        'activeMascotOutfit': 'Hero Cape',
-        'parentId': 'scKBgki4JkM7fBSsQDXUgo58Dnl1',
-      }, SetOptions(merge: true));
-      print('User profile seeded successfully');
-
-      // Set level 1 progress for BM to 2 stars
-      await _db
-          .collection('users')
-          .doc(uid)
-          .collection('subjectProgress')
-          .doc('bm')
-          .collection('levels')
-          .doc('l1')
-          .set({'stars': 2}, SetOptions(merge: true));
-
-      // Set subject progress
-      final subjects = [
-        {
-          'id': 'bm',
-          'name': 'Bahasa Melayu',
-          'subtitle': 'Membaca & Menulis',
-          'icon': 'edit_rounded',
-          'color': 'bm',
-          'progress': 45,
-        },
-        {
-          'id': 'english',
-          'name': 'English',
-          'subtitle': 'Reading & Writing',
-          'icon': 'menu_book_rounded',
-          'color': 'english',
-          'progress': 30,
-        },
-        {
-          'id': 'mandarin',
-          'name': 'Mandarin',
-          'subtitle': 'Chinese characters',
-          'icon': 'translate_rounded',
-          'color': 'mandarin',
-          'progress': 20,
-        },
-        {
-          'id': 'math',
-          'name': 'Mathematics',
-          'subtitle': 'Numbers & shapes',
-          'icon': 'calculate_rounded',
-          'color': 'math',
-          'progress': 55,
-        },
-        {
-          'id': 'science',
-          'name': 'Science',
-          'subtitle': 'Explore & discover',
-          'icon': 'science_rounded',
-          'color': 'science',
-          'progress': 25,
-        },
-      ];
-
-      for (var subject in subjects) {
-        final id = subject.remove('id') as String;
-        await _db
-            .collection('users')
-            .doc(uid)
-            .collection('subjectProgress')
-            .doc(id)
-            .set(subject, SetOptions(merge: true));
-        print('Subject seeded: $id');
-      }
-      print('All mock data seeded successfully');
-    } catch (e) {
-      print('Error seeding mock data: $e');
-      rethrow;
-    }
   }
 }

@@ -1,8 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../theme/app_theme.dart';
+import '../../providers/data_providers.dart';
 
 class MascotWidget extends StatelessWidget {
   const MascotWidget({
@@ -77,7 +78,7 @@ class MascotWidget extends StatelessWidget {
   }
 }
 
-class ActiveMascotWidget extends StatelessWidget {
+class ActiveMascotWidget extends ConsumerWidget {
   const ActiveMascotWidget({
     super.key,
     this.childId,
@@ -90,8 +91,8 @@ class ActiveMascotWidget extends StatelessWidget {
   final String? message;
 
   @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(firebaseAuthProvider).currentUser;
 
     if (user == null || childId == null) {
       return MascotWidget(size: size, message: message);

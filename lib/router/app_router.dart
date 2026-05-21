@@ -24,11 +24,13 @@ import '../theme/app_theme.dart';
 import '../widgets/common/bottom_nav_bar.dart';
 import '../screens/auth/profile_selection_screen.dart';
 import '../screens/auth/create_profile_screen.dart';
+import '../screens/auth/forgot_password_screen.dart';
 import 'go_router_refresh_stream.dart';
 
 class AppRouter {
   static const login = '/login';
   static const parentRegister = '/parent-register';
+  static const forgotPassword = '/forgot-password';
   static const mascotSelection = '/mascot-selection';
   static const childHome = '/child-home';
 
@@ -43,7 +45,14 @@ class AppRouter {
   static String childHomeFor(String? childId) =>
       withChildId(childHome, childId);
 
-  static String subjectFor(String? childId) => withChildId(subject, childId);
+  static String subjectFor(String? childId, {String? subjectId}) {
+    final params = <String, String>{};
+    if (childId != null && childId.isNotEmpty) params['childId'] = childId;
+    if (subjectId != null && subjectId.isNotEmpty) {
+      params['subjectId'] = subjectId;
+    }
+    return Uri(path: subject, queryParameters: params).toString();
+  }
 
   static String chapterFor(String? childId) => withChildId(chapter, childId);
 
@@ -56,11 +65,17 @@ class AppRouter {
     return Uri(path: levelSession, queryParameters: params).toString();
   }
 
-  static String completionFor(String? childId, {int? score, int? total}) {
+  static String completionFor(
+    String? childId, {
+    int? score,
+    int? total,
+    int? stars,
+  }) {
     final params = <String, String>{};
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
     if (score != null) params['score'] = score.toString();
     if (total != null) params['total'] = total.toString();
+    if (stars != null) params['stars'] = stars.toString();
     return Uri(path: completion, queryParameters: params).toString();
   }
 
@@ -94,7 +109,9 @@ class AppRouter {
 
       // Is the user trying to access the login or register page?
       final isAuthRoute =
-          state.uri.path == login || state.uri.path == parentRegister;
+          state.uri.path == login ||
+          state.uri.path == parentRegister ||
+          state.uri.path == forgotPassword;
 
       // If they are NOT logged in and trying to go anywhere else, force them to Login
       if (!isLoggedIn && !isAuthRoute) {
@@ -119,6 +136,11 @@ class AppRouter {
         path: parentRegister,
         pageBuilder: (context, state) =>
             _noTransitionPage(state, const ParentRegisterScreen()),
+      ),
+      GoRoute(
+        path: forgotPassword,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const ForgotPasswordScreen()),
       ),
       GoRoute(
         path: selectProfile,
@@ -203,8 +225,7 @@ class AppRouter {
       GoRoute(
         path: mascotSelection,
         pageBuilder: (context, state) {
-          final childId =
-              state.uri.queryParameters['childId'] ?? 'demo_child_001';
+          final childId = state.uri.queryParameters['childId'] ?? '';
 
           return _noTransitionPage(
             state,
@@ -260,6 +281,7 @@ class AppRouter {
               int.tryParse(state.uri.queryParameters['score'] ?? '0') ?? 0;
           final total =
               int.tryParse(state.uri.queryParameters['total'] ?? '0') ?? 0;
+          final stars = int.tryParse(state.uri.queryParameters['stars'] ?? '');
           final levelId = state.uri.queryParameters['levelId'] ?? 'l1';
           final subjectId = state.uri.queryParameters['subjectId'] ?? 'bm';
 
@@ -269,6 +291,7 @@ class AppRouter {
               childId: childId,
               score: score,
               total: total,
+              stars: stars,
               levelId: levelId,
               subjectId: subjectId,
             ),
