@@ -11,6 +11,7 @@ import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
+import '../../widgets/common/audio_prompt_player.dart';
 
 class LevelSessionScreen extends ConsumerStatefulWidget {
   const LevelSessionScreen({
@@ -255,6 +256,14 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     style: AppTextStyles.cardTitle,
                     textAlign: TextAlign.center,
                   ),
+                  if (question.promptAudioUrl != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    AudioPromptPlayer(
+                      key: ValueKey('audio_${question.id}'),
+                      url: question.promptAudioUrl!,
+                      autoPlay: question.type == 'audio',
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   if (question.imageUrl != null &&
                       question.imageUrl!.isNotEmpty)

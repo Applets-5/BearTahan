@@ -6,6 +6,8 @@ class Question {
   final List<String> options;
   final int correctAnswerIndex;
   final String? imageUrl;
+  final String? promptAudioUrl;
+  final String? type;
 
   Question({
     required this.id,
@@ -13,6 +15,8 @@ class Question {
     required this.options,
     required this.correctAnswerIndex,
     this.imageUrl,
+    this.promptAudioUrl,
+    this.type,
   });
 
   factory Question.fromFirestore(String id, Map<String, dynamic> data) {
@@ -51,6 +55,13 @@ class Question {
       finalImageUrl = rawImage['url']?.toString();
     }
 
+    // Process audio URL safely
+    String? finalAudioUrl =
+        data['promptAudioUrl'] ?? data['promptAudioURL'] ?? data['audioUrl'] ?? data['audio'];
+
+    // Process type safely
+    String? type = data['type']?.toString();
+
     // Process answer index safely (handles numbers, strings, and letters like "A", "B")
     dynamic rawIndex =
         data['correctanswerid'] ??
@@ -84,6 +95,8 @@ class Question {
           .toList(),
       correctAnswerIndex: finalIndex,
       imageUrl: finalImageUrl,
+      promptAudioUrl: finalAudioUrl,
+      type: type,
     );
   }
 }
