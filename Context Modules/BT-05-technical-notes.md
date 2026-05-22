@@ -1,5 +1,5 @@
 # BT-05 — Technical Notes
-**Module:** BT-05 | **Version:** 1.0
+**Module:** BT-05 | **Version:** 1.1
 **Stack:** Flutter (Dart) · Firebase (Firestore, Auth, FCM)
 
 ---
@@ -15,7 +15,7 @@
 | Biometric auth | flutter_local_auth plugin | Biometric / PIN for parent mode switch (in-app, separate from Firebase Auth) |
 | Audio | TTS service (flutter_tts or google_cloud_tts) | Question audio; managed by Dev 3 |
 | Stroke tracing | Custom Flutter canvas widget | Mandarin character tracing; Dev 1 task |
-| State management | Riverpod or Provider (team to confirm) | App-wide state |
+| State management | Riverpod 2.x | App-wide state — confirmed in use (childIdProvider, parentIdProvider) |
 
 ---
 
@@ -31,6 +31,8 @@
 /levels/{levelID}
 /questions/{questionID}
 ```
+
+> **⚠️ Implementation note (as of Sprint 2):** The current codebase uses `/parents/{uid}/children` and `/parents/{uid}/rewards` rather than the top-level `/users` and `/children` collections documented above. This divergence exists because of early teammate implementation choices. The documented schema above remains the intended target architecture. Until a formal migration decision is made: (a) all new Firestore writes should follow the existing `/parents/{uid}/...` path to stay consistent with the live code, and (b) do not reintroduce `/users` writes or top-level `/children` writes. Resolve the mismatch in a future sprint when it starts blocking feature work.
 
 ### `/users/{parentUID}`
 ```dart
@@ -880,3 +882,59 @@ Surfacing chapter analytics for parents is part of the same story as Bear's Den 
 
 **Empty/locked state:**
 - If `bearsDenUnlocked == false` and child somehow reaches the tile: show "Complete Chapters 1, 2, and 3 to unlock Bear's Den"
+
+---
+
+## 16. Implementation Consistency Rules & Current State
+
+This section documents constraints and deviations discovered during Sprint 2 stabilisation (commits 46fd21b → 87f77c4). Treat these as mandatory guardrails for all developers going forward.
+
+### 16a. No hardcoded parent or child IDs
+
+All Firestore writes scoped to a parent or child must resolve the parent UID from `parentIdProvider` (Riverpod) or `FirebaseAuth.currentUser`, never from a hardcoded string. Hardcoded demo UIDs (e.g. `demo_child_001`, any fixed UID string) are only acceptable inside mock/seed scripts that are explicitly excluded from production code paths. Violating this causes progress writes to land under the wrong account and is undetectable until a real multi-user test.
+
+### 16b. Child ID resolution in screens
+
+Child-specific screens (profile, rewards, level session, completion) must resolve `childId` using this priority order:
+1. Route query parameter (URL/GoRouter query param) — preferred; survives web refresh and deep links
+2. `childIdProvider` (Riverpod in-memory state) — fallback for navigation within an app session
+3. If neither exists: render the shared `MissingChildProfile` widget (`lib/widgets/common/missing_child_profile.dart`) with a "Select Profile" button routing back to profile selection — never attempt a Firestore stream with an empty child ID
+
+This pattern is required because some team members develop on Chrome, where a page refresh loses in-memory provider state.
+
+### 16c. Firestore transaction scope
+
+Firestore transactions must remain document-focused. A transaction should only `get` and `set`/`update` documents by their known path. Do not run collection queries (`.where(...)`, `.get()` on a collection) inside a transaction — collection queries in transactions are unreliable and cause hard-to-reproduce failures. The current `updateLevelProgress` transaction follows this pattern: it reads the child document and the level document, updates streak and star fields, then commits. Subject progress recalculation (which requires a collection count) runs after the transaction commits as a separate write.
+
+### 16d. Auth — email paths in current implementation
+
+Per design decision D1, the V1 product uses Google Sign-In only. However, the current codebase includes teammate-built email login, registration, and password reset flows used for development and testing convenience. These flows are intact and should not be removed without a team decision. `ParentAccountService` (`lib/services/parent_account_service.dart`) centralises parent document creation/update under `/parents/{uid}` and is used by both Google and email login paths. When in doubt, leave email paths intact; the final V1 demo decision on whether to disable them sits with the PO.
+
+### 16e. Completion screen star resolution
+
+`CompletionScreen` supports two calling conventions:
+- Session flow (normal path): passes `stars` directly as a route/constructor parameter — used as-is
+- Tests or direct callers: may pass only `score` and `total` — `CompletionScreen` derives stars via `StarUtils` as a fallback
+
+Do not remove the `StarUtils` fallback; it keeps the test suite valid without requiring a full session flow.
+
+### 16f. Android manifest — internet permission
+
+The main `AndroidManifest.xml` (`android/app/src/main/AndroidManifest.xml`) includes `<uses-permission android:name="android.permission.INTERNET"/>`. This is required for all Firebase, network, and audio features. If you create a new product flavour or manifest variant, ensure this permission is present. Do not rely on debug/profile manifests only.
+
+### 16g. Local verification and CI
+
+**Local check (run before every push):**
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify.ps1
+```
+**Local check including APK build (before demo or native-feature work):**
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -BuildApk
+```
+
+The script runs: `flutter pub get` → format tracked Dart files → `flutter analyze --no-pub` → `flutter test --no-pub` → optionally `flutter build apk --debug --no-pub`.
+
+**GitHub Actions CI** runs four separate checks on every push: Format · Analyze · Test · Android Debug Build. All four must be green before a PR is merged. If the Android Debug Build check fails on GitHub but tests pass locally, the likely cause is a missing manifest permission, a Gradle configuration issue, or a generated file not committed.
+
+**Current baseline:** 27 tests passing, analyzer clean, APK builds successfully as of commit 87f77c4.

@@ -1,5 +1,5 @@
 # BT-02 — Design Decisions (Final)
-**Module:** BT-02 | **Version:** Final — all decisions confirmed
+**Module:** BT-02 | **Version:** Final v1.1 — Sprint 2 implementation notes added
 
 All decisions below are final unless explicitly reopened by the team. Grouped by area.
 
@@ -85,6 +85,8 @@ Review = wrong-answer recovery only. It is not a time-based Ebbinghaus spaced re
 
 **D1. Login method**
 Google Sign-In via Firebase Auth. This covers registration, login, and session management. No separate email/password system. Apple Sign-In is a post-MVP nice-to-have; not required for V1.
+
+> **Implementation note (Sprint 2):** The current codebase includes teammate-built email login, registration, and password reset screens alongside Google Sign-In. These exist for development and testing convenience and are integrated through `ParentAccountService`. They should not be removed without a PO decision. The product-facing V1 commitment remains Google Sign-In as the primary/sole promoted auth method.
 
 **D2. Parent mode switch**
 Biometric authentication (fingerprint) is the primary method. PIN is the fallback for devices without biometric support. PIN is set up during onboarding. The Switch to Parent Mode button is visible on the child's home screen — it does not need to be hidden.
