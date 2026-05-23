@@ -218,6 +218,19 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             final isLastQuestion = currentQuestionIndex == questions.length - 1;
             final progress = (currentQuestionIndex + 1) / questions.length;
 
+            String getLanguage() {
+              switch (widget.subjectId.toLowerCase()) {
+                case 'bm':
+                  return 'ms-MY';
+                case 'english':
+                  return 'en-GB';
+                case 'mandarin':
+                  return 'zh-CN';
+                default:
+                  return 'en-GB';
+              }
+            }
+
             return Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
@@ -251,19 +264,36 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     ],
                   ),
                   const Spacer(),
-                  Text(
-                    question.text,
-                    style: AppTextStyles.cardTitle,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: question.text,
+                          style: AppTextStyles.cardTitle,
+                        ),
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.only(left: AppSpacing.sm),
+                            child: SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: AudioPromptPlayer(
+                                key: ValueKey('audio_${question.id}'),
+                                url: question.promptAudioUrl,
+                                textToSpeak: question.text,
+                                language: getLanguage(),
+                                autoPlay: true,
+                                isSmall: true,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     textAlign: TextAlign.center,
                   ),
-                  if (question.promptAudioUrl != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    AudioPromptPlayer(
-                      key: ValueKey('audio_${question.id}'),
-                      url: question.promptAudioUrl!,
-                      autoPlay: question.type == 'audio',
-                    ),
-                  ],
                   const SizedBox(height: AppSpacing.md),
                   if (question.imageUrl != null &&
                       question.imageUrl!.isNotEmpty)
@@ -320,7 +350,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                         child: Text(
                           selected == question.correctAnswerIndex
                               ? 'Correct! Well done!'
-                              : 'Not quite! The answer is "${question.options[question.correctAnswerIndex]}".',
+                              : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
                           style: AppTextStyles.bodyBold,
                         ),
                       ),
@@ -353,6 +383,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   }
 
   Widget _option(int index, Question question) {
+    final option = question.options[index];
     final picked = selected == index;
     final isCorrect = index == question.correctAnswerIndex;
     final showCorrect = selected != null && isCorrect;
@@ -410,9 +441,29 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
+              if (option.imageUrl != null && option.imageUrl!.isNotEmpty) ...[
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.imagePlaceholder,
+                    borderRadius: AppRadius.r(AppRadius.md),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: AppRadius.r(AppRadius.md),
+                    child: Image.network(
+                      option.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.image, size: 24),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+              ],
               Expanded(
                 child: Text(
-                  question.options[index],
+                  option.text,
                   style: AppTextStyles.bodyBold,
                 ),
               ),

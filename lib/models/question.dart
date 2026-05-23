@@ -1,9 +1,19 @@
 import 'package:flutter/foundation.dart';
 
+class QuestionOption {
+  final String text;
+  final String? imageUrl;
+
+  QuestionOption({
+    required this.text,
+    this.imageUrl,
+  });
+}
+
 class Question {
   final String id;
   final String text;
-  final List<String> options;
+  final List<QuestionOption> options;
   final int correctAnswerIndex;
   final String? imageUrl;
   final String? promptAudioUrl;
@@ -35,6 +45,16 @@ class Question {
       return value?.toString() ?? '';
     }
 
+    String? extractImageUrl(dynamic value) {
+      if (value is Map) {
+        final imageKeys = ['imageUrl', 'image', 'img', 'url', 'picture'];
+        for (var key in imageKeys) {
+          if (value.containsKey(key)) return value[key]?.toString();
+        }
+      }
+      return null;
+    }
+
     // Process question text safely with multiple aliases
     String text = extractText(
       data['text'] ??
@@ -51,13 +71,19 @@ class Question {
     String? finalImageUrl;
     if (rawImage is String) {
       finalImageUrl = rawImage;
-    } else if (rawImage is Map && rawImage.containsKey('url')) {
-      finalImageUrl = rawImage['url']?.toString();
+    } else if (rawImage is Map) {
+      finalImageUrl = extractImageUrl(rawImage);
     }
 
     // Process audio URL safely
     String? finalAudioUrl =
-        data['promptAudioUrl'] ?? data['promptAudioURL'] ?? data['audioUrl'] ?? data['audio'];
+        data['promptAudioUrl'] ?? 
+        data['promptAudioURL'] ?? 
+        data['audioUrl'] ?? 
+        data['audioURL'] ?? 
+        data['audio_url'] ?? 
+        data['audio'] ?? 
+        data['voice'];
 
     // Process type safely
     String? type = data['type']?.toString();
@@ -87,12 +113,19 @@ class Question {
       }
     }
 
+    // Process options
+    final rawOptions = data['options'] as List? ?? [];
+    final List<QuestionOption> parsedOptions = rawOptions.map((e) {
+      return QuestionOption(
+        text: extractText(e),
+        imageUrl: extractImageUrl(e),
+      );
+    }).toList();
+
     return Question(
       id: id,
       text: text,
-      options: (data['options'] as List? ?? [])
-          .map((e) => extractText(e))
-          .toList(),
+      options: parsedOptions,
       correctAnswerIndex: finalIndex,
       imageUrl: finalImageUrl,
       promptAudioUrl: finalAudioUrl,

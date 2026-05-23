@@ -1,22 +1,30 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
 
-class AudioPromptPlayer extends StatefulWidget {
-  final String url;
+class AudioPromptPlayer extends ConsumerStatefulWidget {
+  final String? url;
+  final String? textToSpeak;
   final bool autoPlay;
+  final bool isSmall;
+  final String? language;
 
   const AudioPromptPlayer({
     super.key,
-    required this.url,
+    this.url,
+    this.textToSpeak,
     this.autoPlay = false,
+    this.isSmall = false,
+    this.language,
   });
 
   @override
-  State<AudioPromptPlayer> createState() => _AudioPromptPlayerState();
+  ConsumerState<AudioPromptPlayer> createState() => _AudioPromptPlayerState();
 }
 
-class _AudioPromptPlayerState extends State<AudioPromptPlayer> {
+class _AudioPromptPlayerState extends ConsumerState<AudioPromptPlayer> {
   late AudioPlayer _player;
   bool _isPlaying = false;
   bool _hasError = false;
@@ -41,14 +49,14 @@ class _AudioPromptPlayerState extends State<AudioPromptPlayer> {
     });
 
     if (widget.autoPlay) {
-      _play();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _play());
     }
   }
 
   @override
   void didUpdateWidget(AudioPromptPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url) {
+    if (oldWidget.url != widget.url || oldWidget.textToSpeak != widget.textToSpeak) {
       _hasError = false;
       if (widget.autoPlay) {
         _play();
@@ -57,11 +65,26 @@ class _AudioPromptPlayerState extends State<AudioPromptPlayer> {
   }
 
   Future<void> _play() async {
-    if (widget.url.isEmpty) return;
+    final hasUrl = widget.url != null && widget.url!.isNotEmpty;
+    final hasText = widget.textToSpeak != null && widget.textToSpeak!.isNotEmpty;
+
+    if (!hasUrl && !hasText) return;
 
     try {
-      await _player.stop();
-      await _player.play(UrlSource(widget.url));
+      if (hasUrl) {
+        await ref.read(ttsServiceProvider).stop();
+        await _player.stop();
+        await _player.play(UrlSource(widget.url!));
+      } else if (hasText) {
+        await _player.stop();
+        setState(() => _isPlaying = true);
+        await ref.read(ttsServiceProvider).speak(
+          widget.textToSpeak!,
+          language: widget.language,
+        );
+        if (mounted) setState(() => _isPlaying = false);
+      }
+
       if (mounted) {
         setState(() {
           _hasError = false;
@@ -72,6 +95,7 @@ class _AudioPromptPlayerState extends State<AudioPromptPlayer> {
       if (mounted) {
         setState(() {
           _hasError = true;
+          _isPlaying = false;
         });
       }
     }
@@ -85,11 +109,20 @@ class _AudioPromptPlayerState extends State<AudioPromptPlayer> {
 
   @override
   Widget build(BuildContext context) {
+    final double iconSize = widget.isSmall ? 20 : 32;
+    final double padding = widget.isSmall ? AppSpacing.xs : AppSpacing.sm;
+    
+    final hasContent = (widget.url != null && widget.url!.isNotEmpty) || 
+                       (widget.textToSpeak != null && widget.textToSpeak!.isNotEmpty);
+
+    if (!hasContent) return const SizedBox.shrink();
+
     return IconButton(
       onPressed: _hasError ? null : _play,
-      iconSize: 48,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
       icon: Container(
-        padding: const EdgeInsets.all(AppSpacing.sm),
+        padding: EdgeInsets.all(padding),
         decoration: BoxDecoration(
           color: _isPlaying
               ? AppColors.accent.withAlpha(26)
@@ -102,6 +135,7 @@ class _AudioPromptPlayerState extends State<AudioPromptPlayer> {
               : _isPlaying
                   ? Icons.stop_rounded
                   : Icons.volume_up_rounded,
+          size: iconSize,
           color: _hasError
               ? AppColors.destructive
               : _isPlaying

@@ -11,7 +11,12 @@ void main() {
     (i) => Question(
       id: 'q$i',
       text: 'Question $i',
-      options: ['Option A', 'Option B', 'Option C', 'Option D'],
+      options: [
+        QuestionOption(text: 'Option A'),
+        QuestionOption(text: 'Option B'),
+        QuestionOption(text: 'Option C'),
+        QuestionOption(text: 'Option D'),
+      ],
       correctAnswerIndex: 0,
     ),
   );
