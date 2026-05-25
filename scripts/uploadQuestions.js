@@ -60,17 +60,33 @@ questions.forEach((q, index) => {
     }
   });
 
-  if (!Array.isArray(q.options) || q.options.length !== 4) {
+  if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 4) {
     console.error(
-      `\n❌  Question "${q.id}" must have exactly 4 options.\n`
+      `\n❌  Question "${q.id}" must have between 2 and 4 options.\n`
     );
     process.exit(1);
   }
 
-  const optionIds = q.options.map((o) => o.id);
-  if (!optionIds.includes(q.correctAnswerId)) {
+  if (q.questionType === 'mcq') {
+    const optionIds = q.options.map((o) => o.id);
+    if (!q.correctAnswerId || !optionIds.includes(q.correctAnswerId)) {
+      console.error(
+        `\n❌  Question "${q.id}" correctAnswerId "${q.correctAnswerId}" does not match any option id.\n`
+      );
+      process.exit(1);
+    }
+  }
+
+  if (q.questionType === 'fillBlank' && !q.correctBlank) {
     console.error(
-      `\n❌  Question "${q.id}" correctAnswerId "${q.correctAnswerId}" does not match any option id.\n`
+      `\n❌  Question "${q.id}" is fillBlank but missing correctBlank.\n`
+    );
+    process.exit(1);
+  }
+
+  if (q.questionType === 'rearrange' && (!q.correctOrder || q.correctOrder.length === 0)) {
+    console.error(
+      `\n❌  Question "${q.id}" is rearrange but missing correctOrder.\n`
     );
     process.exit(1);
   }
