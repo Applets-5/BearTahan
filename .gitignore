@@ -49,3 +49,4 @@ linux/flutter/
 macos/Flutter/GeneratedPluginRegistrant.swift
 windows/flutter/
 
+scripts/serviceAccountKey.json.json

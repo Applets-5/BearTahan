@@ -6,7 +6,7 @@ class QuestionRepository {
   final FirebaseFirestore _firestore;
 
   QuestionRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   Future<List<Question>> fetchByLevel(String levelId) async {
     final snapshot = await _firestore
@@ -50,15 +50,18 @@ final questionRepositoryProvider = Provider<QuestionRepository>(
   (ref) => QuestionRepository(),
 );
 
-final questionsByLevelProvider =
-    FutureProvider.family<List<Question>, String>((ref, levelId) {
+final questionsByLevelProvider = FutureProvider.family<List<Question>, String>((
+  ref,
+  levelId,
+) {
   return ref.watch(questionRepositoryProvider).fetchByLevel(levelId);
 });
 
 final questionsByChapterProvider =
     FutureProvider.family<List<Question>, ({String levelId, String chapterId})>(
-        (ref, params) {
-  return ref
-      .watch(questionRepositoryProvider)
-      .fetchByChapter(params.levelId, params.chapterId);
-});
+      (ref, params) {
+        return ref
+            .watch(questionRepositoryProvider)
+            .fetchByChapter(params.levelId, params.chapterId);
+      },
+    );
