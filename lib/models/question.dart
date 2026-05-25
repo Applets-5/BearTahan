@@ -1,94 +1,89 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-enum QuestionImageMode {
-  none,         // text prompt only
-  promptImage,  // image illustrates the question
-  answerImage,  // answer options are images
-}
+import 'package:flutter/foundation.dart';
 
 class Question {
   final String id;
-  final String subjectId;
-  final String chapterId;
-  final String levelId;
-  final int levelNumber;
-  final int difficulty;
-  final QuestionImageMode imageMode;
-  final String prompt;
-  final String? imageUrl;
-  final List<QuestionOption> options;
-  final String correctAnswerId;
-
-  const Question({
-    required this.id,
-    required this.subjectId,
-    required this.chapterId,
-    required this.levelId,
-    required this.levelNumber,
-    required this.difficulty,
-    required this.imageMode,
-    required this.prompt,
-    this.imageUrl,
-    required this.options,
-    required this.correctAnswerId,
-  });
-
-  factory Question.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Question(
-      id: doc.id,
-      subjectId: data['subjectId'] as String,
-      chapterId: data['chapterId'] as String,
-      levelId: data['levelId'] as String,
-      levelNumber: data['levelNumber'] as int,
-      difficulty: data['difficulty'] as int,
-      imageMode: QuestionImageMode.values.firstWhere(
-        (e) => e.name == (data['imageMode'] as String? ?? 'none'),
-        orElse: () => QuestionImageMode.none,
-      ),
-      prompt: data['prompt'] as String,
-      imageUrl: data['imageUrl'] as String?,
-      correctAnswerId: data['correctAnswerId'] as String,
-      options: (data['options'] as List<dynamic>)
-          .map((o) => QuestionOption.fromMap(o as Map<String, dynamic>))
-          .toList(),
-    );
-  }
-
-  Map<String, dynamic> toMap() => {
-    'subjectId': subjectId,
-    'chapterId': chapterId,
-    'levelId': levelId,
-    'levelNumber': levelNumber,
-    'difficulty': difficulty,
-    'imageMode': imageMode.name,
-    'prompt': prompt,
-    'imageUrl': imageUrl,
-    'correctAnswerId': correctAnswerId,
-    'options': options.map((o) => o.toMap()).toList(),
-  };
-}
-
-class QuestionOption {
-  final String id;
   final String text;
+  final List<String> options;
+  final int correctAnswerIndex;
   final String? imageUrl;
 
-  const QuestionOption({
+  Question({
     required this.id,
     required this.text,
+    required this.options,
+    required this.correctAnswerIndex,
     this.imageUrl,
   });
 
-  factory QuestionOption.fromMap(Map<String, dynamic> map) => QuestionOption(
-    id: map['id'] as String,
-    text: map['text'] as String,
-    imageUrl: map['imageUrl'] as String?,
-  );
+  factory Question.fromFirestore(String id, Map<String, dynamic> data) {
+    debugPrint('DEBUG: Parsing question document: $id');
+    debugPrint('DEBUG: Raw data: $data');
 
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'text': text,
-    'imageUrl': imageUrl,
-  };
+    String extractText(dynamic value) {
+      if (value is String) return value;
+      if (value is Map) {
+        // Look for common content keys in a Map
+        final contentKeys = ['text', 'label', 'value', 'word', 'name'];
+        for (var key in contentKeys) {
+          if (value.containsKey(key)) return value[key].toString();
+        }
+      }
+      return value?.toString() ?? '';
+    }
+
+    // Process question text safely with multiple aliases
+    String text = extractText(
+      data['text'] ??
+          data['questionText'] ??
+          data['question'] ??
+          data['prompt'] ??
+          data['q'] ??
+          '',
+    );
+
+    // Process image URL safely
+    dynamic rawImage =
+        data['imageUrl'] ?? data['image'] ?? data['img'] ?? data['picture'];
+    String? finalImageUrl;
+    if (rawImage is String) {
+      finalImageUrl = rawImage;
+    } else if (rawImage is Map && rawImage.containsKey('url')) {
+      finalImageUrl = rawImage['url']?.toString();
+    }
+
+    // Process answer index safely (handles numbers, strings, and letters like "A", "B")
+    dynamic rawIndex =
+        data['correctanswerid'] ??
+        data['correctAnswerId'] ??
+        data['correctAnswerIndex'] ??
+        data['answerIndex'] ??
+        data['correctIndex'] ??
+        data['correctAnswer'] ??
+        data['answer'];
+
+    int finalIndex = 0;
+    if (rawIndex is num) {
+      finalIndex = rawIndex.toInt();
+    } else if (rawIndex is String) {
+      String upper = rawIndex.trim().toUpperCase();
+      // Handle letter-based answers (A, B, C, D...)
+      if (upper.length == 1 &&
+          upper.codeUnitAt(0) >= 65 &&
+          upper.codeUnitAt(0) <= 90) {
+        finalIndex = upper.codeUnitAt(0) - 65;
+      } else {
+        finalIndex = int.tryParse(upper) ?? 0;
+      }
+    }
+
+    return Question(
+      id: id,
+      text: text,
+      options: (data['options'] as List? ?? [])
+          .map((e) => extractText(e))
+          .toList(),
+      correctAnswerIndex: finalIndex,
+      imageUrl: finalImageUrl,
+    );
+  }
 }

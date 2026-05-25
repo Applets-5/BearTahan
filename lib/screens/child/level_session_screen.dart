@@ -1,73 +1,234 @@
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/question.dart';
-import '../../repositories/question_repository.dart';
+import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
 
 class LevelSessionScreen extends ConsumerStatefulWidget {
-  final String levelId;
-  final String chapterId;
-  final String levelTitle;
-
   const LevelSessionScreen({
     super.key,
-    required this.levelId,
-    required this.chapterId,
-    required this.levelTitle,
+    this.childId,
+    this.levelPrefix = 'bm_c1_l1_',
+    this.subjectId = 'bm',
+    this.levelId = 'l1',
   });
+
+  final String? childId;
+  final String levelPrefix;
+  final String subjectId;
+  final String levelId;
 
   @override
   ConsumerState<LevelSessionScreen> createState() => _LevelSessionScreenState();
 }
 
 class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
+  int currentQuestionIndex = 0;
+  int score = 0;
+  Timer? _sessionTimer;
+  int _elapsedSeconds = 0;
+  bool _timerStarted = false;
+
   int? selected;
-  int currentIndex = 0;
+  List<Question>? shuffledQuestions;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startSessionTimer();
+    });
+  }
+
+  void _playFeedback(bool isCorrect) async {
+    if (isCorrect) {
+      await _audioPlayer.play(AssetSource('audio/correctAns.mp3'));
+    } else {
+      await _audioPlayer.play(AssetSource('audio/wrongAns.mp3'));
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopSessionTimer();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  void _startSessionTimer() {
+    if (_timerStarted) return;
+    _timerStarted = true;
+    _sessionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        _elapsedSeconds++;
+      });
+    });
+  }
+
+  void _stopSessionTimer() {
+    _sessionTimer?.cancel();
+    _sessionTimer = null;
+  }
+
+  String _formatElapsedTime() {
+    final minutes = (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_elapsedSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  Future<void> _completeSession(int totalQuestions) async {
+    _stopSessionTimer();
+
+    // Calculate stars based on score
+    final stars = StarUtils.calculateStars(
+      score: score,
+      total: totalQuestions,
+      levelId: widget.levelId,
+    );
+
+    // Play appropriate audio
+    final String audioPath = stars > 0
+        ? 'audio/levelPassed.mp3'
+        : 'audio/levelFailed.mp3';
+    final playFuture = _audioPlayer
+        .play(AssetSource(audioPath))
+        .then((_) => _audioPlayer.onPlayerComplete.first);
+
+    try {
+      final parentId = ref.read(parentIdProvider);
+      if (widget.childId != null && parentId.isNotEmpty) {
+        await ref
+            .read(firestoreServiceProvider)
+            .updateLevelProgress(
+              parentId,
+              widget.childId!,
+              widget.subjectId,
+              widget.levelId,
+              stars,
+            );
+      }
+    } catch (e) {
+      debugPrint('Error saving attempt: $e');
+    }
+
+    // Wait for the audio to finish before navigating
+    await playFuture;
+
+    if (mounted) {
+      final params = {
+        'childId': widget.childId ?? '',
+        'score': score.toString(),
+        'total': totalQuestions.toString(),
+        'levelId': widget.levelId,
+        'subjectId': widget.subjectId,
+        'stars': stars.toString(),
+      };
+      context.go(
+        Uri(path: AppRouter.completion, queryParameters: params).toString(),
+      );
+    }
+  }
+
+  Future<void> _handleExit() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit Quiz?'),
+        content: const Text(
+          'Are you sure you want to exit? Your progress will not be saved.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Exit', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(
+          AppRouter.subjectFor(widget.childId, subjectId: widget.subjectId),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final questionsAsync = ref.watch(
-      questionsByChapterProvider((
-        levelId: widget.levelId,
-        chapterId: widget.chapterId,
-      )),
-    );
+    final questionsAsync = ref.watch(questionsProvider(widget.levelPrefix));
 
-    return questionsAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Scaffold(
-        body: Center(child: Text('Error loading questions: $e')),
-      ),
-      data: (questions) {
-        if (questions.isEmpty) {
-          return const Scaffold(
-            body: Center(child: Text('No questions found.')),
-          );
-        }
+    return Scaffold(
+      body: SafeArea(
+        child: questionsAsync.when(
+          data: (rawQuestions) {
+            if (rawQuestions.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('No questions found for this level.'),
+                    const SizedBox(height: AppSpacing.md),
+                    PrimaryButton(
+                      label: 'Go Back',
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go(
+                            AppRouter.subjectFor(
+                              widget.childId,
+                              subjectId: widget.subjectId,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              );
+            }
 
-        final question = questions[currentIndex];
-        final progress = (currentIndex + 1) / questions.length;
-        final correctIndex = question.options
-            .indexWhere((o) => o.id == question.correctAnswerId);
+            // Shuffle and pick 10 questions once per session
+            if (shuffledQuestions == null) {
+              final List<Question> temp = List.from(rawQuestions)..shuffle();
+              shuffledQuestions = temp.take(10).toList();
+            }
 
-        return Scaffold(
-          body: SafeArea(
-            child: Padding(
+            final questions = shuffledQuestions!;
+            final question = questions[currentQuestionIndex];
+            final isLastQuestion = currentQuestionIndex == questions.length - 1;
+            final progress = (currentQuestionIndex + 1) / questions.length;
+
+            return Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 children: [
-                  // Progress bar
                   Row(
                     children: [
                       IconButton(
-                        onPressed: () => context.pop(),
-                        icon: const Icon(Icons.close, color: AppColors.mutedText),
+                        onPressed: _handleExit,
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppColors.mutedText,
+                        ),
                       ),
                       Expanded(
                         child: LinearProgressIndicator(
@@ -80,178 +241,151 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                       const SizedBox(width: AppSpacing.md),
                       const Icon(Icons.star, color: AppColors.star),
                       Text(
-                        '${currentIndex + 1}/${questions.length}',
+                        '${currentQuestionIndex + 1}/${questions.length}',
                         style: AppTextStyles.bodyBold,
                       ),
+                      const SizedBox(width: AppSpacing.sm),
+                      const Icon(Icons.timer, color: AppColors.mutedText),
+                      Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
                     ],
                   ),
-
                   const Spacer(),
-
-                  // Prompt image (promptImage mode only) 
-                  if (question.imageMode == QuestionImageMode.promptImage &&
-                      question.imageUrl != null) ...[
-                    _QuestionImage(imageUrl: question.imageUrl!),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
-
-                  // Question text 
                   Text(
-                    question.prompt,
+                    question.text,
                     style: AppTextStyles.cardTitle,
                     textAlign: TextAlign.center,
                   ),
-
-                  const SizedBox(height: AppSpacing.xl),
-
-                  // Answer options 
-                  // answerImage: 2x2 image grid
-                  // none / promptImage: vertical text list
-                  if (question.imageMode == QuestionImageMode.answerImage)
-                    _ImageOptionGrid(
-                      question: question,
-                      selected: selected,
-                      correctIndex: correctIndex,
-                      onSelect: (i) => setState(() => selected = i),
-                    )
-                  else
-                    ...List.generate(
-                      question.options.length,
-                      (i) => _TextOption(
-                        index: i,
-                        question: question,
-                        selected: selected,
-                        correctIndex: correctIndex,
-                        onSelect: (i) => setState(() => selected = i),
+                  const SizedBox(height: AppSpacing.md),
+                  if (question.imageUrl != null &&
+                      question.imageUrl!.isNotEmpty)
+                    Container(
+                      height: 104,
+                      width: 104,
+                      decoration: BoxDecoration(
+                        color: AppColors.imagePlaceholder,
+                        borderRadius: AppRadius.r(AppRadius.xl),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: AppRadius.r(AppRadius.xl),
+                        child: Image.network(
+                          question.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.image,
+                                color: AppColors.mutedText,
+                                size: 48,
+                              ),
+                        ),
                       ),
                     ),
-
+                  const SizedBox(height: AppSpacing.xl),
+                  ...List.generate(
+                    question.options.length,
+                    (index) => _option(index, question),
+                  ),
                   const Spacer(),
-
-                  // Feedback + Next button
                   if (selected != null) ...[
-                    _FeedbackBanner(
-                      isCorrect: selected == correctIndex,
-                      correctText: question.options[correctIndex].text,
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutBack,
+                      builder: (context, value, child) {
+                        return Transform.scale(
+                          scale: value,
+                          child: Opacity(
+                            opacity: value.clamp(0.0, 1.0),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: selected == question.correctAnswerIndex
+                              ? AppColors.accentLight
+                              : AppColors.destructiveLight,
+                          borderRadius: AppRadius.r(AppRadius.lg),
+                        ),
+                        child: Text(
+                          selected == question.correctAnswerIndex
+                              ? 'Correct! Well done!'
+                              : 'Not quite! The answer is "${question.options[question.correctAnswerIndex]}".',
+                          style: AppTextStyles.bodyBold,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     PrimaryButton(
-                      label: currentIndex < questions.length - 1
-                          ? 'Next'
-                          : 'Finish',
+                      label: isLastQuestion ? 'Finish' : 'Next',
                       icon: Icons.arrow_forward_rounded,
                       onPressed: () {
-                        if (currentIndex < questions.length - 1) {
+                        if (isLastQuestion) {
+                          _completeSession(questions.length);
+                        } else {
                           setState(() {
-                            currentIndex++;
+                            currentQuestionIndex++;
                             selected = null;
                           });
-                        } else {
-                          context.go(AppRouter.completion);
                         }
                       },
                     ),
                   ],
                 ],
               ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// Prompt image
-
-class _QuestionImage extends StatelessWidget {
-  final String imageUrl;
-  const _QuestionImage({required this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: AppRadius.r(AppRadius.xl),
-      child: Image.network(
-        imageUrl,
-        height: 180,
-        width: 180,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return Container(
-            height: 180,
-            width: 180,
-            decoration: BoxDecoration(
-              color: AppColors.muted,
-              borderRadius: AppRadius.r(AppRadius.xl),
-            ),
-            child: Center(
-              child: CircularProgressIndicator(
-                value: progress.expectedTotalBytes != null
-                    ? progress.cumulativeBytesLoaded /
-                        progress.expectedTotalBytes!
-                    : null,
-                color: AppColors.subjectBm,
-              ),
-            ),
-          );
-        },
-        errorBuilder: (_, __, ___) => Container(
-          height: 180,
-          width: 180,
-          decoration: BoxDecoration(
-            color: AppColors.muted,
-            borderRadius: AppRadius.r(AppRadius.xl),
-          ),
-          child: const Icon(Icons.broken_image,
-              color: AppColors.mutedText, size: 48),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text('Error: $err')),
         ),
       ),
     );
   }
-}
 
-// Text answer option (none / promptImage mode)
-
-class _TextOption extends StatelessWidget {
-  final int index;
-  final Question question;
-  final int? selected;
-  final int correctIndex;
-  final ValueChanged<int> onSelect;
-
-  const _TextOption({
-    required this.index,
-    required this.question,
-    required this.selected,
-    required this.correctIndex,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _option(int index, Question question) {
     final picked = selected == index;
-    final correct = selected != null && index == correctIndex;
+    final isCorrect = index == question.correctAnswerIndex;
+    final showCorrect = selected != null && isCorrect;
+    final showWrong = picked && !isCorrect;
+
+    final color = showCorrect
+        ? AppColors.accentLight
+        : showWrong
+        ? AppColors.destructiveLight
+        : AppColors.card;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: InkWell(
-        onTap: selected == null ? () => onSelect(index) : null,
+        onTap: selected == null
+            ? () {
+                final isCorrect = index == question.correctAnswerIndex;
+                if (isCorrect) {
+                  HapticFeedback.mediumImpact();
+                  _playFeedback(true);
+                } else {
+                  HapticFeedback.vibrate();
+                  _playFeedback(false);
+                }
+                setState(() {
+                  selected = index;
+                  if (isCorrect) {
+                    score++;
+                  }
+                });
+              }
+            : null,
         borderRadius: AppRadius.r(AppRadius.lg),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: correct
-                ? AppColors.accentLight
-                : picked
-                ? AppColors.destructiveLight
-                : AppColors.card,
+            color: color,
             borderRadius: AppRadius.r(AppRadius.lg),
             border: Border.all(
-              color: correct
+              color: showCorrect
                   ? AppColors.accent
-                  : picked
+                  : showWrong
                   ? AppColors.destructive
                   : AppColors.border,
             ),
@@ -269,182 +403,13 @@ class _TextOption extends StatelessWidget {
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
-                  question.options[index].text,
+                  question.options[index],
                   style: AppTextStyles.bodyBold,
                 ),
               ),
-              // Show tick or cross after answered
-              if (selected != null)
-                Icon(
-                  correct ? Icons.check_circle : picked ? Icons.cancel : null,
-                  color: correct ? AppColors.accent : AppColors.destructive,
-                ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// Image answer grid (answerImage mode)
-
-class _ImageOptionGrid extends StatelessWidget {
-  final Question question;
-  final int? selected;
-  final int correctIndex;
-  final ValueChanged<int> onSelect;
-
-  const _ImageOptionGrid({
-    required this.question,
-    required this.selected,
-    required this.correctIndex,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.md,
-        mainAxisSpacing: AppSpacing.md,
-        childAspectRatio: 1,
-      ),
-      itemCount: question.options.length,
-      itemBuilder: (context, index) {
-        final opt = question.options[index];
-        final picked = selected == index;
-        final correct = selected != null && index == correctIndex;
-
-        return InkWell(
-          onTap: selected == null ? () => onSelect(index) : null,
-          borderRadius: AppRadius.r(AppRadius.lg),
-          child: Container(
-            decoration: BoxDecoration(
-              color: correct
-                  ? AppColors.accentLight
-                  : picked
-                  ? AppColors.destructiveLight
-                  : AppColors.card,
-              borderRadius: AppRadius.r(AppRadius.lg),
-              border: Border.all(
-                width: correct || picked ? 2 : 1,
-                color: correct
-                    ? AppColors.accent
-                    : picked
-                    ? AppColors.destructive
-                    : AppColors.border,
-              ),
-              boxShadow: AppShadows.card,
-            ),
-            child: Column(
-              children: [
-                // Image fills top 3/4 of the card
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(AppRadius.lg),
-                    ),
-                    child: opt.imageUrl != null
-                        ? Image.network(
-                            opt.imageUrl!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.broken_image,
-                              color: AppColors.mutedText,
-                            ),
-                          )
-                        : const Icon(Icons.image, color: AppColors.mutedText),
-                  ),
-                ),
-                // Label + letter badge at bottom
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 10,
-                        backgroundColor: AppColors.muted,
-                        child: Text(
-                          String.fromCharCode(65 + index),
-                          style: AppTextStyles.small,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: Text(
-                          opt.text,
-                          style: AppTextStyles.small,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (selected != null)
-                        Icon(
-                          correct
-                              ? Icons.check_circle
-                              : picked
-                              ? Icons.cancel
-                              : null,
-                          size: 16,
-                          color: correct
-                              ? AppColors.accent
-                              : AppColors.destructive,
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// Feedback banner
-
-class _FeedbackBanner extends StatelessWidget {
-  final bool isCorrect;
-  final String correctText;
-
-  const _FeedbackBanner({
-    required this.isCorrect,
-    required this.correctText,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: isCorrect ? AppColors.accentLight : AppColors.destructiveLight,
-        borderRadius: AppRadius.r(AppRadius.lg),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isCorrect ? Icons.check_circle : Icons.cancel,
-            color: isCorrect ? AppColors.accent : AppColors.destructive,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              isCorrect
-                  ? 'Correct! Well done!'
-                  : 'Not quite! The answer is "$correctText".',
-              style: AppTextStyles.bodyBold,
-            ),
-          ),
-        ],
       ),
     );
   }

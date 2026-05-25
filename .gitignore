@@ -44,4 +44,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-scripts/serviceAccountKey.jsonscripts/serviceAccountKey.json.json
+# Flutter/Dart generated files
+linux/flutter/
+macos/Flutter/GeneratedPluginRegistrant.swift
+windows/flutter/
+

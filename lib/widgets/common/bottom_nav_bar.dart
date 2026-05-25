@@ -16,9 +16,20 @@ class BottomNavScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final path = GoRouterState.of(context).uri.path;
+
+    // Routes where navbar should NOT appear
+    const noNavRoutes = [
+      AppRouter.selectProfile,
+      AppRouter.tutorial,
+      AppRouter.noInternet,
+    ];
+
+    final showNav = !noNavRoutes.contains(path);
+
     return Scaffold(
       body: child,
-      bottomNavigationBar: AppBottomNavBar(isParent: isParent),
+      bottomNavigationBar: showNav ? AppBottomNavBar(isParent: isParent) : null,
     );
   }
 }
@@ -31,7 +42,9 @@ class AppBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = isParent ? _parentItems : _kidItems;
-    final path = GoRouterState.of(context).uri.path;
+    final uri = GoRouterState.of(context).uri;
+    final path = uri.path;
+    final childId = uri.queryParameters['childId'];
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.card,
@@ -45,10 +58,14 @@ class AppBottomNavBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: items.map((item) {
               final active = path == item.route;
+              final route = isParent
+                  ? item.route
+                  : AppRouter.withChildId(item.route, childId);
+
               return _NavButton(
                 item: item,
                 active: active,
-                onTap: () => context.go(item.route),
+                onTap: () => context.go(route),
               );
             }).toList(),
           ),

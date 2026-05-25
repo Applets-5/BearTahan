@@ -10,6 +10,7 @@ class PrimaryButton extends StatelessWidget {
     this.icon,
     this.backgroundColor = AppColors.primary,
     this.foregroundColor = Colors.white,
+    this.isLoading = false,
   });
 
   final String label;
@@ -17,17 +18,14 @@ class PrimaryButton extends StatelessWidget {
   final IconData? icon;
   final Color backgroundColor;
   final Color foregroundColor;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      child: FilledButton.icon(
-        onPressed: onPressed,
-        icon: icon == null
-            ? const SizedBox.shrink()
-            : Icon(icon, size: AppSpacing.xl),
-        label: Text(label),
+      child: FilledButton(
+        onPressed: isLoading ? null : onPressed,
         style: FilledButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: foregroundColor,
@@ -35,8 +33,39 @@ class PrimaryButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: AppRadius.r(AppRadius.lg),
           ),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.md,
+            horizontal: AppSpacing.md, // Added horizontal padding for safety
+          ),
         ),
+
+        child: isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: AppSpacing.xl),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow
+                          .ellipsis, // Optional: adds '...' if still too long
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
