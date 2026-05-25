@@ -14,7 +14,9 @@ class QuestionRepository {
         .where('levelId', isEqualTo: levelId)
         .get();
 
-    return snapshot.docs.map(Question.fromFirestore).toList();
+    return snapshot.docs
+        .map((doc) => Question.fromFirestore(doc.id, doc.data()))
+        .toList();
   }
 
   Future<List<Question>> fetchByLevelAndDifficulty(
@@ -27,7 +29,9 @@ class QuestionRepository {
         .where('difficulty', isEqualTo: difficulty)
         .get();
 
-    return snapshot.docs.map(Question.fromFirestore).toList();
+    return snapshot.docs
+        .map((doc) => Question.fromFirestore(doc.id, doc.data()))
+        .toList();
   }
 
   Future<List<Question>> fetchByChapter(
@@ -40,7 +44,9 @@ class QuestionRepository {
         .where('chapterId', isEqualTo: chapterId)
         .get();
 
-    return snapshot.docs.map(Question.fromFirestore).toList();
+    return snapshot.docs
+        .map((doc) => Question.fromFirestore(doc.id, doc.data()))
+        .toList();
   }
 }
 
