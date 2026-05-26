@@ -4,6 +4,7 @@ import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
 import '../models/reward.dart';
+import '../utils/streak_utils.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -137,35 +138,22 @@ class FirestoreService {
         final childData = childSnapshot.data() ?? {};
         final int currentBalance = (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
 
-        final childUpdates = <String, dynamic>{};
-        int newStreak = (childData['streakCount'] ?? 0).toInt();
-        final Timestamp? lastActivityTimestamp = childData['lastActivityDate'] as Timestamp?;
-        final DateTime now = DateTime.now();
-        final DateTime today = DateTime(now.year, now.month, now.day);
+      final childUpdates = <String, dynamic>{};
 
-        if (lastActivityTimestamp == null) {
-          newStreak = 1;
-          childUpdates['streakCount'] = newStreak;
-          childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
-        } else {
-          final DateTime lastActivity = lastActivityTimestamp.toDate();
-          final DateTime lastActivityDay = DateTime(
-            lastActivity.year,
-            lastActivity.month,
-            lastActivity.day,
-          );
-          final difference = today.difference(lastActivityDay).inDays;
+      final streakResult = StreakUtils.calculateStreak(
+        currentStreak: (childData['streakCount'] ?? 0).toInt(),
+        lastActivityDate: childData['lastActivityDate'] != null
+            ? (childData['lastActivityDate'] as Timestamp).toDate()
+            : null,
+        now: DateTime.now(),
+      );
 
-          if (difference == 1) {
-            newStreak += 1;
-            childUpdates['streakCount'] = newStreak;
-            childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
-          } else if (difference > 1) {
-            newStreak = 1;
-            childUpdates['streakCount'] = newStreak;
-            childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
-          }
-        }
+      if (streakResult.shouldUpdate) {
+        childUpdates['streakCount'] = streakResult.newStreak;
+        childUpdates['lastActivityDate'] = Timestamp.fromDate(
+          streakResult.lastActivityDate,
+        );
+      }
 
         final didImprove = stars > previousBestStars;
         if (didImprove) {
@@ -230,6 +218,33 @@ class FirestoreService {
           }
           debugPrint('DEBUG: Emitted stars: $stars');
           return stars;
+        });
+  }
+
+  Future<void> recordAttempt(
+    String parentId,
+    String childId, {
+    required String subjectId,
+    required String levelId,
+    required int score,
+    required int total,
+    required int stars,
+    required int timeInSeconds,
+  }) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('attempts')
+        .add({
+          'subjectId': subjectId,
+          'levelId': levelId,
+          'score': score,
+          'total': total,
+          'stars': stars,
+          'timeInSeconds': timeInSeconds,
+          'completedAt': FieldValue.serverTimestamp(),
         });
   }
 }

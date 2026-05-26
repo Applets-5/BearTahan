@@ -46,8 +46,9 @@ Samy carries a lighter dev story count than the four developers due to sprint ce
 | BT-04 | Sprint plans — goals, demo targets, assignments, dependencies per sprint |
 | BT-05 | Technical notes — Flutter/Firebase implementation logic, implementation constraints, testing requirements |
 | BT-06 | Open items and post-MVP roadmap |
+| BT-07 | DIGITEX 2026 event reference — competition details, deadlines, poster strategy, Grand Finale prep, judging criteria, prizes |
 
-> **Note on Jira:** The BearTahan_Jira_Setup.md file is Samy's personal reference for setting up Jira boards and is not a Claude context file. All key information from it has been integrated into the BT-00 through BT-06 modules above.
+> **Note on Jira:** BearTahan_Jira_Setup.md is Samy's personal reference for setting up Jira boards and is not a Claude context file. All key information from it has been integrated into the BT-00 through BT-06 modules above.
 
 ---
 
@@ -123,3 +124,15 @@ Before reading any file, match the question to the category below and open only 
 - BearAI API key management approach (O8), BearAI context payload scope (O9)
 - Bear's Den unlock condition configuration (O10)
 - Bear's Den post-MVP expansion: second unlock tier (I-11), multi-subject (I-12), parent session history (I-13)
+
+### BT-07 — Read when asked about:
+- DIGITEX 2026 competition — event details, venue, organiser
+- Grand Finale date, format, and what to prepare
+- Confirmation form — the five sections and deadlines
+- Fee payment details and deadline
+- E-poster and Netizen Choice Award strategy
+- Judging criteria breakdown for the Grand Finale
+- Prize structure and award tiers
+- What has been submitted vs what is still pending
+- Pitch structure and demo strategy for the live event
+- Contact details for the organising committee

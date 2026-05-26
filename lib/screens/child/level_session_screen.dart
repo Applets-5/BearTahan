@@ -108,15 +108,28 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     try {
       final parentId = ref.read(parentIdProvider);
       if (widget.childId != null && parentId.isNotEmpty) {
-        await ref
-            .read(firestoreServiceProvider)
-            .updateLevelProgress(
-              parentId,
-              widget.childId!,
-              widget.subjectId,
-              widget.levelId,
-              stars,
-            );
+        final firestore = ref.read(firestoreServiceProvider);
+
+        // Record detailed attempt including timer data
+        await firestore.recordAttempt(
+          parentId,
+          widget.childId!,
+          subjectId: widget.subjectId,
+          levelId: widget.levelId,
+          score: score,
+          total: totalQuestions,
+          stars: stars,
+          timeInSeconds: _elapsedSeconds,
+        );
+
+        // Update progress
+        await firestore.updateLevelProgress(
+          parentId,
+          widget.childId!,
+          widget.subjectId,
+          widget.levelId,
+          stars,
+        );
       }
     } catch (e) {
       debugPrint('Error saving attempt: $e');
