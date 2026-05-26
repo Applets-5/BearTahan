@@ -56,7 +56,8 @@ class _AudioPromptPlayerState extends ConsumerState<AudioPromptPlayer> {
   @override
   void didUpdateWidget(AudioPromptPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url || oldWidget.textToSpeak != widget.textToSpeak) {
+    if (oldWidget.url != widget.url ||
+        oldWidget.textToSpeak != widget.textToSpeak) {
       _hasError = false;
       if (widget.autoPlay) {
         _play();
@@ -66,7 +67,8 @@ class _AudioPromptPlayerState extends ConsumerState<AudioPromptPlayer> {
 
   Future<void> _play() async {
     final hasUrl = widget.url != null && widget.url!.isNotEmpty;
-    final hasText = widget.textToSpeak != null && widget.textToSpeak!.isNotEmpty;
+    final hasText =
+        widget.textToSpeak != null && widget.textToSpeak!.isNotEmpty;
 
     if (!hasUrl && !hasText) return;
 
@@ -78,10 +80,9 @@ class _AudioPromptPlayerState extends ConsumerState<AudioPromptPlayer> {
       } else if (hasText) {
         await _player.stop();
         setState(() => _isPlaying = true);
-        await ref.read(ttsServiceProvider).speak(
-          widget.textToSpeak!,
-          language: widget.language,
-        );
+        await ref
+            .read(ttsServiceProvider)
+            .speak(widget.textToSpeak!, language: widget.language);
         if (mounted) setState(() => _isPlaying = false);
       }
 
@@ -111,9 +112,10 @@ class _AudioPromptPlayerState extends ConsumerState<AudioPromptPlayer> {
   Widget build(BuildContext context) {
     final double iconSize = widget.isSmall ? 20 : 32;
     final double padding = widget.isSmall ? AppSpacing.xs : AppSpacing.sm;
-    
-    final hasContent = (widget.url != null && widget.url!.isNotEmpty) || 
-                       (widget.textToSpeak != null && widget.textToSpeak!.isNotEmpty);
+
+    final hasContent =
+        (widget.url != null && widget.url!.isNotEmpty) ||
+        (widget.textToSpeak != null && widget.textToSpeak!.isNotEmpty);
 
     if (!hasContent) return const SizedBox.shrink();
 
@@ -133,14 +135,14 @@ class _AudioPromptPlayerState extends ConsumerState<AudioPromptPlayer> {
           _hasError
               ? Icons.error_outline
               : _isPlaying
-                  ? Icons.stop_rounded
-                  : Icons.volume_up_rounded,
+              ? Icons.stop_rounded
+              : Icons.volume_up_rounded,
           size: iconSize,
           color: _hasError
               ? AppColors.destructive
               : _isPlaying
-                  ? AppColors.accent
-                  : AppColors.primary,
+              ? AppColors.accent
+              : AppColors.primary,
         ),
       ),
     );

@@ -7,11 +7,7 @@ class BearHeadShape extends CustomPainter {
   final Color? borderColor;
   final double borderWidth;
 
-  BearHeadShape({
-    required this.color,
-    this.borderColor,
-    this.borderWidth = 0,
-  });
+  BearHeadShape({required this.color, this.borderColor, this.borderWidth = 0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -34,43 +30,54 @@ class BearHeadShape extends CustomPainter {
   Path _getBearPath(Size size) {
     final headRadius = size.width * 0.38;
     final earRadius = size.width * 0.16;
-    
+
     // Centering the whole shape (head + ears)
     // The ears stick out above the head, so we shift the center down slightly
     // to make the visual center of the whole bear head align with the widget center.
     final center = Offset(size.width / 2, size.height * 0.54);
 
     final headPath = Path()
-      ..addOval(Rect.fromCircle(
-        center: center,
-        radius: headRadius,
-      ));
+      ..addOval(Rect.fromCircle(center: center, radius: headRadius));
 
     final leftEarPath = Path()
-      ..addOval(Rect.fromCircle(
-        center: Offset(center.dx - headRadius * 0.7, center.dy - headRadius * 0.75),
-        radius: earRadius,
-      ));
+      ..addOval(
+        Rect.fromCircle(
+          center: Offset(
+            center.dx - headRadius * 0.7,
+            center.dy - headRadius * 0.75,
+          ),
+          radius: earRadius,
+        ),
+      );
 
     final rightEarPath = Path()
-      ..addOval(Rect.fromCircle(
-        center: Offset(center.dx + headRadius * 0.7, center.dy - headRadius * 0.75),
-        radius: earRadius,
-      ));
+      ..addOval(
+        Rect.fromCircle(
+          center: Offset(
+            center.dx + headRadius * 0.7,
+            center.dy - headRadius * 0.75,
+          ),
+          radius: earRadius,
+        ),
+      );
 
     // Combine paths to create a single silhouette
     // This prevents border lines from showing inside the ears
     var combinedPath = Path.combine(PathOperation.union, headPath, leftEarPath);
-    combinedPath = Path.combine(PathOperation.union, combinedPath, rightEarPath);
-    
+    combinedPath = Path.combine(
+      PathOperation.union,
+      combinedPath,
+      rightEarPath,
+    );
+
     return combinedPath;
   }
 
   @override
   bool shouldRepaint(covariant BearHeadShape oldDelegate) {
-    return oldDelegate.color != color || 
-           oldDelegate.borderColor != borderColor || 
-           oldDelegate.borderWidth != borderWidth;
+    return oldDelegate.color != color ||
+        oldDelegate.borderColor != borderColor ||
+        oldDelegate.borderWidth != borderWidth;
   }
 }
 
@@ -97,7 +104,7 @@ class LevelNode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = isBoss ? 120.0 : 90.0;
-    
+
     Color nodeColor;
     if (!isUnlocked) {
       nodeColor = AppColors.muted;
@@ -124,9 +131,7 @@ class LevelNode extends StatelessWidget {
                   _PulseAnimation(
                     child: CustomPaint(
                       size: Size(size, size),
-                      painter: BearHeadShape(
-                        color: nodeColor.withOpacity(0.3),
-                      ),
+                      painter: BearHeadShape(color: nodeColor.withOpacity(0.3)),
                     ),
                   ),
                 if (isBoss && isCompleted)
@@ -183,17 +188,9 @@ class LevelNode extends StatelessWidget {
       );
     }
     if (isCompleted) {
-      return const Icon(
-        Icons.check_rounded,
-        size: 40,
-        color: Colors.white,
-      );
+      return const Icon(Icons.check_rounded, size: 40, color: Colors.white);
     }
-    return const Icon(
-      Icons.play_arrow_rounded,
-      size: 48,
-      color: Colors.white,
-    );
+    return const Icon(Icons.play_arrow_rounded, size: 48, color: Colors.white);
   }
 
   Widget _buildStars() {
@@ -230,9 +227,10 @@ class _PulseAnimationState extends State<_PulseAnimation>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 1.0,
+      end: 1.2,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -243,10 +241,7 @@ class _PulseAnimationState extends State<_PulseAnimation>
 
   @override
   Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _animation,
-      child: widget.child,
-    );
+    return ScaleTransition(scale: _animation, child: widget.child);
   }
 }
 
@@ -318,11 +313,11 @@ class PathPainter extends CustomPainter {
     for (int i = 0; i < points.length - 1; i++) {
       final p0 = points[i];
       final p1 = points[i + 1];
-      
+
       // Control points for curvy S-shape
       final cp1 = Offset(p0.dx, p0.dy + (p1.dy - p0.dy) / 2);
       final cp2 = Offset(p1.dx, p1.dy - (p1.dy - p0.dy) / 2);
-      
+
       path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p1.dx, p1.dy);
     }
 
@@ -334,7 +329,7 @@ class PathPainter extends CustomPainter {
     const dashWidth = 10.0;
     const dashSpace = 8.0;
     double distance = 0.0;
-    
+
     for (final pathMetric in path.computeMetrics()) {
       while (distance < pathMetric.length) {
         canvas.drawPath(
@@ -421,10 +416,14 @@ class LevelWindingPath extends StatelessWidget {
           // Calculate position for visual layout (excluding dividers for path)
           double x;
           int pattern = visualIndex % 4;
-          if (pattern == 0) x = centerX;
-          else if (pattern == 1) x = centerX + horizontalOffset;
-          else if (pattern == 2) x = centerX;
-          else x = centerX - horizontalOffset;
+          if (pattern == 0)
+            x = centerX;
+          else if (pattern == 1)
+            x = centerX + horizontalOffset;
+          else if (pattern == 2)
+            x = centerX;
+          else
+            x = centerX - horizontalOffset;
 
           final y = visualIndex * verticalStep + 80.0;
           points.add(Offset(x, y));
@@ -446,7 +445,7 @@ class LevelWindingPath extends StatelessWidget {
           );
 
           visualIndex++;
-          
+
           // Add Chapter Divider after Boss (Level 5 / Index 4)
           if (i == 4) {
             // We need to shift the next nodes down to accommodate the divider
@@ -469,10 +468,7 @@ class LevelWindingPath extends StatelessWidget {
             children: [
               CustomPaint(
                 size: Size(width, visualIndex * verticalStep),
-                painter: PathPainter(
-                  points: points,
-                  color: AppColors.primary,
-                ),
+                painter: PathPainter(points: points, color: AppColors.primary),
               ),
               ...nodes,
             ],

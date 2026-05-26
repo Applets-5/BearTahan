@@ -46,7 +46,7 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
 
     // Rough estimate of scroll offset
     double offset = (activeIndex * 160.0);
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -62,9 +62,10 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
   Widget build(BuildContext context) {
     final effectiveChildId = widget.childId ?? '';
     final starsAsync = ref.watch(
-      levelStarsProvider(
-        (childId: effectiveChildId, subjectId: widget.subjectId),
-      ),
+      levelStarsProvider((
+        childId: effectiveChildId,
+        subjectId: widget.subjectId,
+      )),
     );
 
     return Scaffold(
@@ -85,8 +86,8 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
                   totalCount: 8,
                   progress: progress,
                   subjectId: widget.subjectId,
-                  onBack:
-                      () => context.go(AppRouter.childHomeFor(widget.childId)),
+                  onBack: () =>
+                      context.go(AppRouter.childHomeFor(widget.childId)),
                 ),
               ),
               SliverToBoxAdapter(

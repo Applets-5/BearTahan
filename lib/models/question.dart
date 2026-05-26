@@ -4,10 +4,7 @@ class QuestionOption {
   final String text;
   final String? imageUrl;
 
-  QuestionOption({
-    required this.text,
-    this.imageUrl,
-  });
+  QuestionOption({required this.text, this.imageUrl});
 }
 
 class Question {
@@ -77,12 +74,12 @@ class Question {
     }
 
     String? finalAudioUrl =
-        data['promptAudioUrl'] ?? 
-        data['promptAudioURL'] ?? 
-        data['audioUrl'] ?? 
-        data['audioURL'] ?? 
-        data['audio_url'] ?? 
-        data['audio'] ?? 
+        data['promptAudioUrl'] ??
+        data['promptAudioURL'] ??
+        data['audioUrl'] ??
+        data['audioURL'] ??
+        data['audio_url'] ??
+        data['audio'] ??
         data['voice'];
 
     // Map questionType (used in Firestore) to type
@@ -91,7 +88,9 @@ class Question {
     // correctOrder for rearrange
     List<String>? correctOrder;
     if (data['correctOrder'] is List) {
-      correctOrder = (data['correctOrder'] as List).map((e) => e.toString()).toList();
+      correctOrder = (data['correctOrder'] as List)
+          .map((e) => e.toString())
+          .toList();
     }
 
     // correctBlank for fillblank
@@ -131,10 +130,7 @@ class Question {
 
     final rawOptions = data['options'] as List? ?? [];
     final List<QuestionOption> parsedOptions = rawOptions.map((e) {
-      return QuestionOption(
-        text: extractText(e),
-        imageUrl: extractImageUrl(e),
-      );
+      return QuestionOption(text: extractText(e), imageUrl: extractImageUrl(e));
     }).toList();
 
     return Question(

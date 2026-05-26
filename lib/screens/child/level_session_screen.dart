@@ -277,7 +277,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     ],
                   ),
                   const Spacer(flex: 1),
-                  if (question.imageUrl != null && question.imageUrl!.isNotEmpty)
+                  if (question.imageUrl != null &&
+                      question.imageUrl!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.md),
                       child: Center(
@@ -323,7 +324,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                       },
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: selected == question.correctAnswerIndex
                               ? AppColors.accentLight
@@ -333,9 +337,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                         child: Text(
                           selected == question.correctAnswerIndex
                               ? 'Correct! Well done!'
-                              : (question.type?.toLowerCase() == 'rearrange' && question.correctOrder != null)
-                                  ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
-                                  : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
+                              : (question.type?.toLowerCase() == 'rearrange' &&
+                                    question.correctOrder != null)
+                              ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
+                              : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
                           style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
                         ),
                       ),
@@ -363,7 +368,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 ],
               ),
             );
-
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(child: Text('Error: $err')),
@@ -419,10 +423,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     if (hasBrackets) {
       final match = bracketRegex.firstMatch(text)!;
-      parts = [
-        text.substring(0, match.start),
-        text.substring(match.end),
-      ];
+      parts = [text.substring(0, match.start), text.substring(match.end)];
     } else if (text.contains('____')) {
       parts = text.split('____');
     } else {
@@ -467,7 +468,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     : Colors.transparent,
               ),
               child: Text(
-                isOccupied ? question.options[_draggedOptionIndex!].text : '   ',
+                isOccupied
+                    ? question.options[_draggedOptionIndex!].text
+                    : '   ',
                 style: AppTextStyles.bodyBold.copyWith(
                   color: AppColors.primary,
                   fontSize: 16,
@@ -541,7 +544,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         bool matches = true;
         for (int i = 0; i < _rearrangeOrder!.length; i++) {
           final currentText = question.options[_rearrangeOrder![i]].text;
-          final correctText = question.correctOrder != null && i < question.correctOrder!.length
+          final correctText =
+              question.correctOrder != null && i < question.correctOrder!.length
               ? question.correctOrder![i]
               : question.options[i].text;
           if (currentText != correctText) {
@@ -586,8 +590,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               bool isCorrect = true;
               if (question.correctOrder != null) {
                 for (int i = 0; i < _rearrangeOrder!.length; i++) {
-                  final currentText = question.options[_rearrangeOrder![i]].text;
-                  if (i >= question.correctOrder!.length || currentText != question.correctOrder![i]) {
+                  final currentText =
+                      question.options[_rearrangeOrder![i]].text;
+                  if (i >= question.correctOrder!.length ||
+                      currentText != question.correctOrder![i]) {
                     isCorrect = false;
                     break;
                   }
@@ -675,13 +681,20 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             label: 'Check Answer',
             onPressed: () {
               // Robust validation: trim and case-insensitive
-              final selectedText = question.options[_draggedOptionIndex!].text.trim().toLowerCase();
-              final correctText = question.correctBlank?.trim().toLowerCase() ?? 
-                                 question.options[question.correctAnswerIndex].text.trim().toLowerCase();
-              
+              final selectedText = question.options[_draggedOptionIndex!].text
+                  .trim()
+                  .toLowerCase();
+              final correctText =
+                  question.correctBlank?.trim().toLowerCase() ??
+                  question.options[question.correctAnswerIndex].text
+                      .trim()
+                      .toLowerCase();
+
               bool isCorrect = selectedText == correctText;
-              
-              debugPrint('DEBUG: FillBlank Validation - Selected: "$selectedText", Correct: "$correctText", Result: $isCorrect');
+
+              debugPrint(
+                'DEBUG: FillBlank Validation - Selected: "$selectedText", Correct: "$correctText", Result: $isCorrect',
+              );
 
               setState(() {
                 _fillBlankSubmitted = true;
@@ -796,12 +809,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 ),
                 const SizedBox(width: AppSpacing.md),
               ],
-              Expanded(
-                child: Text(
-                  option.text,
-                  style: AppTextStyles.bodyBold,
-                ),
-              ),
+              Expanded(child: Text(option.text, style: AppTextStyles.bodyBold)),
             ],
           ),
         ),

@@ -115,8 +115,10 @@ class FirestoreService {
     String levelId,
     int stars,
   ) async {
-    debugPrint('DEBUG: updateLevelProgress for child: $childId, subject: $subjectId, level: $levelId, stars: $stars');
-    
+    debugPrint(
+      'DEBUG: updateLevelProgress for child: $childId, subject: $subjectId, level: $levelId, stars: $stars',
+    );
+
     final childDocRef = _db
         .collection('parents')
         .doc(parentId)
@@ -130,34 +132,40 @@ class FirestoreService {
         .doc(levelId);
 
     try {
-      final didImproveStars = await _db.runTransaction<bool>((transaction) async {
+      final didImproveStars = await _db.runTransaction<bool>((
+        transaction,
+      ) async {
         final levelSnapshot = await transaction.get(levelDocRef);
         final childSnapshot = await transaction.get(childDocRef);
 
-        final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0).toInt();
+        final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0)
+            .toInt();
         final childData = childSnapshot.data() ?? {};
-        final int currentBalance = (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
+        final int currentBalance =
+            (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
 
-      final childUpdates = <String, dynamic>{};
+        final childUpdates = <String, dynamic>{};
 
-      final streakResult = StreakUtils.calculateStreak(
-        currentStreak: (childData['streakCount'] ?? 0).toInt(),
-        lastActivityDate: childData['lastActivityDate'] != null
-            ? (childData['lastActivityDate'] as Timestamp).toDate()
-            : null,
-        now: DateTime.now(),
-      );
-
-      if (streakResult.shouldUpdate) {
-        childUpdates['streakCount'] = streakResult.newStreak;
-        childUpdates['lastActivityDate'] = Timestamp.fromDate(
-          streakResult.lastActivityDate,
+        final streakResult = StreakUtils.calculateStreak(
+          currentStreak: (childData['streakCount'] ?? 0).toInt(),
+          lastActivityDate: childData['lastActivityDate'] != null
+              ? (childData['lastActivityDate'] as Timestamp).toDate()
+              : null,
+          now: DateTime.now(),
         );
-      }
+
+        if (streakResult.shouldUpdate) {
+          childUpdates['streakCount'] = streakResult.newStreak;
+          childUpdates['lastActivityDate'] = Timestamp.fromDate(
+            streakResult.lastActivityDate,
+          );
+        }
 
         final didImprove = stars > previousBestStars;
         if (didImprove) {
-          transaction.set(levelDocRef, {'stars': stars}, SetOptions(merge: true));
+          transaction.set(levelDocRef, {
+            'stars': stars,
+          }, SetOptions(merge: true));
 
           final int improvement = stars - previousBestStars;
           final String balanceField = childData.containsKey('stars')
@@ -174,11 +182,15 @@ class FirestoreService {
         return didImprove;
       });
 
-      debugPrint('DEBUG: updateLevelProgress transaction complete. didImprove: $didImproveStars');
+      debugPrint(
+        'DEBUG: updateLevelProgress transaction complete. didImprove: $didImproveStars',
+      );
 
       if (!didImproveStars) return;
 
-      final subjectDocRef = childDocRef.collection('subjectProgress').doc(subjectId);
+      final subjectDocRef = childDocRef
+          .collection('subjectProgress')
+          .doc(subjectId);
       final levelsSnapshot = await subjectDocRef.collection('levels').get();
       final completedLevels = levelsSnapshot.docs.where((doc) {
         return (doc.data()['stars'] ?? 0).toInt() > 0;
@@ -189,7 +201,7 @@ class FirestoreService {
         'progress': progressPercentage,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      
+
       debugPrint('DEBUG: Subject progress updated: $progressPercentage%');
     } catch (e) {
       debugPrint('DEBUG ERROR: updateLevelProgress failed: $e');
@@ -201,7 +213,9 @@ class FirestoreService {
     String childId,
     String subjectId,
   ) {
-    debugPrint('DEBUG: streamLevelStars for child: $childId, subject: $subjectId');
+    debugPrint(
+      'DEBUG: streamLevelStars for child: $childId, subject: $subjectId',
+    );
     return _db
         .collection('parents')
         .doc(parentId)
