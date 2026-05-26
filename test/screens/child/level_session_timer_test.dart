@@ -13,45 +13,47 @@ void main() {
   late MockFirestoreService mockFirestoreService;
 
   setUpAll(() {
-    registerFallbackValue(Question(
-      id: '',
-      text: '',
-      options: [],
-      correctAnswerIndex: 0,
-    ));
+    registerFallbackValue(
+      Question(id: '', text: '', options: [], correctAnswerIndex: 0),
+    );
   });
 
   setUp(() {
     mockFirestoreService = MockFirestoreService();
     // Default mock behavior
-    when(() => mockFirestoreService.getQuestions(any()))
-        .thenAnswer((_) async => [
-              Question(
-                id: 'q1',
-                text: 'Select the correct word:',
-                options: ['A', 'Rumah'],
-                correctAnswerIndex: 1,
-              )
-            ]);
-    
-    when(() => mockFirestoreService.recordAttempt(
-          any(),
-          any(),
-          subjectId: any(named: 'subjectId'),
-          levelId: any(named: 'levelId'),
-          score: any(named: 'score'),
-          total: any(named: 'total'),
-          stars: any(named: 'stars'),
-          timeInSeconds: any(named: 'timeInSeconds'),
-        )).thenAnswer((_) async => {});
+    when(() => mockFirestoreService.getQuestions(any())).thenAnswer(
+      (_) async => [
+        Question(
+          id: 'q1',
+          text: 'Select the correct word:',
+          options: ['A', 'Rumah'],
+          correctAnswerIndex: 1,
+        ),
+      ],
+    );
 
-    when(() => mockFirestoreService.updateLevelProgress(
-          any(),
-          any(),
-          any(),
-          any(),
-          any(),
-        )).thenAnswer((_) async => {});
+    when(
+      () => mockFirestoreService.recordAttempt(
+        any(),
+        any(),
+        subjectId: any(named: 'subjectId'),
+        levelId: any(named: 'levelId'),
+        score: any(named: 'score'),
+        total: any(named: 'total'),
+        stars: any(named: 'stars'),
+        timeInSeconds: any(named: 'timeInSeconds'),
+      ),
+    ).thenAnswer((_) async => {});
+
+    when(
+      () => mockFirestoreService.updateLevelProgress(
+        any(),
+        any(),
+        any(),
+        any(),
+        any(),
+      ),
+    ).thenAnswer((_) async => {});
   });
 
   Widget createTestableWidget() {
@@ -73,7 +75,9 @@ void main() {
   }
 
   group('Level Session Timer Tests', () {
-    testWidgets('Timer is visible and starts at 00:00', (WidgetTester tester) async {
+    testWidgets('Timer is visible and starts at 00:00', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(createTestableWidget());
       await tester.pumpAndSettle();
 
@@ -94,7 +98,9 @@ void main() {
       expect(find.text('01:05'), findsOneWidget);
     });
 
-    testWidgets('Timer continues while on feedback screen', (WidgetTester tester) async {
+    testWidgets('Timer continues while on feedback screen', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(createTestableWidget());
       await tester.pumpAndSettle();
 
@@ -110,7 +116,9 @@ void main() {
       expect(find.text('00:09'), findsOneWidget);
     });
 
-    testWidgets('Timer stops and elapsed time is saved on completion', (WidgetTester tester) async {
+    testWidgets('Timer stops and elapsed time is saved on completion', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(createTestableWidget());
       await tester.pumpAndSettle();
 
@@ -119,23 +127,25 @@ void main() {
 
       // Select answer
       await tester.tap(find.text('Rumah'));
-      await tester.pump(); 
+      await tester.pump();
 
       // Tap Finish (it's the last and only question)
       await tester.tap(find.text('Finish'));
       await tester.pumpAndSettle(); // Wait for completion flow
 
       // Verify recordAttempt was called with exactly 10 seconds
-      verify(() => mockFirestoreService.recordAttempt(
-            'mock-parent-id',
-            'mock-child-id',
-            subjectId: 'bm',
-            levelId: 'l1',
-            score: 1,
-            total: 1,
-            stars: any(named: 'stars'),
-            timeInSeconds: 10,
-          )).called(1);
+      verify(
+        () => mockFirestoreService.recordAttempt(
+          'mock-parent-id',
+          'mock-child-id',
+          subjectId: 'bm',
+          levelId: 'l1',
+          score: 1,
+          total: 1,
+          stars: any(named: 'stars'),
+          timeInSeconds: 10,
+        ),
+      ).called(1);
     });
   });
 }
