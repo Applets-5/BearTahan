@@ -201,13 +201,13 @@ class _Header extends ConsumerWidget {
                 ),
                 userProfileAsync.when(
                   data: (profile) => Text(
-                    ' ${profile.streakCount}',
+                    ' ${profile.streakCount} days',
                     style: AppTextStyles.bodyBold,
                   ),
                   loading: () =>
-                      const Text(' -', style: AppTextStyles.bodyBold),
+                      const Text(' - days', style: AppTextStyles.bodyBold),
                   error: (_, _) =>
-                      const Text(' 0', style: AppTextStyles.bodyBold),
+                      const Text(' 0 days', style: AppTextStyles.bodyBold),
                 ),
               ],
             ),
