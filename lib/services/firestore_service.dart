@@ -228,13 +228,13 @@ class FirestoreService {
         .doc(childId)
         .collection('attempts')
         .add({
-      'subjectId': subjectId,
-      'levelId': levelId,
-      'score': score,
-      'total': total,
-      'stars': stars,
-      'timeInSeconds': timeInSeconds,
-      'completedAt': FieldValue.serverTimestamp(),
-    });
+          'subjectId': subjectId,
+          'levelId': levelId,
+          'score': score,
+          'total': total,
+          'stars': stars,
+          'timeInSeconds': timeInSeconds,
+          'completedAt': FieldValue.serverTimestamp(),
+        });
   }
 }
