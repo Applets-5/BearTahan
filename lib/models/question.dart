@@ -18,6 +18,8 @@ class Question {
   final String? imageUrl;
   final String? promptAudioUrl;
   final String? type;
+  final List<String>? correctOrder;
+  final String? correctBlank;
 
   Question({
     required this.id,
@@ -27,6 +29,8 @@ class Question {
     this.imageUrl,
     this.promptAudioUrl,
     this.type,
+    this.correctOrder,
+    this.correctBlank,
   });
 
   factory Question.fromFirestore(String id, Map<String, dynamic> data) {
@@ -36,7 +40,6 @@ class Question {
     String extractText(dynamic value) {
       if (value is String) return value;
       if (value is Map) {
-        // Look for common content keys in a Map
         final contentKeys = ['text', 'label', 'value', 'word', 'name'];
         for (var key in contentKeys) {
           if (value.containsKey(key)) return value[key].toString();
@@ -55,7 +58,6 @@ class Question {
       return null;
     }
 
-    // Process question text safely with multiple aliases
     String text = extractText(
       data['text'] ??
           data['questionText'] ??
@@ -65,7 +67,6 @@ class Question {
           '',
     );
 
-    // Process image URL safely
     dynamic rawImage =
         data['imageUrl'] ?? data['image'] ?? data['img'] ?? data['picture'];
     String? finalImageUrl;
@@ -75,7 +76,6 @@ class Question {
       finalImageUrl = extractImageUrl(rawImage);
     }
 
-    // Process audio URL safely
     String? finalAudioUrl =
         data['promptAudioUrl'] ?? 
         data['promptAudioURL'] ?? 
@@ -85,10 +85,18 @@ class Question {
         data['audio'] ?? 
         data['voice'];
 
-    // Process type safely
-    String? type = data['type']?.toString();
+    // Map questionType (used in Firestore) to type
+    String? type = (data['questionType'] ?? data['type'])?.toString();
 
-    // Process answer index safely (handles numbers, strings, and letters like "A", "B")
+    // correctOrder for rearrange
+    List<String>? correctOrder;
+    if (data['correctOrder'] is List) {
+      correctOrder = (data['correctOrder'] as List).map((e) => e.toString()).toList();
+    }
+
+    // correctBlank for fillblank
+    String? correctBlank = data['correctBlank']?.toString();
+
     dynamic rawIndex =
         data['correctanswerid'] ??
         data['correctAnswerId'] ??
@@ -101,9 +109,8 @@ class Question {
     int finalIndex = 0;
     if (rawIndex is num) {
       finalIndex = rawIndex.toInt();
-    } else if (rawIndex is String) {
+    } else if (rawIndex is String && rawIndex.isNotEmpty) {
       String upper = rawIndex.trim().toUpperCase();
-      // Handle letter-based answers (A, B, C, D...)
       if (upper.length == 1 &&
           upper.codeUnitAt(0) >= 65 &&
           upper.codeUnitAt(0) <= 90) {
@@ -111,9 +118,17 @@ class Question {
       } else {
         finalIndex = int.tryParse(upper) ?? 0;
       }
+    } else if (type == 'fillblank' && correctBlank != null) {
+      // Find index of correctBlank in options
+      final rawOptions = data['options'] as List? ?? [];
+      for (int i = 0; i < rawOptions.length; i++) {
+        if (extractText(rawOptions[i]) == correctBlank) {
+          finalIndex = i;
+          break;
+        }
+      }
     }
 
-    // Process options
     final rawOptions = data['options'] as List? ?? [];
     final List<QuestionOption> parsedOptions = rawOptions.map((e) {
       return QuestionOption(
@@ -130,6 +145,8 @@ class Question {
       imageUrl: finalImageUrl,
       promptAudioUrl: finalAudioUrl,
       type: type,
+      correctOrder: correctOrder,
+      correctBlank: correctBlank,
     );
   }
 }

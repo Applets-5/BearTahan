@@ -5,20 +5,66 @@ import 'package:go_router/go_router.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/level_tile.dart';
-import '../../widgets/common/locked_level_tile.dart';
+import '../../widgets/common/level_winding_path.dart';
 
-class SubjectScreen extends ConsumerWidget {
+class SubjectScreen extends ConsumerStatefulWidget {
   const SubjectScreen({super.key, this.childId, this.subjectId = 'bm'});
 
   final String? childId;
   final String subjectId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final effectiveChildId = childId ?? '';
+  ConsumerState<SubjectScreen> createState() => _SubjectScreenState();
+}
+
+class _SubjectScreenState extends ConsumerState<SubjectScreen> {
+  final ScrollController _scrollController = ScrollController();
+  bool _didScroll = false;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToActiveLevel(Map<String, int> starMap) {
+    if (_didScroll) return;
+    _didScroll = true;
+
+    int activeIndex = 0;
+    for (int i = 0; i < 8; i++) {
+      final levelId = 'l${i + 1}';
+      final stars = starMap[levelId] ?? 0;
+      bool isUnlocked = i == 0 || (starMap['l$i'] ?? 0) > 0;
+      bool isCompleted = stars > 0;
+
+      if (isUnlocked && !isCompleted) {
+        activeIndex = i;
+        break;
+      }
+    }
+
+    // Rough estimate of scroll offset
+    double offset = (activeIndex * 160.0);
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          offset,
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveChildId = widget.childId ?? '';
     final starsAsync = ref.watch(
-      levelStarsProvider((childId: effectiveChildId, subjectId: subjectId)),
+      levelStarsProvider(
+        (childId: effectiveChildId, subjectId: widget.subjectId),
+      ),
     );
 
     return Scaffold(
@@ -27,57 +73,33 @@ class SubjectScreen extends ConsumerWidget {
           int completedCount = starMap.values.where((s) => s > 0).length;
           double progress = completedCount / 8;
 
+          // Trigger auto-scroll once
+          _scrollToActiveLevel(starMap);
+
           return CustomScrollView(
+            controller: _scrollController,
             slivers: [
               SliverToBoxAdapter(
                 child: _SubjectHeader(
                   completedCount: completedCount,
                   totalCount: 8,
                   progress: progress,
-                  subjectId: subjectId,
-                  onBack: () => context.go(AppRouter.childHomeFor(childId)),
+                  subjectId: widget.subjectId,
+                  onBack:
+                      () => context.go(AppRouter.childHomeFor(widget.childId)),
                 ),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                sliver: SliverList.separated(
-                  itemCount: 8,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: AppSpacing.md),
-                  itemBuilder: (context, index) {
-                    final levelId = 'l${index + 1}';
-                    final stars = starMap[levelId] ?? 0;
-
-                    // Logic: Level 1 is always unlocked.
-                    // Others unlock if the previous level has at least 1 star.
-                    bool isUnlocked =
-                        index == 0 || (starMap['l$index'] ?? 0) > 0;
-
-                    if (!isUnlocked) {
-                      final isBoss = index == 4;
-                      return LockedLevelTile(
-                        title: isBoss
-                            ? 'Chapter Summary'
-                            : 'Level ${index + 1}',
-                        subtitle: isBoss
-                            ? 'Boss challenge'
-                            : 'Complete previous level to unlock',
-                      );
-                    }
-
-                    final boss = index == 4;
-                    return LevelTile(
-                      title: boss ? 'Chapter Summary' : 'Level ${index + 1}',
-                      subtitle: boss
-                          ? 'Boss challenge'
-                          : 'Practice words and sounds',
-                      stars: stars,
-                      isBoss: boss,
-                      onTap: () => context.push(
-                        AppRouter.levelSessionFor(
-                          childId,
-                          levelPrefix: '${subjectId}_c1_${levelId}_',
-                        ),
+              SliverToBoxAdapter(
+                child: LevelWindingPath(
+                  starMap: starMap,
+                  subjectId: widget.subjectId,
+                  childId: widget.childId,
+                  onLevelTap: (levelId, isBoss) {
+                    context.push(
+                      AppRouter.levelSessionFor(
+                        widget.childId,
+                        levelPrefix: '${widget.subjectId}_c1_${levelId}_',
+                        subjectId: widget.subjectId,
                       ),
                     );
                   },
@@ -111,9 +133,9 @@ class _SubjectHeader extends StatelessWidget {
     switch (subjectId) {
       case 'bm':
         return 'Bahasa Melayu';
-      case 'english':
+      case 'en':
         return 'English';
-      case 'mandarin':
+      case 'bc':
         return 'Mandarin';
       case 'math':
         return 'Mathematics';
@@ -128,9 +150,9 @@ class _SubjectHeader extends StatelessWidget {
     switch (subjectId) {
       case 'bm':
         return AppColors.subjectBm;
-      case 'english':
+      case 'en':
         return AppColors.subjectEnglish;
-      case 'mandarin':
+      case 'bc':
         return AppColors.subjectMandarin;
       case 'math':
         return AppColors.subjectMath;

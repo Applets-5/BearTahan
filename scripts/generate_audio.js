@@ -10,7 +10,13 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
-const ttsClient = new textToSpeech.TextToSpeechClient();
+const ttsClient = new textToSpeech.TextToSpeechClient({
+  credentials: {
+    client_email: serviceAccount.client_email,
+    private_key: serviceAccount.private_key,
+  },
+  projectId: serviceAccount.project_id,
+});
 
 async function generateAudio() {
   console.log("🚀 Starting audio generation...");
@@ -20,23 +26,27 @@ async function generateAudio() {
   for (const doc of snapshot.docs) {
     const data = doc.data();
     
-    // Skip if audio already exists
+    // Skip if audio already exists (optional: remove this if you want to force re-generation)
     if (data.promptAudioUrl) {
       console.log(`- Skipping ${doc.id} (already has audio)`);
       continue;
     }
 
-    const text = data.text || data.questionText;
-    if (!text) continue;
+    // Try multiple field names for the text
+    const text = data.prompt || data.text || data.questionText;
+    if (!text) {
+      console.log(`- Skipping ${doc.id} (no 'prompt', 'text', or 'questionText' field found)`);
+      continue;
+    }
 
     // Detect Language based on document ID prefix
     let langCode = 'ms-MY';
-    let voiceName = 'ms-MY-Wavenet-A'; // High-quality Malaysian Neural
+    let voiceName = 'ms-MY-Wavenet-A'; 
 
     if (doc.id.startsWith('en_')) {
       langCode = 'en-GB';
       voiceName = 'en-GB-Wavenet-A';
-    } else if (doc.id.startsWith('zh_')) {
+    } else if (doc.id.startsWith('zh_') || doc.id.startsWith('bc_')) {
       langCode = 'cmn-CN';
       voiceName = 'cmn-CN-Wavenet-A';
     }

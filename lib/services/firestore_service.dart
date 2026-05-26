@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
@@ -113,6 +114,8 @@ class FirestoreService {
     String levelId,
     int stars,
   ) async {
+    debugPrint('DEBUG: updateLevelProgress for child: $childId, subject: $subjectId, level: $levelId, stars: $stars');
+    
     final childDocRef = _db
         .collection('parents')
         .doc(parentId)
@@ -125,81 +128,84 @@ class FirestoreService {
         .collection('levels')
         .doc(levelId);
 
-    final didImproveStars = await _db.runTransaction<bool>((transaction) async {
-      final levelSnapshot = await transaction.get(levelDocRef);
-      final childSnapshot = await transaction.get(childDocRef);
+    try {
+      final didImproveStars = await _db.runTransaction<bool>((transaction) async {
+        final levelSnapshot = await transaction.get(levelDocRef);
+        final childSnapshot = await transaction.get(childDocRef);
 
-      final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0)
-          .toInt();
-      final childData = childSnapshot.data() ?? {};
-      final int currentBalance =
-          (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
+        final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0).toInt();
+        final childData = childSnapshot.data() ?? {};
+        final int currentBalance = (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
 
-      final childUpdates = <String, dynamic>{};
+        final childUpdates = <String, dynamic>{};
+        int newStreak = (childData['streakCount'] ?? 0).toInt();
+        final Timestamp? lastActivityTimestamp = childData['lastActivityDate'] as Timestamp?;
+        final DateTime now = DateTime.now();
+        final DateTime today = DateTime(now.year, now.month, now.day);
 
-      int newStreak = (childData['streakCount'] ?? 0).toInt();
-      final Timestamp? lastActivityTimestamp =
-          childData['lastActivityDate'] as Timestamp?;
-      final DateTime now = DateTime.now();
-      final DateTime today = DateTime(now.year, now.month, now.day);
-
-      if (lastActivityTimestamp == null) {
-        newStreak = 1;
-        childUpdates['streakCount'] = newStreak;
-        childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
-      } else {
-        final DateTime lastActivity = lastActivityTimestamp.toDate();
-        final DateTime lastActivityDay = DateTime(
-          lastActivity.year,
-          lastActivity.month,
-          lastActivity.day,
-        );
-        final difference = today.difference(lastActivityDay).inDays;
-
-        if (difference == 1) {
-          newStreak += 1;
-          childUpdates['streakCount'] = newStreak;
-          childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
-        } else if (difference > 1) {
+        if (lastActivityTimestamp == null) {
           newStreak = 1;
           childUpdates['streakCount'] = newStreak;
           childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
+        } else {
+          final DateTime lastActivity = lastActivityTimestamp.toDate();
+          final DateTime lastActivityDay = DateTime(
+            lastActivity.year,
+            lastActivity.month,
+            lastActivity.day,
+          );
+          final difference = today.difference(lastActivityDay).inDays;
+
+          if (difference == 1) {
+            newStreak += 1;
+            childUpdates['streakCount'] = newStreak;
+            childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
+          } else if (difference > 1) {
+            newStreak = 1;
+            childUpdates['streakCount'] = newStreak;
+            childUpdates['lastActivityDate'] = Timestamp.fromDate(today);
+          }
         }
-      }
 
-      final didImprove = stars > previousBestStars;
-      if (didImprove) {
-        transaction.set(levelDocRef, {'stars': stars}, SetOptions(merge: true));
+        final didImprove = stars > previousBestStars;
+        if (didImprove) {
+          transaction.set(levelDocRef, {'stars': stars}, SetOptions(merge: true));
 
-        final int improvement = stars - previousBestStars;
-        final String balanceField = childData.containsKey('stars')
-            ? 'stars'
-            : 'starBalance';
-        childUpdates[balanceField] = currentBalance + improvement;
-      }
+          final int improvement = stars - previousBestStars;
+          final String balanceField = childData.containsKey('stars')
+              ? 'stars'
+              : 'starBalance';
+          childUpdates[balanceField] = currentBalance + improvement;
+        }
 
-      if (childUpdates.isNotEmpty) {
-        transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
-      }
+        if (childUpdates.isNotEmpty) {
+          debugPrint('DEBUG: Transaction child updates: $childUpdates');
+          transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
+        }
 
-      return didImprove;
-    });
+        return didImprove;
+      });
 
-    if (!didImproveStars) return;
+      debugPrint('DEBUG: updateLevelProgress transaction complete. didImprove: $didImproveStars');
 
-    final subjectDocRef = childDocRef
-        .collection('subjectProgress')
-        .doc(subjectId);
-    final levelsSnapshot = await subjectDocRef.collection('levels').get();
-    final completedLevels = levelsSnapshot.docs.where((doc) {
-      return (doc.data()['stars'] ?? 0).toInt() > 0;
-    }).length;
+      if (!didImproveStars) return;
 
-    final int progressPercentage = ((completedLevels / 8) * 100).toInt();
-    await subjectDocRef.set({
-      'progress': progressPercentage,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+      final subjectDocRef = childDocRef.collection('subjectProgress').doc(subjectId);
+      final levelsSnapshot = await subjectDocRef.collection('levels').get();
+      final completedLevels = levelsSnapshot.docs.where((doc) {
+        return (doc.data()['stars'] ?? 0).toInt() > 0;
+      }).length;
+
+      final int progressPercentage = ((completedLevels / 8) * 100).toInt();
+      await subjectDocRef.set({
+        'progress': progressPercentage,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      
+      debugPrint('DEBUG: Subject progress updated: $progressPercentage%');
+    } catch (e) {
+      debugPrint('DEBUG ERROR: updateLevelProgress failed: $e');
+    }
   }
 
   Stream<Map<String, int>> streamLevelStars(
@@ -207,6 +213,7 @@ class FirestoreService {
     String childId,
     String subjectId,
   ) {
+    debugPrint('DEBUG: streamLevelStars for child: $childId, subject: $subjectId');
     return _db
         .collection('parents')
         .doc(parentId)
@@ -221,6 +228,7 @@ class FirestoreService {
           for (var doc in snapshot.docs) {
             stars[doc.id] = (doc.data()['stars'] ?? 0).toInt();
           }
+          debugPrint('DEBUG: Emitted stars: $stars');
           return stars;
         });
   }

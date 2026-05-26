@@ -232,7 +232,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             }
 
             return Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 children: [
                   Row(
@@ -263,68 +263,38 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                       Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
                     ],
                   ),
-                  const Spacer(),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: question.text,
-                          style: AppTextStyles.cardTitle,
-                        ),
-                        WidgetSpan(
-                          alignment: PlaceholderAlignment.middle,
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.only(left: AppSpacing.sm),
-                            child: SizedBox(
-                              width: 32,
-                              height: 32,
-                              child: AudioPromptPlayer(
-                                key: ValueKey('audio_${question.id}'),
-                                url: question.promptAudioUrl,
-                                textToSpeak: question.text,
-                                language: getLanguage(),
-                                autoPlay: true,
-                                isSmall: true,
-                              ),
+                  const Spacer(flex: 1),
+                  if (question.imageUrl != null && question.imageUrl!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: Center(
+                        child: Container(
+                          constraints: const BoxConstraints(maxHeight: 160),
+                          decoration: BoxDecoration(
+                            color: AppColors.imagePlaceholder,
+                            borderRadius: AppRadius.r(AppRadius.xl),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: AppRadius.r(AppRadius.xl),
+                            child: Image.network(
+                              question.imageUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                    Icons.image,
+                                    color: AppColors.mutedText,
+                                    size: 48,
+                                  ),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  if (question.imageUrl != null &&
-                      question.imageUrl!.isNotEmpty)
-                    Container(
-                      height: 104,
-                      width: 104,
-                      decoration: BoxDecoration(
-                        color: AppColors.imagePlaceholder,
-                        borderRadius: AppRadius.r(AppRadius.xl),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: AppRadius.r(AppRadius.xl),
-                        child: Image.network(
-                          question.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                                Icons.image,
-                                color: AppColors.mutedText,
-                                size: 48,
-                              ),
-                        ),
                       ),
                     ),
-                  const SizedBox(height: AppSpacing.xl),
-                  ...List.generate(
-                    question.options.length,
-                    (index) => _option(index, question),
-                  ),
-                  const Spacer(),
-                  if (selected != null) ...[
+                  _buildQuestionText(question, getLanguage()),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildQuestionBody(question),
+                  const Spacer(flex: 2),
+                  if (selected != null || _isQuestionComplete(question)) ...[
                     TweenAnimationBuilder<double>(
                       tween: Tween(begin: 0.0, end: 1.0),
                       duration: const Duration(milliseconds: 400),
@@ -340,7 +310,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                       },
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(AppSpacing.md),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
                           color: selected == question.correctAnswerIndex
                               ? AppColors.accentLight
@@ -350,12 +320,14 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                         child: Text(
                           selected == question.correctAnswerIndex
                               ? 'Correct! Well done!'
-                              : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
-                          style: AppTextStyles.bodyBold,
+                              : (question.type?.toLowerCase() == 'rearrange' && question.correctOrder != null)
+                                  ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
+                                  : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
+                          style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: 8),
                     PrimaryButton(
                       label: isLastQuestion ? 'Finish' : 'Next',
                       icon: Icons.arrow_forward_rounded,
@@ -366,6 +338,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                           setState(() {
                             currentQuestionIndex++;
                             selected = null;
+                            _rearrangeOrder = null;
+                            _rearrangeSubmitted = false;
+                            _draggedOptionIndex = null;
+                            _fillBlankSubmitted = false;
                           });
                         }
                       },
@@ -374,9 +350,355 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 ],
               ),
             );
+
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(child: Text('Error: $err')),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuestionText(Question question, String language) {
+    final type = question.type?.toLowerCase() ?? 'mcq';
+    if (type == 'fillblank') {
+      return _buildFillBlankSentence(question, language);
+    }
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: question.text,
+            style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+          ),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.sm),
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: AudioPromptPlayer(
+                  key: ValueKey('audio_${question.id}'),
+                  url: question.promptAudioUrl,
+                  textToSpeak: question.text,
+                  language: language,
+                  autoPlay: true,
+                  isSmall: true,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      textAlign: TextAlign.center,
+    );
+  }
+
+  Widget _buildFillBlankSentence(Question question, String language) {
+    // Regex for both half-width () and full-width （ ） parentheses with optional whitespace
+    final RegExp bracketRegex = RegExp(r'[\(\（]\s*[\)\）]');
+    final String text = question.text;
+
+    List<String> parts;
+    bool hasBrackets = bracketRegex.hasMatch(text);
+
+    if (hasBrackets) {
+      final match = bracketRegex.firstMatch(text)!;
+      parts = [
+        text.substring(0, match.start),
+        text.substring(match.end),
+      ];
+    } else if (text.contains('____')) {
+      parts = text.split('____');
+    } else {
+      parts = [text, ''];
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: AppSpacing.sm,
+      children: [
+        if (parts.isNotEmpty && parts[0].isNotEmpty)
+          Text(
+            parts[0],
+            style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        DragTarget<int>(
+          onAcceptWithDetails: (details) {
+            if (_fillBlankSubmitted) return;
+            setState(() {
+              _draggedOptionIndex = details.data;
+            });
+          },
+          builder: (context, candidateData, rejectedData) {
+            final bool isOccupied = _draggedOptionIndex != null;
+            return Container(
+              constraints: const BoxConstraints(maxWidth: 100),
+              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: candidateData.isNotEmpty || isOccupied
+                        ? AppColors.primary
+                        : const Color(0xFFAAAAAA),
+                    width: 2,
+                  ),
+                ),
+                color: isOccupied
+                    ? AppColors.primaryLight.withOpacity(0.1)
+                    : Colors.transparent,
+              ),
+              child: Text(
+                isOccupied ? question.options[_draggedOptionIndex!].text : '   ',
+                style: AppTextStyles.bodyBold.copyWith(
+                  color: AppColors.primary,
+                  fontSize: 16,
+                ),
+              ),
+            );
+          },
+        ),
+        if (parts.length > 1 && parts[1].isNotEmpty)
+          Text(
+            parts[1],
+            style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        Padding(
+          padding: const EdgeInsets.only(left: AppSpacing.sm),
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: AudioPromptPlayer(
+              key: ValueKey('audio_${question.id}'),
+              url: question.promptAudioUrl,
+              textToSpeak: question.text,
+              language: language,
+              autoPlay: true,
+              isSmall: true,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  bool _isQuestionComplete(Question question) {
+    final type = question.type?.toLowerCase() ?? 'mcq';
+    if (type == 'rearrange') return _rearrangeSubmitted;
+    if (type == 'fillblank') return _fillBlankSubmitted;
+    return selected != null;
+  }
+
+  Widget _buildQuestionBody(Question question) {
+    final type = question.type?.toLowerCase() ?? 'mcq';
+
+    switch (type) {
+      case 'rearrange':
+        return _buildRearrangeQuestion(question);
+      case 'fillblank':
+        return _buildFillBlankQuestion(question);
+      case 'mcq':
+      default:
+        return Column(
+          children: List.generate(
+            question.options.length,
+            (index) => _option(index, question),
+          ),
+        );
+    }
+  }
+
+  // --- REARRANGE TYPE ---
+  List<int>? _rearrangeOrder;
+  bool _rearrangeSubmitted = false;
+
+  Widget _buildRearrangeQuestion(Question question) {
+    if (_rearrangeOrder == null) {
+      _rearrangeOrder = List.generate(question.options.length, (i) => i);
+      // Shuffle initially until it DOESN'T match the correct order (if possible)
+      int attempts = 0;
+      while (attempts < 5) {
+        _rearrangeOrder!.shuffle();
+        bool matches = true;
+        for (int i = 0; i < _rearrangeOrder!.length; i++) {
+          final currentText = question.options[_rearrangeOrder![i]].text;
+          final correctText = question.correctOrder != null && i < question.correctOrder!.length
+              ? question.correctOrder![i]
+              : question.options[i].text;
+          if (currentText != correctText) {
+            matches = false;
+            break;
+          }
+        }
+        if (!matches) break;
+        attempts++;
+      }
+    }
+
+    return Column(
+      children: [
+        const Text(
+          'Drag to put them in the right order!',
+          style: AppTextStyles.small,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          height: 200,
+          child: ReorderableListView(
+            onReorder: (oldIndex, newIndex) {
+              if (_rearrangeSubmitted) return;
+              setState(() {
+                if (newIndex > oldIndex) newIndex -= 1;
+                final int item = _rearrangeOrder!.removeAt(oldIndex);
+                _rearrangeOrder!.insert(newIndex, item);
+              });
+            },
+            children: [
+              for (int i = 0; i < _rearrangeOrder!.length; i++)
+                _reorderableItem(i, question),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        if (!_rearrangeSubmitted)
+          PrimaryButton(
+            label: 'Check Answer',
+            onPressed: () {
+              bool isCorrect = true;
+              if (question.correctOrder != null) {
+                for (int i = 0; i < _rearrangeOrder!.length; i++) {
+                  final currentText = question.options[_rearrangeOrder![i]].text;
+                  if (i >= question.correctOrder!.length || currentText != question.correctOrder![i]) {
+                    isCorrect = false;
+                    break;
+                  }
+                }
+              } else {
+                // Fallback to index-based if correctOrder is missing
+                for (int i = 0; i < _rearrangeOrder!.length; i++) {
+                  if (_rearrangeOrder![i] != i) {
+                    isCorrect = false;
+                    break;
+                  }
+                }
+              }
+
+              setState(() {
+                _rearrangeSubmitted = true;
+                selected = isCorrect ? question.correctAnswerIndex : -1;
+                if (isCorrect) score++;
+                _playFeedback(isCorrect);
+              });
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _reorderableItem(int index, Question question) {
+    final optionIndex = _rearrangeOrder![index];
+    final option = question.options[optionIndex];
+
+    return Container(
+      key: ValueKey('reorder_$optionIndex'),
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: AppRadius.r(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppShadows.card,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.drag_indicator, color: AppColors.mutedText),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(child: Text(option.text, style: AppTextStyles.bodyBold)),
+        ],
+      ),
+    );
+  }
+
+  // --- FILL IN THE BLANK TYPE ---
+  int? _draggedOptionIndex;
+  bool _fillBlankSubmitted = false;
+
+  Widget _buildFillBlankQuestion(Question question) {
+    return Column(
+      children: [
+        const Text(
+          'Drag the correct word to the blank!',
+          style: AppTextStyles.small,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        // Word options to drag from
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: List.generate(question.options.length, (index) {
+            final isUsed = _draggedOptionIndex == index;
+            return Draggable<int>(
+              data: index,
+              feedback: _draggableOption(index, question, true),
+              childWhenDragging: Opacity(
+                opacity: 0.3,
+                child: _draggableOption(index, question, false),
+              ),
+              child: isUsed && !_fillBlankSubmitted
+                  ? const SizedBox(width: 80, height: 40)
+                  : _draggableOption(index, question, false),
+            );
+          }),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (_draggedOptionIndex != null && !_fillBlankSubmitted)
+          PrimaryButton(
+            label: 'Check Answer',
+            onPressed: () {
+              // Robust validation: trim and case-insensitive
+              final selectedText = question.options[_draggedOptionIndex!].text.trim().toLowerCase();
+              final correctText = question.correctBlank?.trim().toLowerCase() ?? 
+                                 question.options[question.correctAnswerIndex].text.trim().toLowerCase();
+              
+              bool isCorrect = selectedText == correctText;
+              
+              debugPrint('DEBUG: FillBlank Validation - Selected: "$selectedText", Correct: "$correctText", Result: $isCorrect');
+
+              setState(() {
+                _fillBlankSubmitted = true;
+                selected = isCorrect ? question.correctAnswerIndex : -1;
+                if (isCorrect) score++;
+                _playFeedback(isCorrect);
+              });
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _draggableOption(int index, Question question, bool isFeedback) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: AppRadius.r(AppRadius.md),
+          border: Border.all(color: AppColors.primary),
+          boxShadow: isFeedback ? AppShadows.strong : AppShadows.card,
+        ),
+        child: Text(
+          question.options[index].text,
+          style: AppTextStyles.bodyBold,
         ),
       ),
     );
