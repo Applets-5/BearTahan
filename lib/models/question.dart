@@ -29,9 +29,9 @@ class Question {
     this.correctOrder,
     this.correctBlank,
   }) : this.options = options.map((e) {
-          if (e is QuestionOption) return e;
-          return QuestionOption(text: e.toString());
-        }).toList();
+         if (e is QuestionOption) return e;
+         return QuestionOption(text: e.toString());
+       }).toList();
 
   factory Question.fromFirestore(String id, Map<String, dynamic> data) {
     debugPrint('DEBUG: Parsing question document: $id');
