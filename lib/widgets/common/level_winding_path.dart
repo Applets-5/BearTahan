@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 
@@ -131,7 +130,9 @@ class LevelNode extends StatelessWidget {
                   _PulseAnimation(
                     child: CustomPaint(
                       size: Size(size, size),
-                      painter: BearHeadShape(color: nodeColor.withOpacity(0.3)),
+                      painter: BearHeadShape(
+                        color: nodeColor.withValues(alpha: 0.3),
+                      ),
                     ),
                   ),
                 if (isBoss && isCompleted)
@@ -299,10 +300,12 @@ class PathPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (points.length < 2) return;
+    if (points.length < 2) {
+      return;
+    }
 
     final paint = Paint()
-      ..color = color.withOpacity(0.3)
+      ..color = color.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;
@@ -416,14 +419,15 @@ class LevelWindingPath extends StatelessWidget {
           // Calculate position for visual layout (excluding dividers for path)
           double x;
           int pattern = visualIndex % 4;
-          if (pattern == 0)
+          if (pattern == 0) {
             x = centerX;
-          else if (pattern == 1)
+          } else if (pattern == 1) {
             x = centerX + horizontalOffset;
-          else if (pattern == 2)
+          } else if (pattern == 2) {
             x = centerX;
-          else
+          } else {
             x = centerX - horizontalOffset;
+          }
 
           final y = visualIndex * verticalStep + 80.0;
           points.add(Offset(x, y));

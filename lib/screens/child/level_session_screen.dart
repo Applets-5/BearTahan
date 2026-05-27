@@ -40,6 +40,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
   int? selected;
   List<Question>? shuffledQuestions;
+  List<Question>? _lastRawQuestions;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
@@ -221,7 +222,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             }
 
             // Shuffle and pick 10 questions once per session
-            if (shuffledQuestions == null) {
+            // Reset if rawQuestions changed (important for testing and prefix changes)
+            if (shuffledQuestions == null || _lastRawQuestions != rawQuestions) {
+              _lastRawQuestions = rawQuestions;
               final List<Question> temp = List.from(rawQuestions)..shuffle();
               shuffledQuestions = temp.take(10).toList();
             }
@@ -464,7 +467,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                   ),
                 ),
                 color: isOccupied
-                    ? AppColors.primaryLight.withOpacity(0.1)
+                    ? AppColors.primaryLight.withValues(alpha: 0.1)
                     : Colors.transparent,
               ),
               child: Text(

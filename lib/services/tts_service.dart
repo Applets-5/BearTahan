@@ -23,7 +23,6 @@ class TtsService {
     try {
       final voices = await _flutterTts.getVoices;
       for (var voice in voices) {
-        final String name = voice['name']?.toString().toLowerCase() ?? '';
         final String locale = voice['locale']?.toString().toLowerCase() ?? '';
 
         // Priority for ms-my locale with natural sounding tags
