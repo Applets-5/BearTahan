@@ -12,15 +12,15 @@ void main() {
     // Mock the flutter_tts channel using standard Flutter test tools
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('flutter_tts'), (
-      MethodCall methodCall,
-    ) async {
-      if (methodCall.method == 'getVoices') {
-        return [
-          {'name': 'ms-my-x-mzs-local', 'locale': 'ms-MY'},
-        ];
-      }
-      return null;
-    });
+          MethodCall methodCall,
+        ) async {
+          if (methodCall.method == 'getVoices') {
+            return [
+              {'name': 'ms-my-x-mzs-local', 'locale': 'ms-MY'},
+            ];
+          }
+          return null;
+        });
   });
 
   group('AudioPromptPlayer', () {

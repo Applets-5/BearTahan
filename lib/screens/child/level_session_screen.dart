@@ -223,7 +223,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
             // Shuffle and pick 10 questions once per session
             // Reset if rawQuestions changed (important for testing and prefix changes)
-            if (shuffledQuestions == null || _lastRawQuestions != rawQuestions) {
+            if (shuffledQuestions == null ||
+                _lastRawQuestions != rawQuestions) {
               _lastRawQuestions = rawQuestions;
               final List<Question> temp = List.from(rawQuestions)..shuffle();
               shuffledQuestions = temp.take(10).toList();
