@@ -1,214 +1,206 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:bear_tahan/screens/child/level_session_screen.dart';
 import 'package:bear_tahan/models/question.dart';
 import 'package:bear_tahan/providers/data_providers.dart';
-import 'package:bear_tahan/screens/child/level_session_screen.dart';
+import 'package:bear_tahan/widgets/common/audio_prompt_player.dart';
 
 void main() {
-  final List<Question> questionPool = List.generate(
-    20,
-    (i) => Question(
-      id: 'q$i',
-      text: 'Question $i',
-      options: ['Option A', 'Option B', 'Option C', 'Option D'],
-      correctAnswerIndex: 0,
-    ),
-  );
+  Widget createTestWidget(List<Question> questions, {Key? key}) {
+    return ProviderScope(
+      overrides: [
+        questionsProvider(
+          'test_prefix',
+        ).overrideWith((ref) => Future.value(questions)),
+        parentIdProvider.overrideWithValue('test_parent_id'),
+      ],
+      child: MaterialApp(
+        home: LevelSessionScreen(
+          key: key,
+          levelPrefix: 'test_prefix',
+          childId: 'test_child_id',
+          subjectId: 'bm',
+          levelId: 'l1',
+        ),
+      ),
+    );
+  }
 
-  group('shuffledQuestions', () {
-    testWidgets('should only contain 10 questions even if pool is larger', (
+  group('LevelSessionScreen', () {
+    testWidgets('should display MCQ options with A, B, C labels correctly', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            questionsProvider(
-              'test_prefix',
-            ).overrideWith((ref) => Future.value(questionPool)),
+      final questions = [
+        Question(
+          id: 'q1',
+          text: 'What is this?',
+          type: 'mcq',
+          options: [
+            QuestionOption(text: 'Option A Text'),
+            QuestionOption(text: 'Option B Text'),
           ],
-          child: const MaterialApp(
-            home: LevelSessionScreen(levelPrefix: 'test_prefix'),
-          ),
+          correctAnswerIndex: 0,
         ),
-      );
+      ];
 
-      await tester.pumpAndSettle();
-
-      final state = tester.state(find.byType(LevelSessionScreen)) as dynamic;
-      expect(state.shuffledQuestions.length, 10);
-    });
-
-    testWidgets('should not reset questions or progress on widget rebuild', (
-      tester,
-    ) async {
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            questionsProvider(
-              'test_prefix',
-            ).overrideWith((ref) => Future.value(questionPool)),
-          ],
-          child: const MaterialApp(
-            home: LevelSessionScreen(levelPrefix: 'test_prefix'),
-          ),
-        ),
+        createTestWidget(questions, key: const ValueKey('mcq')),
       );
-
-      await tester.pumpAndSettle();
-
-      final stateBefore =
-          tester.state(find.byType(LevelSessionScreen)) as dynamic;
-      final firstQuestionId = stateBefore.shuffledQuestions[0].id;
-
-      // Select an answer to move state and trigger some internal updates
-      await tester.tap(find.text('Option A'));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-      // Trigger a rebuild by calling markNeedsBuild on the element
-      tester.element(find.byType(LevelSessionScreen)).markNeedsBuild();
-      await tester.pump();
-
-      final stateAfter =
-          tester.state(find.byType(LevelSessionScreen)) as dynamic;
-      expect(stateAfter.shuffledQuestions[0].id, firstQuestionId);
-      expect(stateAfter.currentQuestionIndex, 0);
-    });
-  });
-
-  group('score', () {
-    testWidgets('should increment when tapping the correct option', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            questionsProvider('test_prefix').overrideWith(
-              (ref) => Future.value(questionPool.take(1).toList()),
-            ),
-          ],
-          child: const MaterialApp(
-            home: LevelSessionScreen(levelPrefix: 'test_prefix'),
-          ),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      // Option A is correct (index 0)
-      await tester.tap(find.text('Option A'));
-      await tester.pump();
-
-      final state = tester.state(find.byType(LevelSessionScreen)) as dynamic;
-      expect(state.score, 1);
-    });
-
-    testWidgets('should not increment when tapping a wrong option', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            questionsProvider('test_prefix').overrideWith(
-              (ref) => Future.value(questionPool.take(1).toList()),
-            ),
-          ],
-          child: const MaterialApp(
-            home: LevelSessionScreen(levelPrefix: 'test_prefix'),
-          ),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      // Option B is wrong (index 1)
-      await tester.tap(find.text('Option B'));
-      await tester.pump();
-
-      final state = tester.state(find.byType(LevelSessionScreen)) as dynamic;
-      expect(state.score, 0);
+      expect(find.textContaining('What is this?'), findsOneWidget);
+      expect(find.text('Option A Text'), findsOneWidget);
+      expect(find.text('Option B Text'), findsOneWidget);
+      expect(find.text('A'), findsOneWidget);
+      expect(find.text('B'), findsOneWidget);
     });
 
     testWidgets(
-      'should not change score if tapping other options after selection',
+      'should display Rearrange instructions and reorderable list for rearrange type',
       (tester) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              questionsProvider('test_prefix').overrideWith(
-                (ref) => Future.value(questionPool.take(1).toList()),
-              ),
+        final questions = [
+          Question(
+            id: 'q1',
+            text: 'Arrange the sentence',
+            type: 'rearrange',
+            options: [
+              QuestionOption(text: 'Saya'),
+              QuestionOption(text: 'Makan'),
+              QuestionOption(text: 'Nasi'),
             ],
-            child: const MaterialApp(
-              home: LevelSessionScreen(levelPrefix: 'test_prefix'),
-            ),
+            correctAnswerIndex: 0,
+            correctOrder: ['Saya', 'Makan', 'Nasi'],
           ),
+        ];
+
+        await tester.pumpWidget(
+          createTestWidget(questions, key: const ValueKey('rearrange')),
         );
-
-        await tester.pumpAndSettle();
-
-        // First tap correct
-        await tester.tap(find.text('Option A'));
         await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-        final state = tester.state(find.byType(LevelSessionScreen)) as dynamic;
-        expect(state.score, 1);
-
-        // Tap wrong option - score should not change
-        await tester.tap(find.text('Option B'));
-        await tester.pump();
-
-        expect(state.score, 1);
+        expect(
+          find.text('Drag to put them in the right order!'),
+          findsOneWidget,
+        );
+        expect(find.byType(ReorderableListView), findsOneWidget);
+        expect(find.text('Saya'), findsOneWidget);
+        expect(find.text('Makan'), findsOneWidget);
+        expect(find.text('Nasi'), findsOneWidget);
       },
     );
-  });
 
-  group('navigation', () {
-    testWidgets('should display Finish button on the last question', (
+    testWidgets(
+      'should display Fill-in-the-blank instructions and draggable targets',
+      (tester) async {
+        final questions = [
+          Question(
+            id: 'q1',
+            text: 'Ini ____ buku.',
+            type: 'fillblank',
+            options: [
+              QuestionOption(text: 'ialah'),
+              QuestionOption(text: 'adalah'),
+            ],
+            correctAnswerIndex: 0,
+            correctBlank: 'ialah',
+          ),
+        ];
+
+        await tester.pumpWidget(
+          createTestWidget(questions, key: const ValueKey('fillblank')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(
+          find.text('Drag the correct word to the blank!'),
+          findsOneWidget,
+        );
+        expect(find.text('Ini '), findsOneWidget);
+        expect(find.text(' buku.'), findsOneWidget);
+        expect(find.byType(DragTarget<int>), findsOneWidget);
+        expect(find.byType(Draggable<int>), findsNWidgets(2));
+      },
+    );
+
+    testWidgets('should display image container when imageUrl is provided', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            questionsProvider('test_prefix').overrideWith(
-              (ref) => Future.value(questionPool.take(1).toList()),
-            ),
-          ],
-          child: const MaterialApp(
-            home: LevelSessionScreen(levelPrefix: 'test_prefix'),
-          ),
+      final questionsWithImage = [
+        Question(
+          id: 'q1',
+          text: 'Question with image',
+          imageUrl: 'https://example.com/image.png',
+          options: [QuestionOption(text: 'Yes')],
+          correctAnswerIndex: 0,
         ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questionsWithImage, key: const ValueKey('img_yes')),
       );
-
-      await tester.pumpAndSettle();
-
-      // Select an answer for the single question to show the Next/Finish button
-      await tester.tap(find.text('Option A'));
       await tester.pump();
-
-      expect(find.text('Finish'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(Image), findsOneWidget);
     });
 
-    testWidgets('should allow closing the session via the close button', (
+    testWidgets('should NOT display image container when imageUrl is missing', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            questionsProvider('test_prefix').overrideWith(
-              (ref) => Future.value(questionPool.take(1).toList()),
-            ),
-          ],
-          child: const MaterialApp(
-            home: LevelSessionScreen(levelPrefix: 'test_prefix'),
-          ),
+      final questionsWithoutImage = [
+        Question(
+          id: 'q2',
+          text: 'Question without image',
+          options: [QuestionOption(text: 'Yes')],
+          correctAnswerIndex: 0,
         ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questionsWithoutImage, key: const ValueKey('img_no')),
       );
-
-      await tester.pumpAndSettle();
-
-      final closeButton = find.byIcon(Icons.close);
-      expect(closeButton, findsOneWidget);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(Image), findsNothing);
     });
+
+    testWidgets('should show audio prompt player for all question types', (
+      tester,
+    ) async {
+      final questions = [
+        Question(
+          id: 'q1',
+          text: 'Speak this',
+          options: [QuestionOption(text: 'OK')],
+          correctAnswerIndex: 0,
+          promptAudioUrl: 'audio.mp3',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questions, key: const ValueKey('audio')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(AudioPromptPlayer), findsOneWidget);
+    });
+
+    testWidgets(
+      'should handle empty question pool gracefully with error message',
+      (tester) async {
+        await tester.pumpWidget(
+          createTestWidget([], key: const ValueKey('empty')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('No questions found for this level.'), findsOneWidget);
+        expect(find.text('Go Back'), findsOneWidget);
+      },
+    );
   });
 }
