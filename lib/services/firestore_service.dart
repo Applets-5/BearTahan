@@ -4,10 +4,14 @@ import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
 import '../models/reward.dart';
+import '../models/notification.dart';
 import '../utils/streak_utils.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore _db;
+
+  FirestoreService({FirebaseFirestore? firestore})
+    : _db = firestore ?? FirebaseFirestore.instance;
 
   Stream<List<Reward>> streamRewards(String parentId) {
     return _db
@@ -19,6 +23,106 @@ class FirestoreService {
           (snapshot) => snapshot.docs
               .map((doc) => Reward.fromFirestore(doc.id, doc.data()))
               .toList(),
+        );
+  }
+
+  Future<void> claimReward(
+    String parentId,
+    String childId,
+    Reward reward,
+    String childName,
+  ) async {
+    final rewardDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .doc(reward.id);
+    final childDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+    final notificationColRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('notifications');
+
+    await _db.runTransaction((transaction) async {
+      final childSnapshot = await transaction.get(childDocRef);
+      final childData = childSnapshot.data() ?? {};
+      final int currentBalance =
+          (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
+
+      if (currentBalance < reward.cost) {
+        throw Exception('Insufficient stars');
+      }
+
+      // Update reward status to pending
+      transaction.update(rewardDocRef, {'status': 'pending'});
+
+      // Deduct stars
+      final String balanceField = childData.containsKey('stars')
+          ? 'stars'
+          : 'starBalance';
+      transaction.update(childDocRef, {
+        balanceField: currentBalance - reward.cost,
+      });
+
+      // Create notification
+      final notification = ParentNotification(
+        id: '',
+        title: '$childName wants to redeem ${reward.title}',
+        type: 'reward',
+        timestamp: DateTime.now(),
+        childId: childId,
+        childName: childName,
+      );
+      transaction.set(notificationColRef.doc(), notification.toFirestore());
+    });
+  }
+
+  Stream<List<ParentNotification>> streamNotifications(String parentId) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('notifications')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => ParentNotification.fromFirestore(doc.id, doc.data()),
+              )
+              .toList(),
+        );
+  }
+
+  Future<void> markNotificationAsRead(
+    String parentId,
+    String notificationId,
+  ) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('notifications')
+        .doc(notificationId)
+        .update({'isRead': true});
+  }
+
+  Stream<List<UserProfile>> streamChildren(String parentId) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            final data = doc.data();
+            if (data.containsKey('stars') && !data.containsKey('starBalance')) {
+              data['starBalance'] = data['stars'];
+            }
+            return UserProfile.fromFirestore(doc.id, data);
+          }).toList(),
         );
   }
 

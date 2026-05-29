@@ -5,9 +5,8 @@ import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
 import '../models/reward.dart';
+import '../models/notification.dart';
 import '../services/firestore_service.dart';
-//import '../router/app_router.dart';
-
 import '../services/security_service.dart';
 import '../services/tts_service.dart';
 
@@ -35,6 +34,18 @@ final rewardsProvider = StreamProvider<List<Reward>>((ref) {
   final parentId = ref.watch(parentIdProvider);
   if (parentId.isEmpty) return const Stream.empty();
   return ref.watch(firestoreServiceProvider).streamRewards(parentId);
+});
+
+final childrenProvider = StreamProvider<List<UserProfile>>((ref) {
+  final parentId = ref.watch(parentIdProvider);
+  if (parentId.isEmpty) return const Stream.empty();
+  return ref.watch(firestoreServiceProvider).streamChildren(parentId);
+});
+
+final notificationsProvider = StreamProvider<List<ParentNotification>>((ref) {
+  final parentId = ref.watch(parentIdProvider);
+  if (parentId.isEmpty) return const Stream.empty();
+  return ref.watch(firestoreServiceProvider).streamNotifications(parentId);
 });
 
 // In Riverpod 3.0, StateProvider is removed. Use NotifierProvider instead.
