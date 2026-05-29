@@ -8,9 +8,11 @@ import '../models/reward.dart';
 import '../models/notification.dart';
 import '../services/firestore_service.dart';
 import '../services/security_service.dart';
+import '../services/tts_service.dart';
 
 final firestoreServiceProvider = Provider((ref) => FirestoreService());
 final securityServiceProvider = Provider((ref) => SecurityService());
+final ttsServiceProvider = Provider((ref) => TtsService());
 final firebaseAuthProvider = Provider((ref) => FirebaseAuth.instance);
 
 final authStateProvider = StreamProvider<User?>((ref) {

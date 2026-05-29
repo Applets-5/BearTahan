@@ -1,10 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
 import '../models/reward.dart';
 import '../models/notification.dart';
-import 'package:flutter/foundation.dart';
+import '../utils/streak_utils.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db;
@@ -218,6 +219,10 @@ class FirestoreService {
     String levelId,
     int stars,
   ) async {
+    debugPrint(
+      'DEBUG: updateLevelProgress for child: $childId, subject: $subjectId, level: $levelId, stars: $stars',
+    );
+
     final childDocRef = _db
         .collection('parents')
         .doc(parentId)
@@ -230,101 +235,81 @@ class FirestoreService {
         .collection('levels')
         .doc(levelId);
 
-    await _db.runTransaction((transaction) async {
-      final levelSnapshot = await transaction.get(levelDocRef);
-      final childSnapshot = await transaction.get(childDocRef);
+    try {
+      final didImproveStars = await _db.runTransaction<bool>((
+        transaction,
+      ) async {
+        final levelSnapshot = await transaction.get(levelDocRef);
+        final childSnapshot = await transaction.get(childDocRef);
 
-      final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0)
-          .toInt();
-      final childData = childSnapshot.data() ?? {};
-      final int currentBalance =
-          (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
+        final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0)
+            .toInt();
+        final childData = childSnapshot.data() ?? {};
+        final int currentBalance =
+            (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
 
-      // Streak Logic
-      int newStreak = (childData['streakCount'] ?? 0).toInt();
-      final Timestamp? lastActivityTimestamp =
-          childData['lastActivityDate'] as Timestamp?;
-      final DateTime now = DateTime.now();
-      final DateTime today = DateTime(now.year, now.month, now.day);
+        final childUpdates = <String, dynamic>{};
 
-      if (lastActivityTimestamp == null) {
-        // First time activity
-        newStreak = 1;
-        transaction.update(childDocRef, {
-          'streakCount': newStreak,
-          'lastActivityDate': Timestamp.fromDate(today),
-        });
-      } else {
-        final DateTime lastActivity = lastActivityTimestamp.toDate();
-        final DateTime lastActivityDay = DateTime(
-          lastActivity.year,
-          lastActivity.month,
-          lastActivity.day,
+        final streakResult = StreakUtils.calculateStreak(
+          currentStreak: (childData['streakCount'] ?? 0).toInt(),
+          lastActivityDate: childData['lastActivityDate'] != null
+              ? (childData['lastActivityDate'] as Timestamp).toDate()
+              : null,
+          now: DateTime.now(),
         );
-        final difference = today.difference(lastActivityDay).inDays;
 
-        if (difference == 1) {
-          // Consecutive day
-          newStreak += 1;
-          transaction.update(childDocRef, {
-            'streakCount': newStreak,
-            'lastActivityDate': Timestamp.fromDate(today),
-          });
-        } else if (difference > 1) {
-          // Missed days, reset streak
-          newStreak = 1;
-          transaction.update(childDocRef, {
-            'streakCount': newStreak,
-            'lastActivityDate': Timestamp.fromDate(today),
-          });
-        }
-        // If difference == 0 (same day), we don't change streak or date
-      }
-
-      // Logic: Status of level remains highest stars
-      if (stars > previousBestStars) {
-        transaction.set(levelDocRef, {'stars': stars}, SetOptions(merge: true));
-
-        // Total star count increment by difference
-        final int improvement = stars - previousBestStars;
-        final String balanceField = childData.containsKey('stars')
-            ? 'stars'
-            : 'starBalance';
-        transaction.update(childDocRef, {
-          balanceField: currentBalance + improvement,
-        });
-
-        // Update subject progress
-        final subjectDocRef = childDocRef
-            .collection('subjectProgress')
-            .doc(subjectId);
-        final levelsSnapshot = await childDocRef
-            .collection('subjectProgress')
-            .doc(subjectId)
-            .collection('levels')
-            .get();
-
-        // Count how many levels have at least 1 star
-        int completedLevels = 0;
-        final Map<String, int> starMap = {};
-        for (var doc in levelsSnapshot.docs) {
-          final s = (doc.data()['stars'] ?? 0).toInt();
-          starMap[doc.id] = s;
-          if (s > 0) completedLevels++;
+        if (streakResult.shouldUpdate) {
+          childUpdates['streakCount'] = streakResult.newStreak;
+          childUpdates['lastActivityDate'] = Timestamp.fromDate(
+            streakResult.lastActivityDate,
+          );
         }
 
-        // Ensure the current level is counted if it was just updated and not yet in levelsSnapshot
-        if (stars > 0 && (starMap[levelId] ?? 0) == 0) {
-          completedLevels++;
+        final didImprove = stars > previousBestStars;
+        if (didImprove) {
+          transaction.set(levelDocRef, {
+            'stars': stars,
+          }, SetOptions(merge: true));
+
+          final int improvement = stars - previousBestStars;
+          final String balanceField = childData.containsKey('stars')
+              ? 'stars'
+              : 'starBalance';
+          childUpdates[balanceField] = currentBalance + improvement;
         }
 
-        final int progressPercentage = ((completedLevels / 8) * 100).toInt();
-        transaction.set(subjectDocRef, {
-          'progress': progressPercentage,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-    });
+        if (childUpdates.isNotEmpty) {
+          debugPrint('DEBUG: Transaction child updates: $childUpdates');
+          transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
+        }
+
+        return didImprove;
+      });
+
+      debugPrint(
+        'DEBUG: updateLevelProgress transaction complete. didImprove: $didImproveStars',
+      );
+
+      if (!didImproveStars) return;
+
+      final subjectDocRef = childDocRef
+          .collection('subjectProgress')
+          .doc(subjectId);
+      final levelsSnapshot = await subjectDocRef.collection('levels').get();
+      final completedLevels = levelsSnapshot.docs.where((doc) {
+        return (doc.data()['stars'] ?? 0).toInt() > 0;
+      }).length;
+
+      final int progressPercentage = ((completedLevels / 8) * 100).toInt();
+      await subjectDocRef.set({
+        'progress': progressPercentage,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      debugPrint('DEBUG: Subject progress updated: $progressPercentage%');
+    } catch (e) {
+      debugPrint('DEBUG ERROR: updateLevelProgress failed: $e');
+    }
   }
 
   Stream<Map<String, int>> streamLevelStars(
@@ -332,6 +317,9 @@ class FirestoreService {
     String childId,
     String subjectId,
   ) {
+    debugPrint(
+      'DEBUG: streamLevelStars for child: $childId, subject: $subjectId',
+    );
     return _db
         .collection('parents')
         .doc(parentId)
@@ -346,90 +334,35 @@ class FirestoreService {
           for (var doc in snapshot.docs) {
             stars[doc.id] = (doc.data()['stars'] ?? 0).toInt();
           }
+          debugPrint('DEBUG: Emitted stars: $stars');
           return stars;
         });
   }
 
-  Future<void> seedMockData(String uid) async {
-    try {
-      debugPrint('Seeding mock data for user: $uid');
-      // Set user profile
-      await _db.collection('users').doc(uid).set({
-        'name': 'Olaf',
-        'starBalance': 2,
-        'activeMascotOutfit': 'Hero Cape',
-        'parentId': 'scKBgki4JkM7fBSsQDXUgo58Dnl1',
-      }, SetOptions(merge: true));
-      debugPrint('User profile seeded successfully');
-
-      // Set level 1 progress for BM to 2 stars
-      await _db
-          .collection('users')
-          .doc(uid)
-          .collection('subjectProgress')
-          .doc('bm')
-          .collection('levels')
-          .doc('l1')
-          .set({'stars': 2}, SetOptions(merge: true));
-
-      // Set subject progress
-      final subjects = [
-        {
-          'id': 'bm',
-          'name': 'Bahasa Melayu',
-          'subtitle': 'Membaca & Menulis',
-          'icon': 'edit_rounded',
-          'color': 'bm',
-          'progress': 45,
-        },
-        {
-          'id': 'english',
-          'name': 'English',
-          'subtitle': 'Reading & Writing',
-          'icon': 'menu_book_rounded',
-          'color': 'english',
-          'progress': 30,
-        },
-        {
-          'id': 'mandarin',
-          'name': 'Mandarin',
-          'subtitle': 'Chinese characters',
-          'icon': 'translate_rounded',
-          'color': 'mandarin',
-          'progress': 20,
-        },
-        {
-          'id': 'math',
-          'name': 'Mathematics',
-          'subtitle': 'Numbers & shapes',
-          'icon': 'calculate_rounded',
-          'color': 'math',
-          'progress': 55,
-        },
-        {
-          'id': 'science',
-          'name': 'Science',
-          'subtitle': 'Explore & discover',
-          'icon': 'science_rounded',
-          'color': 'science',
-          'progress': 25,
-        },
-      ];
-
-      for (var subject in subjects) {
-        final id = subject.remove('id') as String;
-        await _db
-            .collection('users')
-            .doc(uid)
-            .collection('subjectProgress')
-            .doc(id)
-            .set(subject, SetOptions(merge: true));
-        debugPrint('Subject seeded: $id');
-      }
-      debugPrint('All mock data seeded successfully');
-    } catch (e) {
-      debugPrint('Error seeding mock data: $e');
-      rethrow;
-    }
+  Future<void> recordAttempt(
+    String parentId,
+    String childId, {
+    required String subjectId,
+    required String levelId,
+    required int score,
+    required int total,
+    required int stars,
+    required int timeInSeconds,
+  }) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('attempts')
+        .add({
+          'subjectId': subjectId,
+          'levelId': levelId,
+          'score': score,
+          'total': total,
+          'stars': stars,
+          'timeInSeconds': timeInSeconds,
+          'completedAt': FieldValue.serverTimestamp(),
+        });
   }
 }

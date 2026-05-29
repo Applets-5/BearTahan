@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../router/app_router.dart';
+import '../../services/parent_account_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/primary_button.dart';
 
@@ -19,6 +19,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
+  final _parentAccountService = ParentAccountService();
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -54,8 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Logged in successfully!')),
         );
-        // Navigate to dashboard after successful login
-        context.go('${AppRouter.mascotSelection}?childId=demo_child_001');
+        context.go(AppRouter.selectProfile);
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
@@ -117,24 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
       User? user = userCredential.user;
 
       if (user != null) {
-        // 6. Check if user exists in the database. If not, create them (handles both Login & Register seamlessly!)
-        DocumentSnapshot parentDoc = await FirebaseFirestore.instance
-            .collection('parents')
-            .doc(user.uid)
-            .get();
-
-        if (!parentDoc.exists) {
-          await FirebaseFirestore.instance
-              .collection('parents')
-              .doc(user.uid)
-              .set({
-                'uid': user.uid,
-                'name': user.displayName ?? 'Parent',
-                'email': user.email,
-                'role': 'parent',
-                'createdAt': FieldValue.serverTimestamp(),
-              });
-        }
+        await _parentAccountService.createParentDocumentIfMissing(user);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

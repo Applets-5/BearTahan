@@ -2,29 +2,79 @@ name: Flutter CI
 
 on:
   push:
-    branches: ["**"]          # runs on every branch push
+    branches: ["**"]
   pull_request:
-    branches: [main, sprint-*] # runs on PRs to main and sprint branches
+    branches: [main, sprint-*]
 
 jobs:
-  test:
+  format:
+    name: Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.41.9"   # pin to your team's version
+          flutter-version: "3.41.9"
           channel: "stable"
-      
+          cache: true
+
       - name: Install dependencies
         run: flutter pub get
-      
+
       - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed .
-      
-      - name: Analyse code
-        run: flutter analyze
-      
+        run: dart format --output=none --set-exit-if-changed $(git ls-files '*.dart')
+
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.9"
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze code
+        run: flutter analyze --no-pub
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.9"
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
       - name: Run tests
-        run: flutter test
+        run: flutter test --no-pub
+
+  android-debug-build:
+    name: Android Debug Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.9"
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build debug APK
+        run: flutter build apk --debug --no-pub

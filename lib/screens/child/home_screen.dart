@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -150,15 +151,15 @@ class HomeScreen extends ConsumerWidget {
       case 'Bahasa Melayu':
         return 'bm';
       case 'English':
-        return 'english';
+        return 'en';
       case 'Mandarin':
-        return 'mandarin';
+        return 'bc';
       case 'Mathematics':
         return 'math';
       case 'Science':
         return 'science';
       default:
-        return name.toLowerCase();
+        return name.toLowerCase().substring(0, math.min(name.length, 2));
     }
   }
 }
@@ -201,13 +202,13 @@ class _Header extends ConsumerWidget {
                 ),
                 userProfileAsync.when(
                   data: (profile) => Text(
-                    ' ${profile.streakCount}',
+                    ' ${profile.streakCount} days',
                     style: AppTextStyles.bodyBold,
                   ),
                   loading: () =>
-                      const Text(' -', style: AppTextStyles.bodyBold),
+                      const Text(' - days', style: AppTextStyles.bodyBold),
                   error: (_, _) =>
-                      const Text(' 0', style: AppTextStyles.bodyBold),
+                      const Text(' 0 days', style: AppTextStyles.bodyBold),
                 ),
               ],
             ),
