@@ -21,6 +21,23 @@ class FirestoreService {
         );
   }
 
+  Stream<List<UserProfile>> streamChildren(String parentId) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            final data = doc.data();
+            if (data.containsKey('stars') && !data.containsKey('starBalance')) {
+              data['starBalance'] = data['stars'];
+            }
+            return UserProfile.fromFirestore(doc.id, data);
+          }).toList(),
+        );
+  }
+
   Future<void> addReward(String parentId, Reward reward) async {
     await _db
         .collection('parents')

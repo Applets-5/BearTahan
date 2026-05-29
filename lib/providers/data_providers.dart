@@ -35,6 +35,12 @@ final rewardsProvider = StreamProvider<List<Reward>>((ref) {
   return ref.watch(firestoreServiceProvider).streamRewards(parentId);
 });
 
+final childrenProvider = StreamProvider<List<UserProfile>>((ref) {
+  final parentId = ref.watch(parentIdProvider);
+  if (parentId.isEmpty) return const Stream.empty();
+  return ref.watch(firestoreServiceProvider).streamChildren(parentId);
+});
+
 // In Riverpod 3.0, StateProvider is removed. Use NotifierProvider instead.
 class ChildIdNotifier extends Notifier<String?> {
   @override
