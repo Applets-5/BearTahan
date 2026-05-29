@@ -96,8 +96,42 @@ class RewardListScreen extends ConsumerWidget {
                     cost: r.cost,
                     status: r.status,
                     primaryLabel: 'Claim',
-                    onPrimary: () {
-                      // Handle claim logic
+                    onPrimary: () async {
+                      final profile = userProfileAsync.value;
+                      if (profile == null) return;
+
+                      if (profile.starBalance < r.cost) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Not enough stars!')),
+                        );
+                        return;
+                      }
+
+                      try {
+                        final parentId = ref.read(parentIdProvider);
+                        await ref
+                            .read(firestoreServiceProvider)
+                            .claimReward(
+                              parentId,
+                              profile.uid,
+                              r,
+                              profile.name,
+                            );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Requested ${r.title}!'),
+                              backgroundColor: AppColors.accent,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                      }
                     },
                   ),
                 ),
