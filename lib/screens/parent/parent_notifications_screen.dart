@@ -30,7 +30,7 @@ class ParentNotificationsScreen extends ConsumerWidget {
                       Icon(
                         Icons.notifications_none,
                         size: 64,
-                        color: AppColors.mutedText.withOpacity(0.5),
+                        color: AppColors.mutedText.withValues(alpha: 0.5),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       const Text(
@@ -122,7 +122,7 @@ class _NotificationTile extends StatelessWidget {
         borderRadius: AppRadius.r(AppRadius.lg),
         boxShadow: AppShadows.card,
         border: unread
-            ? Border.all(color: AppColors.primary.withOpacity(0.3))
+            ? Border.all(color: AppColors.primary.withValues(alpha: 0.3))
             : null,
       ),
       child: Row(

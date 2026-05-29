@@ -1,105 +1,131 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:bear_tahan/services/firestore_service.dart';
 import 'package:bear_tahan/models/reward.dart';
 
-class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}
-
-class MockCollectionReference extends Mock
-    implements CollectionReference<Map<String, dynamic>> {}
-
-class MockDocumentReference extends Mock
-    implements DocumentReference<Map<String, dynamic>> {}
-
-class MockDocumentSnapshot extends Mock
-    implements DocumentSnapshot<Map<String, dynamic>> {}
-
-class MockTransaction extends Mock implements Transaction {}
-
-class FakeDocumentReference extends Fake
-    implements DocumentReference<Map<String, dynamic>> {}
-
 void main() {
   late FirestoreService firestoreService;
-  late MockFirebaseFirestore mockFirestore;
-  late MockCollectionReference mockCollection;
-  late MockDocumentReference mockDocument;
-  late MockTransaction mockTransaction;
-  late MockDocumentSnapshot mockSnapshot;
-
-  setUpAll(() {
-    registerFallbackValue(FakeDocumentReference());
-    registerFallbackValue(Duration.zero);
-  });
+  late FakeFirebaseFirestore fakeFirestore;
 
   setUp(() {
-    mockFirestore = MockFirebaseFirestore();
-    mockCollection = MockCollectionReference();
-    mockDocument = MockDocumentReference();
-    mockTransaction = MockTransaction();
-    mockSnapshot = MockDocumentSnapshot();
-
-    firestoreService = FirestoreService(firestore: mockFirestore);
+    fakeFirestore = FakeFirebaseFirestore();
+    firestoreService = FirestoreService(firestore: fakeFirestore);
   });
 
   group('FirestoreService Tests', () {
-    test('markNotificationAsRead should update isRead field', () async {
-      const parentId = 'p123';
-      const notificationId = 'n456';
-
-      when(
-        () => mockFirestore.collection('parents'),
-      ).thenReturn(mockCollection);
-      when(() => mockCollection.doc(parentId)).thenReturn(mockDocument);
-      when(
-        () => mockDocument.collection('notifications'),
-      ).thenReturn(mockCollection);
-      when(() => mockCollection.doc(notificationId)).thenReturn(mockDocument);
-      when(() => mockDocument.update(any())).thenAnswer((_) async => {});
-
-      await firestoreService.markNotificationAsRead(parentId, notificationId);
-
-      verify(() => mockDocument.update({'isRead': true})).called(1);
-    });
-
-    test('claimReward throws exception if stars are insufficient', () async {
+    test('claimReward should deduct stars and create a notification', () async {
       const parentId = 'p1';
       const childId = 'c1';
+      const childName = 'Aina';
+
+      // Setup initial data in fake firestore
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .set({'starBalance': 150});
+
       final reward = Reward(
         id: 'r1',
-        title: 'Treat',
-        description: 'Yum',
+        title: 'Extra Screen Time',
+        description: '30 mins extra',
+        cost: 100,
+        status: 'available',
+      );
+
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('rewards')
+          .doc(reward.id)
+          .set(reward.toFirestore());
+
+      // Execute claim
+      await firestoreService.claimReward(parentId, childId, reward, childName);
+
+      // Verify star deduction
+      final childDoc = await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .get();
+      expect(childDoc.data()?['starBalance'], 50);
+
+      // Verify reward status update
+      final rewardDoc = await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('rewards')
+          .doc(reward.id)
+          .get();
+      expect(rewardDoc.data()?['status'], 'pending');
+
+      // Verify notification creation
+      final notifications = await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('notifications')
+          .get();
+      expect(notifications.docs.length, 1);
+      expect(
+        notifications.docs.first.data()['title'],
+        contains('Aina wants to redeem Extra Screen Time'),
+      );
+    });
+
+    test('claimReward should throw error if insufficient stars', () async {
+      const parentId = 'p1';
+      const childId = 'c1';
+
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .set({'starBalance': 50});
+
+      final reward = Reward(
+        id: 'r1',
+        title: 'Big Toy',
+        description: 'Something expensive',
         cost: 100,
       );
 
-      // Using a more generic mock approach for runTransaction
-      when(
-        () => mockFirestore.runTransaction<void>(
-          any(),
-          timeout: any(named: 'timeout'),
+      expect(
+        () => firestoreService.claimReward(parentId, childId, reward, 'Aina'),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('Insufficient stars'),
+          ),
         ),
-      ).thenAnswer((invocation) async {
-        final handler =
-            invocation.positionalArguments[0] as TransactionHandler<void>;
-        await handler(mockTransaction);
-      });
+      );
+    });
 
-      when(() => mockFirestore.collection(any())).thenReturn(mockCollection);
-      when(() => mockCollection.doc(any())).thenReturn(mockDocument);
-      when(() => mockDocument.collection(any())).thenReturn(mockCollection);
+    test('markNotificationAsRead should update isRead field', () async {
+      const parentId = 'p1';
+      const notificationId = 'n1';
 
-      when(
-        () => mockTransaction.get(any()),
-      ).thenAnswer((_) async => mockSnapshot);
-      when(() => mockSnapshot.data()).thenReturn({'starBalance': 50});
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('notifications')
+          .doc(notificationId)
+          .set({'title': 'Test', 'isRead': false});
 
-      try {
-        await firestoreService.claimReward(parentId, childId, reward, 'Aina');
-        fail('Should have thrown an exception');
-      } catch (e) {
-        expect(e.toString(), contains('Insufficient stars'));
-      }
+      await firestoreService.markNotificationAsRead(parentId, notificationId);
+
+      final doc = await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('notifications')
+          .doc(notificationId)
+          .get();
+
+      expect(doc.data()?['isRead'], true);
     });
   });
 }
