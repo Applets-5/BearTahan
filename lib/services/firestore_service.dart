@@ -164,20 +164,27 @@ class FirestoreService {
         });
   }
 
-  Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
-    return _db
-        .collection('parents')
-        .doc(parentId)
-        .collection('children')
-        .doc(childId)
-        .collection('subjectProgress')
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
+Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
+  debugPrint('DEBUG: streamSubjectProgress called - parentId: $parentId, childId: $childId');
+  return _db
+      .collection('parents')
+      .doc(parentId)
+      .collection('children')
+      .doc(childId)
+      .collection('subjectProgress')
+      .snapshots()
+      .map(
+        (snapshot) {
+          debugPrint('DEBUG: subjectProgress snapshot - docs count: ${snapshot.docs.length}');
+          for (var doc in snapshot.docs) {
+            debugPrint('DEBUG: subjectProgress doc id: ${doc.id}, data: ${doc.data()}');
+          }
+          return snapshot.docs
               .map((doc) => Subject.fromFirestore(doc.id, doc.data()))
-              .toList(),
-        );
-  }
+              .toList();
+        },
+      );
+}
 
   Future<List<Question>> getQuestions(String prefix) async {
     final snapshot = await _db
@@ -208,70 +215,68 @@ class FirestoreService {
   }
 
   Future<void> updateLevelProgress(
-    String parentId,
-    String childId,
-    String subjectId,
-    String levelId,
-    int stars,
-  ) async {
-    debugPrint(
-      'DEBUG: updateLevelProgress for child: $childId, subject: $subjectId, level: $levelId, stars: $stars',
-    );
+  String parentId,
+  String childId,
+  String subjectId,
+  String levelId,
+  int stars,
+) async {
+  debugPrint(
+    'DEBUG: updateLevelProgress for child: $childId, subject: $subjectId, level: $levelId, stars: $stars',
+  );
 
-    final childDocRef = _db
-        .collection('parents')
-        .doc(parentId)
-        .collection('children')
-        .doc(childId);
+  final childDocRef = _db
+      .collection('parents')
+      .doc(parentId)
+      .collection('children')
+      .doc(childId);
 
-    final levelDocRef = childDocRef
-        .collection('subjectProgress')
-        .doc(subjectId)
-        .collection('levels')
-        .doc(levelId);
+  final levelDocRef = childDocRef
+      .collection('subjectProgress')
+      .doc(subjectId)
+      .collection('levels')
+      .doc(levelId);
 
-    try {
-      final didImproveStars = await _db.runTransaction<bool>((
-        transaction,
-      ) async {
-        final levelSnapshot = await transaction.get(levelDocRef);
-        final childSnapshot = await transaction.get(childDocRef);
+  try {
+    final didImproveStars = await _db.runTransaction<bool>((transaction) async {
+      final levelSnapshot = await transaction.get(levelDocRef);
+      final childSnapshot = await transaction.get(childDocRef);
 
-        final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0)
-            .toInt();
-        final childData = childSnapshot.data() ?? {};
-        final int currentBalance =
-            (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
+      final int previousBestStars =
+          (levelSnapshot.data()?['stars'] ?? 0).toInt();
+      final childData = childSnapshot.data() ?? {};
+      final int currentBalance =
+          (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
 
-        final childUpdates = <String, dynamic>{};
+      final childUpdates = <String, dynamic>{};
 
-        final streakResult = StreakUtils.calculateStreak(
-          currentStreak: (childData['streakCount'] ?? 0).toInt(),
-          lastActivityDate: childData['lastActivityDate'] != null
-              ? (childData['lastActivityDate'] as Timestamp).toDate()
-              : null,
-          now: DateTime.now(),
+      final streakResult = StreakUtils.calculateStreak(
+        currentStreak: (childData['streakCount'] ?? 0).toInt(),
+        lastActivityDate: childData['lastActivityDate'] != null
+            ? (childData['lastActivityDate'] as Timestamp).toDate()
+            : null,
+        now: DateTime.now(),
+      );
+
+      if (streakResult.shouldUpdate) {
+        childUpdates['streakCount'] = streakResult.newStreak;
+        childUpdates['lastActivityDate'] =
+            Timestamp.fromDate(streakResult.lastActivityDate);
+      }
+
+      final didImprove = stars > previousBestStars;
+      if (didImprove) {
+        transaction.set(
+          levelDocRef,
+          {'stars': stars},
+          SetOptions(merge: true),
         );
 
-        if (streakResult.shouldUpdate) {
-          childUpdates['streakCount'] = streakResult.newStreak;
-          childUpdates['lastActivityDate'] = Timestamp.fromDate(
-            streakResult.lastActivityDate,
-          );
-        }
+        final int improvement = stars - previousBestStars;
+        childUpdates['stars'] = currentBalance + improvement;
+      }
 
-        final didImprove = stars > previousBestStars;
-        if (didImprove) {
-          transaction.set(levelDocRef, {
-            'stars': stars,
-          }, SetOptions(merge: true));
-
-          final int improvement = stars - previousBestStars;
-          // Always write to 'stars' — the canonical field set at child creation
-          childUpdates['stars'] = currentBalance + improvement;
-        }
-
-if (childUpdates.isNotEmpty) {
+      if (childUpdates.isNotEmpty) {
         debugPrint('DEBUG: Transaction child updates: $childUpdates');
         transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
       }
@@ -285,10 +290,8 @@ if (childUpdates.isNotEmpty) {
 
     if (!didImproveStars) return;
 
-    // Aggregate AFTER transaction commits — read all level docs then write summary
-    final subjectDocRef = childDocRef
-        .collection('subjectProgress')
-        .doc(subjectId);
+    final subjectDocRef =
+        childDocRef.collection('subjectProgress').doc(subjectId);
     final levelsSnapshot = await subjectDocRef.collection('levels').get();
 
     int totalStarsCount = 0;
@@ -302,9 +305,8 @@ if (childUpdates.isNotEmpty) {
       }
     }
 
-    final int totalLevels = levelsSnapshot.docs.length > 8
-        ? levelsSnapshot.docs.length
-        : 8;
+    final int totalLevels =
+        levelsSnapshot.docs.length > 8 ? levelsSnapshot.docs.length : 8;
     final int progressPercentage =
         ((completedLevels / totalLevels) * 100).toInt().clamp(0, 100);
 

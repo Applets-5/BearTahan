@@ -58,6 +58,9 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final effectiveChildId = childId ?? '';
+      if (effectiveChildId.isEmpty) {
+        return const Center(child: CircularProgressIndicator());
+      }
     final subjectProgressAsync = ref.watch(
       subjectProgressProvider(effectiveChildId),
     );
@@ -198,6 +201,7 @@ class HomeScreen extends ConsumerWidget {
 
 class _Header extends ConsumerWidget {
   const _Header({required this.childId});
+  
   final String childId;
 
   @override
