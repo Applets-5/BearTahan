@@ -11,6 +11,8 @@ class RewardCard extends StatelessWidget {
     this.status = 'available',
     this.onPrimary,
     this.primaryLabel,
+    this.onSecondary,
+    this.secondaryLabel,
     this.onEdit,
     this.onDelete,
   });
@@ -21,6 +23,8 @@ class RewardCard extends StatelessWidget {
   final String status;
   final VoidCallback? onPrimary;
   final String? primaryLabel;
+  final VoidCallback? onSecondary;
+  final String? secondaryLabel;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
@@ -87,14 +91,27 @@ class RewardCard extends StatelessWidget {
           Text(description, style: AppTextStyles.small),
           const SizedBox(height: AppSpacing.sm),
           Text('Cost: $cost stars', style: AppTextStyles.tiny),
-          if (onPrimary != null && primaryLabel != null) ...[
+          if (onPrimary != null || onSecondary != null) ...[
             const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: onPrimary,
-                child: Text(primaryLabel!),
-              ),
+            Row(
+              children: [
+                if (onPrimary != null && primaryLabel != null)
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: onPrimary,
+                      child: Text(primaryLabel!),
+                    ),
+                  ),
+                if (onPrimary != null && onSecondary != null)
+                  const SizedBox(width: AppSpacing.md),
+                if (onSecondary != null && secondaryLabel != null)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onSecondary,
+                      child: Text(secondaryLabel!),
+                    ),
+                  ),
+              ],
             ),
           ],
         ],

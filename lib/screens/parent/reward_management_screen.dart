@@ -26,6 +26,67 @@ class _RewardManagementScreenState
     });
   }
 
+  void _onApprove(Reward reward) async {
+    final parentId = ref.read(parentIdProvider);
+    try {
+      await ref.read(firestoreServiceProvider).approveReward(parentId, reward);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Reward "${reward.title}" approved!'),
+            backgroundColor: AppColors.accent,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error approving reward: $e')),
+        );
+      }
+    }
+  }
+
+  void _onDecline(Reward reward) async {
+    final parentId = ref.read(parentIdProvider);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Decline Request'),
+        content: Text(
+          'Are you sure you want to decline this request? Stars will be refunded to the child.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Decline', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ref.read(firestoreServiceProvider).declineReward(parentId, reward);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Request declined and stars refunded.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error declining reward: $e')),
+          );
+        }
+      }
+    }
+  }
+
   void _onDelete(Reward reward) async {
     final parentId = ref.read(parentIdProvider);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -134,9 +195,9 @@ class _RewardManagementScreenState
                       cost: r.cost,
                       status: r.status,
                       primaryLabel: 'Approve',
-                      onPrimary: () {
-                        // Handle approval logic here or in a separate task
-                      },
+                      onPrimary: () => _onApprove(r),
+                      secondaryLabel: 'Decline',
+                      onSecondary: () => _onDecline(r),
                       onEdit: () => _onEdit(r),
                       onDelete: () => _onDelete(r),
                     ),

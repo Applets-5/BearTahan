@@ -49,35 +49,40 @@ class FirestoreService {
         .collection('notifications');
 
     await _db.runTransaction((transaction) async {
-          final childSnapshot = await transaction.get(childDocRef);
-          final childData = childSnapshot.data() ?? {};
+      final childSnapshot = await transaction.get(childDocRef);
+      final childData = childSnapshot.data() ?? {};
 
-          // Always use 'stars' as the canonical field — created in create_profile_screen.dart
-          final int currentBalance = (childData['stars'] ?? 0).toInt();
+      // Unified star balance field detection
+      final String balanceField =
+          childData.containsKey('stars') ? 'stars' : 'starBalance';
+      final int currentBalance = (childData[balanceField] ?? 0).toInt();
 
-          if (currentBalance < reward.cost) {
-            throw Exception('Insufficient stars');
-          }
+      if (currentBalance < reward.cost) {
+        throw Exception('Insufficient stars');
+      }
 
-          // Update reward status to pending
-          transaction.update(rewardDocRef, {'status': 'pending'});
+      // Update reward status to pending and record who claimed it
+      transaction.update(rewardDocRef, {
+        'status': 'pending',
+        'claimedByChildId': childId,
+      });
 
-          // Deduct stars using the canonical field name
-          transaction.update(childDocRef, {
-            'stars': currentBalance - reward.cost,
-          });
+      // Deduct stars
+      transaction.update(childDocRef, {
+        balanceField: currentBalance - reward.cost,
+      });
 
-          // Record spend transaction
-          final transactionDocRef = childDocRef.collection('starHistory').doc();
-          transaction.set(transactionDocRef, {
-            'type': 'spend',
-            'amount': -reward.cost,
-            'description': 'Redeemed ${reward.title}',
-            'timestamp': FieldValue.serverTimestamp(),
-            'rewardId': reward.id,
-          });
+      // Record spend transaction
+      final transactionDocRef = childDocRef.collection('starHistory').doc();
+      transaction.set(transactionDocRef, {
+        'type': 'spend',
+        'amount': -reward.cost,
+        'description': 'Redeemed ${reward.title}',
+        'timestamp': FieldValue.serverTimestamp(),
+        'rewardId': reward.id,
+      });
 
-      // Create notification
+      // Create notification for parent
       final notification = ParentNotification(
         id: '',
         title: '$childName wants to redeem ${reward.title}',
@@ -87,6 +92,68 @@ class FirestoreService {
         childName: childName,
       );
       transaction.set(notificationColRef.doc(), notification.toFirestore());
+    });
+  }
+
+  Future<void> approveReward(String parentId, Reward reward) async {
+    if (reward.claimedByChildId == null) return;
+
+    final rewardDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .doc(reward.id);
+
+    await rewardDocRef.update({
+      'status': 'redeemed',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> declineReward(String parentId, Reward reward) async {
+    final childId = reward.claimedByChildId;
+    if (childId == null) return;
+
+    final rewardDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('rewards')
+        .doc(reward.id);
+    final childDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+
+    await _db.runTransaction((transaction) async {
+      final childSnapshot = await transaction.get(childDocRef);
+      final childData = childSnapshot.data() ?? {};
+
+      // Unified star balance field detection
+      final String balanceField =
+          childData.containsKey('stars') ? 'stars' : 'starBalance';
+      final int currentBalance = (childData[balanceField] ?? 0).toInt();
+
+      // Reset reward to available
+      transaction.update(rewardDocRef, {
+        'status': 'available',
+        'claimedByChildId': FieldValue.delete(),
+      });
+
+      // Refund stars
+      transaction.update(childDocRef, {
+        balanceField: currentBalance + reward.cost,
+      });
+
+      // Record refund transaction
+      final transactionDocRef = childDocRef.collection('starHistory').doc();
+      transaction.set(transactionDocRef, {
+        'type': 'earn',
+        'amount': reward.cost,
+        'description': 'Refund: ${reward.title} (Declined)',
+        'timestamp': FieldValue.serverTimestamp(),
+        'rewardId': reward.id,
+      });
     });
   }
 
