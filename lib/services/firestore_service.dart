@@ -53,8 +53,9 @@ class FirestoreService {
       final childData = childSnapshot.data() ?? {};
 
       // Unified star balance field detection
-      final String balanceField =
-          childData.containsKey('stars') ? 'stars' : 'starBalance';
+      final String balanceField = childData.containsKey('stars')
+          ? 'stars'
+          : 'starBalance';
       final int currentBalance = (childData[balanceField] ?? 0).toInt();
 
       if (currentBalance < reward.cost) {
@@ -130,8 +131,9 @@ class FirestoreService {
       final childData = childSnapshot.data() ?? {};
 
       // Unified star balance field detection
-      final String balanceField =
-          childData.containsKey('stars') ? 'stars' : 'starBalance';
+      final String balanceField = childData.containsKey('stars')
+          ? 'stars'
+          : 'starBalance';
       final int currentBalance = (childData[balanceField] ?? 0).toInt();
 
       // Reset reward to available
@@ -271,34 +273,38 @@ class FirestoreService {
         .doc(childId)
         .snapshots()
         .map((doc) {
-        final data = doc.data() ?? {};
+          final data = doc.data() ?? {};
           // Normalize: always map 'stars' -> 'starBalance' for the model
           data['starBalance'] = (data['stars'] ?? data['starBalance'] ?? 0);
           return UserProfile.fromFirestore(doc.id, data);
         });
   }
 
-Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
-  debugPrint('DEBUG: streamSubjectProgress called - parentId: $parentId, childId: $childId');
-  return _db
-      .collection('parents')
-      .doc(parentId)
-      .collection('children')
-      .doc(childId)
-      .collection('subjectProgress')
-      .snapshots()
-      .map(
-        (snapshot) {
-          debugPrint('DEBUG: subjectProgress snapshot - docs count: ${snapshot.docs.length}');
+  Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
+    debugPrint(
+      'DEBUG: streamSubjectProgress called - parentId: $parentId, childId: $childId',
+    );
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('subjectProgress')
+        .snapshots()
+        .map((snapshot) {
+          debugPrint(
+            'DEBUG: subjectProgress snapshot - docs count: ${snapshot.docs.length}',
+          );
           for (var doc in snapshot.docs) {
-            debugPrint('DEBUG: subjectProgress doc id: ${doc.id}, data: ${doc.data()}');
+            debugPrint(
+              'DEBUG: subjectProgress doc id: ${doc.id}, data: ${doc.data()}',
+            );
           }
           return snapshot.docs
               .map((doc) => Subject.fromFirestore(doc.id, doc.data()))
               .toList();
-        },
-      );
-}
+        });
+  }
 
   Future<List<Question>> getQuestions(String prefix) async {
     final snapshot = await _db
@@ -349,9 +355,7 @@ Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
         .collection('subjectProgress')
         .doc(subjectId);
 
-    final levelDocRef = subjectDocRef
-        .collection('levels')
-        .doc(levelId);
+    final levelDocRef = subjectDocRef.collection('levels').doc(levelId);
 
     try {
       bool shouldForceSync = false;
@@ -368,15 +372,17 @@ Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
             (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
 
         final subjectData = subjectSnapshot.data() ?? {};
-        
-        // If the subject document is missing aggregation fields, 
+
+        // If the subject document is missing aggregation fields,
         // we should force a full sync after this transaction.
-        if (!subjectData.containsKey('totalStars') || !subjectData.containsKey('completedLevels')) {
+        if (!subjectData.containsKey('totalStars') ||
+            !subjectData.containsKey('completedLevels')) {
           shouldForceSync = true;
         }
 
         int currentTotalStars = (subjectData['totalStars'] ?? 0).toInt();
-        int currentCompletedLevels = (subjectData['completedLevels'] ?? 0).toInt();
+        int currentCompletedLevels = (subjectData['completedLevels'] ?? 0)
+            .toInt();
 
         final childUpdates = <String, dynamic>{};
 
@@ -405,13 +411,14 @@ Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
           // Update aggregated subject progress incrementally
           final int improvement = stars - previousBestStars;
           currentTotalStars += improvement;
-          
+
           if (previousBestStars == 0) {
             currentCompletedLevels++;
           }
 
-          final int progressPercentage = ((currentCompletedLevels / 8) * 100).toInt();
-          
+          final int progressPercentage = ((currentCompletedLevels / 8) * 100)
+              .toInt();
+
           transaction.set(subjectDocRef, {
             'progress': progressPercentage,
             'completedLevels': currentCompletedLevels,
@@ -430,7 +437,8 @@ Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
           transaction.set(transactionDocRef, {
             'type': 'earn',
             'amount': improvement,
-            'description': 'Learned ${_getSubjectName(subjectId)} (${levelId.toUpperCase()})',
+            'description':
+                'Learned ${_getSubjectName(subjectId)} (${levelId.toUpperCase()})',
             'timestamp': FieldValue.serverTimestamp(),
             'subjectId': subjectId,
             'levelId': levelId,
@@ -454,7 +462,7 @@ Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
     }
   }
 
-  /// Performs a full scan of all subjects for a child and updates the 
+  /// Performs a full scan of all subjects for a child and updates the
   /// aggregation documents. This is a one-time repair for legacy data.
   Future<void> repairSubjectProgress(String parentId, String childId) async {
     final subjects = ['bm', 'en', 'bc', 'math', 'science'];
@@ -464,7 +472,7 @@ Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
     }
   }
 
-  /// Performs a full scan of the levels subcollection and updates the 
+  /// Performs a full scan of the levels subcollection and updates the
   /// subject aggregation document. This is used to bootstrap legacy data.
   Future<void> syncSubjectAggregation(
     String parentId,
@@ -481,10 +489,10 @@ Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
 
     // Get all levels for this subject to calculate true totals
     final levelsSnapshot = await subjectDocRef.collection('levels').get();
-    
+
     int totalStarsCount = 0;
     int completedLevels = 0;
-    
+
     for (var doc in levelsSnapshot.docs) {
       // Get the actual stars (0-3) earned for this specific level
       final starsEarned = (doc.data()['stars'] ?? 0) as num;
@@ -495,17 +503,23 @@ Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
     }
 
     // Progress is based on total levels (min 8)
-    final int totalLevels = levelsSnapshot.docs.length > 8 ? levelsSnapshot.docs.length : 8;
-    final int progressPercentage = ((completedLevels / totalLevels) * 100).toInt().clamp(0, 100);
-    
+    final int totalLevels = levelsSnapshot.docs.length > 8
+        ? levelsSnapshot.docs.length
+        : 8;
+    final int progressPercentage = ((completedLevels / totalLevels) * 100)
+        .toInt()
+        .clamp(0, 100);
+
     await subjectDocRef.set({
       'progress': progressPercentage,
       'completedLevels': completedLevels,
       'totalStars': totalStarsCount,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-    
-    debugPrint('DEBUG: Subject $subjectId repaired. Total Stars: $totalStarsCount, Completed: $completedLevels');
+
+    debugPrint(
+      'DEBUG: Subject $subjectId repaired. Total Stars: $totalStarsCount, Completed: $completedLevels',
+    );
   }
 
   Stream<Map<String, int>> streamLevelStars(

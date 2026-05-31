@@ -40,11 +40,11 @@ class StarHistoryScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final tx = transactions[index];
               final isEarn = tx.type == 'earn';
-              
+
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: isEarn 
-                      ? AppColors.accentLight 
+                  backgroundColor: isEarn
+                      ? AppColors.accentLight
                       : AppColors.destructiveLight,
                   child: Icon(
                     isEarn ? Icons.add : Icons.remove,
@@ -62,7 +62,9 @@ class StarHistoryScreen extends ConsumerWidget {
                     Text(
                       '${isEarn ? '+' : ''}${tx.amount}',
                       style: AppTextStyles.bodyBold.copyWith(
-                        color: isEarn ? AppColors.accent : AppColors.destructive,
+                        color: isEarn
+                            ? AppColors.accent
+                            : AppColors.destructive,
                       ),
                     ),
                     const SizedBox(width: 4),

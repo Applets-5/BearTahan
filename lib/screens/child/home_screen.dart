@@ -58,9 +58,9 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final effectiveChildId = childId ?? '';
-      if (effectiveChildId.isEmpty) {
-        return const Center(child: CircularProgressIndicator());
-      }
+    if (effectiveChildId.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
     final subjectProgressAsync = ref.watch(
       subjectProgressProvider(effectiveChildId),
     );
@@ -106,7 +106,9 @@ class HomeScreen extends ConsumerWidget {
 
               return SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
                   child: ProgressBarCard(
                     title: 'Overall Progress',
                     subtitle: '$avgProgress% of all subjects completed',
@@ -122,7 +124,8 @@ class HomeScreen extends ConsumerWidget {
                 child: LinearProgressIndicator(),
               ),
             ),
-            error: (err, _) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+            error: (err, _) =>
+                const SliverToBoxAdapter(child: SizedBox.shrink()),
           ),
           subjectProgressAsync.when(
             data: (progressList) {
@@ -201,7 +204,7 @@ class HomeScreen extends ConsumerWidget {
 
 class _Header extends ConsumerWidget {
   const _Header({required this.childId});
-  
+
   final String childId;
 
   @override

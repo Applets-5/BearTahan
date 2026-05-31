@@ -15,6 +15,8 @@ class RewardCard extends StatelessWidget {
     this.secondaryLabel,
     this.onEdit,
     this.onDelete,
+    this.currentStars,
+    this.showBorder = true,
   });
 
   final String title;
@@ -27,32 +29,104 @@ class RewardCard extends StatelessWidget {
   final String? secondaryLabel;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final int? currentStars;
+  final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
     final pending = status == 'pending';
     final redeemed = status == 'redeemed';
+    final available = status == 'available';
+    final hasEnough = currentStars != null && currentStars! >= cost;
+
+    // High-fidelity design colors - Precise Hex Codes
+    const Color titleColor = Color(0xFF333333); // Dark Charcoal
+    const Color subtitleColor = Color(0xFF666666); // Medium Slate Grey
+    const Color tealGreen = Color(0xFF20B2AA); // Teal Green
+    const Color goldenYellow = Color(0xFFFCC667); // Golden Yellow
+    const Color vibrantPurple = Color(0xFF7F33DE); // Vibrant Purple (Button)
+    const Color trackPurple = Color(0xFF8A2BE2); // Vibrant Purple (Progress)
+    const Color thistlePurple = Color(0xFFD8BFD8); // Pale Lavender
+    const Color greyTrack = Color(0xFFE6E6E6); // Unfilled track
+
+    Color cardColor = Colors.white;
+    Color borderColor = AppColors.border;
+    Color progressValueColor = tealGreen;
+    Color progressTrackColor = greyTrack;
+    Color? buttonColor;
+    Color? buttonTextColor = Colors.white;
+    String finalPrimaryLabel = primaryLabel ?? 'Claim';
+    Widget? buttonIcon;
+
+    if (redeemed) {
+      cardColor = AppColors.muted;
+      progressValueColor = AppColors.mutedText;
+    } else if (pending) {
+      cardColor = const Color(0xFFFFFCEB); // Yellow - Pending
+      borderColor = goldenYellow;
+      progressValueColor = tealGreen;
+    } else if (hasEnough && available) {
+      cardColor = const Color(0xFFEBFAF3); // Green - Available
+      borderColor = tealGreen;
+      progressValueColor = tealGreen;
+      buttonColor = vibrantPurple;
+    } else {
+      // White - Locked / In-Progress
+      cardColor = const Color(0xFFFFFFFF);
+      borderColor = AppColors.border;
+      progressValueColor = trackPurple;
+      buttonColor = thistlePurple;
+      buttonTextColor = titleColor.withValues(alpha: 0.7);
+
+      if (currentStars != null) {
+        final remaining = cost - currentStars!;
+        finalPrimaryLabel = 'Need $remaining more';
+        buttonIcon = const Icon(Icons.lock, size: 16);
+      }
+    }
+
+    // Progress calculation
+    double progress = 0;
+    if (currentStars != null && cost > 0) {
+      progress = (currentStars! / cost).clamp(0.0, 1.0);
+    }
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(24.0), // Generous padding
       decoration: BoxDecoration(
-        color: redeemed
-            ? AppColors.muted
-            : pending
-            ? AppColors.secondaryLight
-            : AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.xl),
-        border: Border.all(
-          color: pending ? AppColors.secondary : AppColors.border,
-        ),
-        boxShadow: AppShadows.card,
+        color: cardColor,
+        borderRadius: BorderRadius.circular(24.0), // Highly rounded
+        border: showBorder ? Border.all(color: borderColor, width: 1.5) : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text(title, style: AppTextStyles.bodyBold)),
-              if (status != 'available') _StatusPill(label: status),
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTextStyles.cardTitle.copyWith(color: titleColor),
+                ),
+              ),
+              if (status != 'available')
+                _StatusPill(
+                  label: status,
+                  color: pending ? goldenYellow : AppColors.muted,
+                  textColor: pending ? Colors.white : null,
+                ),
               if (onEdit != null || onDelete != null)
                 PopupMenuButton<String>(
                   onSelected: (value) {
@@ -83,23 +157,75 @@ class RewardCard extends StatelessWidget {
                         ),
                       ),
                   ],
-                  child: const Icon(Icons.more_vert),
+                  child: const Icon(Icons.more_vert, color: subtitleColor),
                 ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(description, style: AppTextStyles.small),
-          const SizedBox(height: AppSpacing.sm),
-          Text('Cost: $cost stars', style: AppTextStyles.tiny),
+          Text(
+            description,
+            style: AppTextStyles.small.copyWith(color: subtitleColor),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (currentStars != null && !redeemed) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${currentStars!}/$cost',
+                      style: AppTextStyles.tiny.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: titleColor,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.star, size: 12, color: goldenYellow),
+                  ],
+                ),
+                Text(
+                  '${(progress * 100).round()}%',
+                  style: AppTextStyles.tiny.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: titleColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 12, // Slightly thicker for a playful feel
+                backgroundColor: progressTrackColor,
+                valueColor: AlwaysStoppedAnimation<Color>(progressValueColor),
+              ),
+            ),
+          ],
           if (onPrimary != null || onSecondary != null) ...[
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: 24.0),
             Row(
               children: [
                 if (onPrimary != null && primaryLabel != null)
                   Expanded(
-                    child: FilledButton(
-                      onPressed: onPrimary,
-                      child: Text(primaryLabel!),
+                    child: FilledButton.icon(
+                      onPressed: hasEnough || !available ? onPrimary : null,
+                      icon: buttonIcon,
+                      label: Text(finalPrimaryLabel),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: buttonColor,
+                        foregroundColor: buttonTextColor,
+                        disabledBackgroundColor: buttonColor,
+                        disabledForegroundColor: buttonTextColor,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
                 if (onPrimary != null && onSecondary != null)
@@ -108,6 +234,12 @@ class RewardCard extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: onSecondary,
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                       child: Text(secondaryLabel!),
                     ),
                   ),
@@ -121,8 +253,10 @@ class RewardCard extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
+  const _StatusPill({required this.label, this.color, this.textColor});
   final String label;
+  final Color? color;
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
@@ -132,10 +266,10 @@ class _StatusPill extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: AppColors.muted,
+        color: color ?? AppColors.muted,
         borderRadius: AppRadius.r(AppRadius.xl),
       ),
-      child: Text(label, style: AppTextStyles.tiny),
+      child: Text(label, style: AppTextStyles.tiny.copyWith(color: textColor)),
     );
   }
 }

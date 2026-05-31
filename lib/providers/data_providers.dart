@@ -115,13 +115,14 @@ final levelStarsProvider =
     });
 
 final starTransactionsProvider =
-    StreamProvider.family<List<StarTransaction>, ({String parentId, String childId})>(
-  (ref, arg) {
-    if (arg.parentId.isEmpty || arg.childId.isEmpty) {
-      return const Stream.empty();
-    }
-    return ref
-        .watch(firestoreServiceProvider)
-        .streamStarTransactions(arg.parentId, arg.childId);
-  },
-);
+    StreamProvider.family<
+      List<StarTransaction>,
+      ({String parentId, String childId})
+    >((ref, arg) {
+      if (arg.parentId.isEmpty || arg.childId.isEmpty) {
+        return const Stream.empty();
+      }
+      return ref
+          .watch(firestoreServiceProvider)
+          .streamStarTransactions(arg.parentId, arg.childId);
+    });

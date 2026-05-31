@@ -40,9 +40,9 @@ class _RewardManagementScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error approving reward: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error approving reward: $e')));
       }
     }
   }
@@ -71,17 +71,21 @@ class _RewardManagementScreenState
 
     if (confirmed == true) {
       try {
-        await ref.read(firestoreServiceProvider).declineReward(parentId, reward);
+        await ref
+            .read(firestoreServiceProvider)
+            .declineReward(parentId, reward);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Request declined and stars refunded.')),
+            const SnackBar(
+              content: Text('Request declined and stars refunded.'),
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error declining reward: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error declining reward: $e')));
         }
       }
     }

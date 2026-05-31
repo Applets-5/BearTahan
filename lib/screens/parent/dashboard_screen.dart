@@ -46,11 +46,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (selectedChildId == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref.read(childIdProvider.notifier).update(children.first.uid);
-            
+
             // One-time repair: recalculate missing or inaccurate aggregation fields
             final parentId = ref.read(parentIdProvider);
             for (final child in children) {
-              ref.read(firestoreServiceProvider).repairSubjectProgress(parentId, child.uid);
+              ref
+                  .read(firestoreServiceProvider)
+                  .repairSubjectProgress(parentId, child.uid);
             }
           });
           return const Center(child: CircularProgressIndicator());
@@ -98,18 +100,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   return subjectsAsync.when(
                     data: (subjects) {
                       // Merge real data with default subjects to ensure all are shown
-                      final List<Map<String, dynamic>> displaySubjects =
-                          _defaultSubjects.map((defaultSub) {
+                      final List<Map<String, dynamic>>
+                      displaySubjects = _defaultSubjects.map((defaultSub) {
                         final realSub = subjects.cast<Subject?>().firstWhere(
-                              (s) => s?.id == defaultSub['id'],
-                              orElse: () => null,
-                            );
+                          (s) => s?.id == defaultSub['id'],
+                          orElse: () => null,
+                        );
 
                         // Self-healing: if the subject exists but is missing aggregation, trigger a sync
                         if (realSub != null &&
                             (realSub.totalStars == 0 && realSub.progress > 0)) {
                           debugPrint(
-                              'DEBUG: Self-healing triggered for ${realSub.id} on dashboard');
+                            'DEBUG: Self-healing triggered for ${realSub.id} on dashboard',
+                          );
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             final parentId = ref.read(parentIdProvider);
                             ref
@@ -125,10 +128,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         return {
                           'name': defaultSub['name'],
                           'progress': realSub != null ? realSub.progress : 0,
-                          'completedLevels':
-                              realSub != null ? realSub.completedLevels : 0,
-                          'totalStars':
-                              realSub != null ? realSub.totalStars : 0,
+                          'completedLevels': realSub != null
+                              ? realSub.completedLevels
+                              : 0,
+                          'totalStars': realSub != null
+                              ? realSub.totalStars
+                              : 0,
                           'color': defaultSub['color'],
                         };
                       }).toList();
@@ -416,7 +421,10 @@ class _RecentActivity extends ConsumerWidget {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
                   child: Center(
-                    child: Text('No recent activity', style: AppTextStyles.small),
+                    child: Text(
+                      'No recent activity',
+                      style: AppTextStyles.small,
+                    ),
                   ),
                 );
               }
@@ -432,9 +440,13 @@ class _RecentActivity extends ConsumerWidget {
                     child: Row(
                       children: [
                         Icon(
-                          isEarn ? Icons.add_circle_outline : Icons.remove_circle_outline,
+                          isEarn
+                              ? Icons.add_circle_outline
+                              : Icons.remove_circle_outline,
                           size: 14,
-                          color: isEarn ? AppColors.accent : AppColors.destructive,
+                          color: isEarn
+                              ? AppColors.accent
+                              : AppColors.destructive,
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
@@ -449,7 +461,9 @@ class _RecentActivity extends ConsumerWidget {
                           '${isEarn ? '+' : ''}${tx.amount}',
                           style: AppTextStyles.small.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: isEarn ? AppColors.accent : AppColors.destructive,
+                            color: isEarn
+                                ? AppColors.accent
+                                : AppColors.destructive,
                           ),
                         ),
                         const SizedBox(width: 2),

@@ -38,6 +38,18 @@ class RewardListScreen extends ConsumerWidget {
           final availableRewards = rewards
               .where((r) => r.status == 'available')
               .toList();
+
+          final int currentBalance = userProfileAsync.value?.starBalance ?? 0;
+
+          // Sort: Enough stars first, then not enough
+          availableRewards.sort((a, b) {
+            final aEnough = currentBalance >= a.cost;
+            final bEnough = currentBalance >= b.cost;
+            if (aEnough && !bEnough) return -1;
+            if (!aEnough && bEnough) return 1;
+            return a.cost.compareTo(b.cost); // Within groups, sort by cost
+          });
+
           final pendingRewards = rewards
               .where((r) => r.status == 'pending')
               .toList();
@@ -100,27 +112,25 @@ class RewardListScreen extends ConsumerWidget {
                   Expanded(
                     child: subjectProgressAsync.when(
                       data: (subjects) {
-                        final totalLifetime = subjects.fold(
-                          0,
-                          (sum, s) {
-                            // Self-healing: if the subject exists but is missing aggregation, trigger a sync
-                            if (s.totalStars == 0 && s.progress > 0) {
-                              debugPrint(
-                                  'DEBUG: Self-healing triggered for ${s.id} on reward screen');
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                final parentId = ref.read(parentIdProvider);
-                                ref
-                                    .read(firestoreServiceProvider)
-                                    .syncSubjectAggregation(
-                                      parentId,
-                                      childId,
-                                      s.id,
-                                    );
-                              });
-                            }
-                            return sum + s.totalStars;
-                          },
-                        );
+                        final totalLifetime = subjects.fold(0, (sum, s) {
+                          // Self-healing: if the subject exists but is missing aggregation, trigger a sync
+                          if (s.totalStars == 0 && s.progress > 0) {
+                            debugPrint(
+                              'DEBUG: Self-healing triggered for ${s.id} on reward screen',
+                            );
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              final parentId = ref.read(parentIdProvider);
+                              ref
+                                  .read(firestoreServiceProvider)
+                                  .syncSubjectAggregation(
+                                    parentId,
+                                    childId,
+                                    s.id,
+                                  );
+                            });
+                          }
+                          return sum + s.totalStars;
+                        });
                         return _StarSummary(
                           label: 'Lifetime',
                           value: totalLifetime.toString(),
@@ -156,6 +166,8 @@ class RewardListScreen extends ConsumerWidget {
                       description: r.description,
                       cost: r.cost,
                       status: r.status,
+                      currentStars: userProfileAsync.value?.starBalance,
+                      showBorder: false,
                     ),
                   ),
                 ),
@@ -182,6 +194,8 @@ class RewardListScreen extends ConsumerWidget {
                     description: r.description,
                     cost: r.cost,
                     status: r.status,
+                    currentStars: userProfileAsync.value?.starBalance,
+                    showBorder: false,
                     primaryLabel: 'Claim',
                     onPrimary: () async {
                       final profile = userProfileAsync.value;
@@ -247,12 +261,21 @@ class _StarSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const Color titleColor = Color(0xFF333333); // Dark Charcoal
+    const Color subtitleColor = Color(0xFF666666); // Medium Slate Grey
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(24.0), // Generous padding
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.xl),
-        boxShadow: AppShadows.card,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24.0), // Highly rounded
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,11 +284,14 @@ class _StarSummary extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: AppSpacing.xl),
               const SizedBox(width: AppSpacing.xs),
-              Text(value, style: AppTextStyles.cardTitle),
+              Text(
+                value,
+                style: AppTextStyles.cardTitle.copyWith(color: titleColor),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(label, style: AppTextStyles.tiny),
+          Text(label, style: AppTextStyles.tiny.copyWith(color: subtitleColor)),
         ],
       ),
     );
