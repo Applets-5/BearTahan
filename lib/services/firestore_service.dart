@@ -48,25 +48,23 @@ class FirestoreService {
         .collection('notifications');
 
     await _db.runTransaction((transaction) async {
-      final childSnapshot = await transaction.get(childDocRef);
-      final childData = childSnapshot.data() ?? {};
-      final int currentBalance =
-          (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
+          final childSnapshot = await transaction.get(childDocRef);
+          final childData = childSnapshot.data() ?? {};
 
-      if (currentBalance < reward.cost) {
-        throw Exception('Insufficient stars');
-      }
+          // Always use 'stars' as the canonical field — created in create_profile_screen.dart
+          final int currentBalance = (childData['stars'] ?? 0).toInt();
 
-      // Update reward status to pending
-      transaction.update(rewardDocRef, {'status': 'pending'});
+          if (currentBalance < reward.cost) {
+            throw Exception('Insufficient stars');
+          }
 
-      // Deduct stars
-      final String balanceField = childData.containsKey('stars')
-          ? 'stars'
-          : 'starBalance';
-      transaction.update(childDocRef, {
-        balanceField: currentBalance - reward.cost,
-      });
+          // Update reward status to pending
+          transaction.update(rewardDocRef, {'status': 'pending'});
+
+          // Deduct stars using the canonical field name
+          transaction.update(childDocRef, {
+            'stars': currentBalance - reward.cost,
+          });
 
       // Create notification
       final notification = ParentNotification(
@@ -118,9 +116,8 @@ class FirestoreService {
         .map(
           (snapshot) => snapshot.docs.map((doc) {
             final data = doc.data();
-            if (data.containsKey('stars') && !data.containsKey('starBalance')) {
-              data['starBalance'] = data['stars'];
-            }
+            // Normalize: always map 'stars' -> 'starBalance' for the model
+            data['starBalance'] = (data['stars'] ?? data['starBalance'] ?? 0);
             return UserProfile.fromFirestore(doc.id, data);
           }).toList(),
         );
@@ -160,11 +157,9 @@ class FirestoreService {
         .doc(childId)
         .snapshots()
         .map((doc) {
-          final data = doc.data() ?? {};
-          // Map 'stars' to 'starBalance' if that's what's used in the DB
-          if (data.containsKey('stars') && !data.containsKey('starBalance')) {
-            data['starBalance'] = data['stars'];
-          }
+        final data = doc.data() ?? {};
+          // Normalize: always map 'stars' -> 'starBalance' for the model
+          data['starBalance'] = (data['stars'] ?? data['starBalance'] ?? 0);
           return UserProfile.fromFirestore(doc.id, data);
         });
   }
@@ -272,55 +267,62 @@ class FirestoreService {
           }, SetOptions(merge: true));
 
           final int improvement = stars - previousBestStars;
-          final String balanceField = childData.containsKey('stars')
-              ? 'stars'
-              : 'starBalance';
-          childUpdates[balanceField] = currentBalance + improvement;
+          // Always write to 'stars' — the canonical field set at child creation
+          childUpdates['stars'] = currentBalance + improvement;
         }
 
-        if (childUpdates.isNotEmpty) {
-          debugPrint('DEBUG: Transaction child updates: $childUpdates');
-          transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
-        }
-
-        return didImprove;
-      });
-
-      debugPrint(
-        'DEBUG: updateLevelProgress transaction complete. didImprove: $didImproveStars',
-      );
-
-      if (!didImproveStars) return;
-
-      final subjectDocRef = childDocRef
-          .collection('subjectProgress')
-          .doc(subjectId);
-      final levelsSnapshot = await subjectDocRef.collection('levels').get();
-      
-      int totalStars = 0;
-      int completedLevels = 0;
-      
-      for (var doc in levelsSnapshot.docs) {
-        final stars = (doc.data()['stars'] ?? 0) as num;
-        if (stars > 0) {
-          completedLevels++;
-          totalStars += stars.toInt();
-        }
+if (childUpdates.isNotEmpty) {
+        debugPrint('DEBUG: Transaction child updates: $childUpdates');
+        transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
       }
 
-      final int progressPercentage = ((completedLevels / 8) * 100).toInt();
-      await subjectDocRef.set({
-        'progress': progressPercentage,
-        'completedLevels': completedLevels,
-        'totalStars': totalStars,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      return didImprove;
+    });
 
-      debugPrint('DEBUG: Subject progress updated: $progressPercentage%');
-    } catch (e) {
-      debugPrint('DEBUG ERROR: updateLevelProgress failed: $e');
+    debugPrint(
+      'DEBUG: updateLevelProgress transaction complete. didImprove: $didImproveStars',
+    );
+
+    if (!didImproveStars) return;
+
+    // Aggregate AFTER transaction commits — read all level docs then write summary
+    final subjectDocRef = childDocRef
+        .collection('subjectProgress')
+        .doc(subjectId);
+    final levelsSnapshot = await subjectDocRef.collection('levels').get();
+
+    int totalStarsCount = 0;
+    int completedLevels = 0;
+
+    for (var doc in levelsSnapshot.docs) {
+      final levelStars = (doc.data()['stars'] ?? 0) as num;
+      if (levelStars > 0) {
+        completedLevels++;
+        totalStarsCount += levelStars.toInt();
+      }
     }
+
+    final int totalLevels = levelsSnapshot.docs.length > 8
+        ? levelsSnapshot.docs.length
+        : 8;
+    final int progressPercentage =
+        ((completedLevels / totalLevels) * 100).toInt().clamp(0, 100);
+
+    await subjectDocRef.set({
+      'progress': progressPercentage,
+      'completedLevels': completedLevels,
+      'totalStars': totalStarsCount,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    debugPrint(
+      'DEBUG: Subject progress updated: $progressPercentage% '
+      '($completedLevels/$totalLevels levels, $totalStarsCount stars)',
+    );
+  } catch (e) {
+    debugPrint('DEBUG ERROR: updateLevelProgress failed: $e');
   }
+}
 
   Stream<Map<String, int>> streamLevelStars(
     String parentId,

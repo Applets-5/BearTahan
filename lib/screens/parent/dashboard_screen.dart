@@ -130,7 +130,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               Expanded(
                                 child: StatCard(
                                   icon: Icons.auto_awesome,
-                                  label: 'Total Earned',
+                                  label: 'Stars Earned',
                                   value: totalStarsEarned.toString(),
                                   color: AppColors.star,
                                 ),
@@ -178,7 +178,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       ),
                                       const SizedBox(width: AppSpacing.sm),
                                       Text(
-                                        'Available to spend: ${profile.starBalance} stars',
+                                        'Spendable balance: ${profile.starBalance} stars',
                                         style: AppTextStyles.bodyBold,
                                       ),
                                     ],
