@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../models/subject.dart';
 import '../../models/user_profile.dart';
 import '../../providers/data_providers.dart';
+import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/progress_bar_card.dart';
 import '../../widgets/parent/stat_card.dart';
@@ -269,7 +272,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 error: (e, st) => Text('Error loading profile: $e'),
               ),
               const SizedBox(height: AppSpacing.lg),
-              const _RecentActivity(),
+              _RecentActivity(childId: selectedChildId),
             ],
           ),
         );
@@ -368,11 +371,17 @@ class _SubjectProgress extends StatelessWidget {
   }
 }
 
-class _RecentActivity extends StatelessWidget {
-  const _RecentActivity();
+class _RecentActivity extends ConsumerWidget {
+  const _RecentActivity({super.key, required this.childId});
+  final String childId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final parentId = ref.watch(parentIdProvider);
+    final transactionsAsync = ref.watch(
+      starTransactionsProvider((parentId: parentId, childId: childId)),
+    );
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -380,18 +389,79 @@ class _RecentActivity extends StatelessWidget {
         borderRadius: AppRadius.r(AppRadius.xl),
         boxShadow: AppShadows.card,
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Recent Activity', style: AppTextStyles.bodyBold),
-          SizedBox(height: AppSpacing.sm),
-          Text(
-            'Completed Math Level 3       +2 stars',
-            style: AppTextStyles.small,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Recent Activity', style: AppTextStyles.bodyBold),
+              TextButton(
+                onPressed: () {
+                  context.push(
+                    Uri(
+                      path: AppRouter.starHistory,
+                      queryParameters: {'childId': childId},
+                    ).toString(),
+                  );
+                },
+                child: const Text('View All', style: AppTextStyles.tiny),
+              ),
+            ],
           ),
-          Text(
-            'Claimed Extra Screen Time   -40 stars',
-            style: AppTextStyles.small,
+          const SizedBox(height: AppSpacing.sm),
+          transactionsAsync.when(
+            data: (transactions) {
+              if (transactions.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: Center(
+                    child: Text('No recent activity', style: AppTextStyles.small),
+                  ),
+                );
+              }
+
+              // Only show top 5 on dashboard
+              final recent = transactions.take(5).toList();
+
+              return Column(
+                children: recent.map((tx) {
+                  final isEarn = tx.type == 'earn';
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isEarn ? Icons.add_circle_outline : Icons.remove_circle_outline,
+                          size: 14,
+                          color: isEarn ? AppColors.accent : AppColors.destructive,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            tx.description,
+                            style: AppTextStyles.small,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${isEarn ? '+' : ''}${tx.amount}',
+                          style: AppTextStyles.small.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isEarn ? AppColors.accent : AppColors.destructive,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.star, size: 12, color: AppColors.star),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Text('Error: $err', style: AppTextStyles.tiny),
           ),
         ],
       ),
