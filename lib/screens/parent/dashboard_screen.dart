@@ -19,10 +19,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   final List<Map<String, dynamic>> _defaultSubjects = [
     {'id': 'bm', 'name': 'Bahasa Melayu', 'color': AppColors.subjectBm},
-    {'id': 'english', 'name': 'English', 'color': AppColors.subjectEnglish},
+    {'id': 'en', 'name': 'English', 'color': AppColors.subjectEnglish},
     {'id': 'math', 'name': 'Mathematics', 'color': AppColors.subjectMath},
     {'id': 'science', 'name': 'Science', 'color': AppColors.subjectScience},
-    {'id': 'mandarin', 'name': 'Mandarin', 'color': AppColors.subjectMandarin},
+    {'id': 'bc', 'name': 'Mandarin', 'color': AppColors.subjectMandarin},
   ];
 
   @override
@@ -96,9 +96,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             );
                             return {
                               'name': defaultSub['name'],
-                              'progress': realSub != null
-                                  ? realSub.progress
-                                  : 0,
+                              'progress': realSub != null ? realSub.progress : 0,
+                              'completedLevels':
+                                  realSub != null ? realSub.completedLevels : 0,
+                              'totalStars':
+                                  realSub != null ? realSub.totalStars : 0,
                               'color': defaultSub['color'],
                             };
                           }).toList();
@@ -110,11 +112,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       int avgProgress = (totalProgress / displaySubjects.length)
                           .round();
 
-                      // Total completed levels across all subjects (assuming 8 levels per subject)
+                      // Aggregated stats for top cards
                       int totalCompletedLevels = displaySubjects.fold(
                         0,
-                        (sum, s) =>
-                            sum + ((s['progress'] as int) * 8 / 100).round(),
+                        (sum, s) => sum + (s['completedLevels'] as int),
+                      );
+                      int totalStarsEarned = displaySubjects.fold(
+                        0,
+                        (sum, s) => sum + (s['totalStars'] as int),
                       );
 
                       return Column(
@@ -124,9 +129,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             children: [
                               Expanded(
                                 child: StatCard(
-                                  icon: Icons.star,
-                                  label: 'Available',
-                                  value: profile.starBalance.toString(),
+                                  icon: Icons.auto_awesome,
+                                  label: 'Total Earned',
+                                  value: totalStarsEarned.toString(),
                                   color: AppColors.star,
                                 ),
                               ),
@@ -150,6 +155,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: AppSpacing.md),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.lg,
+                                    vertical: AppSpacing.sm,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondaryLight,
+                                    borderRadius: AppRadius.r(AppRadius.lg),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.star,
+                                        color: AppColors.star,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Text(
+                                        'Available to spend: ${profile.starBalance} stars',
+                                        style: AppTextStyles.bodyBold,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: AppSpacing.lg),
                           ProgressBarCard(
                             title: 'Overall Progress',
@@ -158,16 +195,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             icon: Icons.flag_rounded,
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          const Text(
-                            'Subject Progress',
-                            style: AppTextStyles.bodyBold,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          ...displaySubjects.map(
-                            (s) => _SubjectProgress(
-                              label: s['name'],
-                              score: (s['progress'] as int) / 100,
-                              color: s['color'],
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              borderRadius: AppRadius.r(AppRadius.xl),
+                              boxShadow: AppShadows.card,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Subject Progress',
+                                  style: AppTextStyles.bodyBold,
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                                ...displaySubjects.map(
+                                  (s) => _SubjectProgress(
+                                    label: s['name'],
+                                    score: (s['progress'] as int) / 100,
+                                    completedLevels: s['completedLevels'],
+                                    totalStars: s['totalStars'],
+                                    color: s['color'],
+                                    isLast: displaySubjects.last == s,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -214,7 +267,7 @@ class _ChildPicker extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
+        borderRadius: AppRadius.r(AppRadius.xl),
         boxShadow: AppShadows.card,
       ),
       child: Column(
@@ -239,31 +292,50 @@ class _SubjectProgress extends StatelessWidget {
   const _SubjectProgress({
     required this.label,
     required this.score,
+    required this.completedLevels,
+    required this.totalStars,
     required this.color,
+    this.isLast = false,
   });
   final String label;
   final double score;
+  final int completedLevels;
+  final int totalStars;
   final Color color;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(child: Text(label, style: AppTextStyles.small)),
-              Text('${(score * 100).round()}%', style: AppTextStyles.tiny),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('$completedLevels lessons', style: AppTextStyles.tiny),
+                  const Text(' • ', style: AppTextStyles.tiny),
+                  Text('$totalStars ', style: AppTextStyles.tiny),
+                  const Icon(Icons.star, size: 10, color: AppColors.star),
+                  const Text(' • ', style: AppTextStyles.tiny),
+                  Text('${(score * 100).round()}%', style: AppTextStyles.tiny),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          LinearProgressIndicator(
-            value: score,
-            minHeight: AppSpacing.sm,
-            color: color,
-            backgroundColor: AppColors.muted,
+          ClipRRect(
+            borderRadius: AppRadius.r(AppRadius.sm),
+            child: LinearProgressIndicator(
+              value: score,
+              minHeight: AppSpacing.sm,
+              color: color,
+              backgroundColor: AppColors.muted,
+            ),
           ),
         ],
       ),
@@ -280,7 +352,7 @@ class _RecentActivity extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
+        borderRadius: AppRadius.r(AppRadius.xl),
         boxShadow: AppShadows.card,
       ),
       child: const Column(

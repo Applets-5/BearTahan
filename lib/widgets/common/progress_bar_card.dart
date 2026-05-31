@@ -25,7 +25,7 @@ class ProgressBarCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
+        borderRadius: AppRadius.r(AppRadius.xl),
         boxShadow: AppShadows.card,
       ),
       child: Column(

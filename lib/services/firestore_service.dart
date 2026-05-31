@@ -296,13 +296,23 @@ class FirestoreService {
           .collection('subjectProgress')
           .doc(subjectId);
       final levelsSnapshot = await subjectDocRef.collection('levels').get();
-      final completedLevels = levelsSnapshot.docs.where((doc) {
-        return (doc.data()['stars'] ?? 0).toInt() > 0;
-      }).length;
+      
+      int totalStars = 0;
+      int completedLevels = 0;
+      
+      for (var doc in levelsSnapshot.docs) {
+        final stars = (doc.data()['stars'] ?? 0) as num;
+        if (stars > 0) {
+          completedLevels++;
+          totalStars += stars.toInt();
+        }
+      }
 
       final int progressPercentage = ((completedLevels / 8) * 100).toInt();
       await subjectDocRef.set({
         'progress': progressPercentage,
+        'completedLevels': completedLevels,
+        'totalStars': totalStars,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 

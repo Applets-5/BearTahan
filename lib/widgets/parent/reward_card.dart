@@ -36,7 +36,7 @@ class RewardCard extends StatelessWidget {
             : pending
             ? AppColors.secondaryLight
             : AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
+        borderRadius: AppRadius.r(AppRadius.xl),
         border: Border.all(
           color: pending ? AppColors.secondary : AppColors.border,
         ),

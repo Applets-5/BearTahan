@@ -10,6 +10,8 @@ class SubjectCard extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.progress,
+    this.completedLevels = 0,
+    this.totalStars = 0,
     required this.onTap,
   });
 
@@ -18,6 +20,8 @@ class SubjectCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final int progress;
+  final int completedLevels;
+  final int totalStars;
   final VoidCallback onTap;
 
   @override
@@ -76,12 +80,25 @@ class SubjectCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  '$progress% selesai',
-                  style: AppTextStyles.whiteSmall,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '$completedLevels pelajaran',
+                        style: AppTextStyles.whiteSmall,
+                      ),
+                      const Text(' • ', style: AppTextStyles.whiteSmall),
+                      Text('$totalStars ', style: AppTextStyles.whiteSmall),
+                      const Icon(Icons.star, size: 12, color: Colors.white70),
+                    ],
+                  ),
+                  Text(
+                    '$progress% selesai',
+                    style: AppTextStyles.whiteSmall,
+                  ),
+                ],
               ),
             ],
           ),
