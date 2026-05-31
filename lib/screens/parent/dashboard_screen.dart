@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../models/subject.dart';
 import '../../models/user_profile.dart';
 import '../../providers/data_providers.dart';
+import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/progress_bar_card.dart';
 import '../../widgets/parent/stat_card.dart';
@@ -19,10 +22,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   final List<Map<String, dynamic>> _defaultSubjects = [
     {'id': 'bm', 'name': 'Bahasa Melayu', 'color': AppColors.subjectBm},
-    {'id': 'english', 'name': 'English', 'color': AppColors.subjectEnglish},
+    {'id': 'en', 'name': 'English', 'color': AppColors.subjectEnglish},
     {'id': 'math', 'name': 'Mathematics', 'color': AppColors.subjectMath},
     {'id': 'science', 'name': 'Science', 'color': AppColors.subjectScience},
-    {'id': 'mandarin', 'name': 'Mandarin', 'color': AppColors.subjectMandarin},
+    {'id': 'bc', 'name': 'Mandarin', 'color': AppColors.subjectMandarin},
   ];
 
   @override
@@ -42,6 +45,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (selectedChildId == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref.read(childIdProvider.notifier).update(children.first.uid);
+
+            // One-time repair: recalculate missing or inaccurate aggregation fields
+            final parentId = ref.read(parentIdProvider);
+            for (final child in children) {
+              ref
+                  .read(firestoreServiceProvider)
+                  .repairSubjectProgress(parentId, child.uid);
+            }
           });
           return const Center(child: CircularProgressIndicator());
         }
@@ -88,20 +99,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   return subjectsAsync.when(
                     data: (subjects) {
                       // Merge real data with default subjects to ensure all are shown
-                      final List<Map<String, dynamic>> displaySubjects =
-                          _defaultSubjects.map((defaultSub) {
-                            final realSub = subjects.cast().firstWhere(
-                              (s) => s.id == defaultSub['id'],
-                              orElse: () => null,
-                            );
-                            return {
-                              'name': defaultSub['name'],
-                              'progress': realSub != null
-                                  ? realSub.progress
-                                  : 0,
-                              'color': defaultSub['color'],
-                            };
-                          }).toList();
+                      final List<Map<String, dynamic>>
+                      displaySubjects = _defaultSubjects.map((defaultSub) {
+                        final realSub = subjects.cast<Subject?>().firstWhere(
+                          (s) => s?.id == defaultSub['id'],
+                          orElse: () => null,
+                        );
+
+                        // Self-healing: if the subject exists but is missing aggregation, trigger a sync
+                        if (realSub != null &&
+                            (realSub.totalStars == 0 && realSub.progress > 0)) {
+                          debugPrint(
+                            'DEBUG: Self-healing triggered for ${realSub.id} on dashboard',
+                          );
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            final parentId = ref.read(parentIdProvider);
+                            ref
+                                .read(firestoreServiceProvider)
+                                .syncSubjectAggregation(
+                                  parentId,
+                                  selectedChildId,
+                                  realSub.id,
+                                );
+                          });
+                        }
+
+                        return {
+                          'name': defaultSub['name'],
+                          'progress': realSub != null ? realSub.progress : 0,
+                          'completedLevels': realSub != null
+                              ? realSub.completedLevels
+                              : 0,
+                          'totalStars': realSub != null
+                              ? realSub.totalStars
+                              : 0,
+                          'color': defaultSub['color'],
+                        };
+                      }).toList();
 
                       int totalProgress = displaySubjects.fold(
                         0,
@@ -110,11 +144,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       int avgProgress = (totalProgress / displaySubjects.length)
                           .round();
 
-                      // Total completed levels across all subjects (assuming 8 levels per subject)
+                      // Aggregated stats for top cards
                       int totalCompletedLevels = displaySubjects.fold(
                         0,
-                        (sum, s) =>
-                            sum + ((s['progress'] as int) * 8 / 100).round(),
+                        (sum, s) => sum + (s['completedLevels'] as int),
+                      );
+                      int totalStarsEarned = displaySubjects.fold(
+                        0,
+                        (sum, s) => sum + (s['totalStars'] as int),
                       );
 
                       return Column(
@@ -124,9 +161,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             children: [
                               Expanded(
                                 child: StatCard(
-                                  icon: Icons.star,
-                                  label: 'Available',
-                                  value: profile.starBalance.toString(),
+                                  icon: Icons.auto_awesome,
+                                  label: 'Stars Earned',
+                                  value: totalStarsEarned.toString(),
                                   color: AppColors.star,
                                 ),
                               ),
@@ -150,6 +187,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: AppSpacing.md),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.lg,
+                                    vertical: AppSpacing.sm,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondaryLight,
+                                    borderRadius: AppRadius.r(AppRadius.lg),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.star,
+                                        color: AppColors.star,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Text(
+                                        'Spendable balance: ${profile.starBalance} stars',
+                                        style: AppTextStyles.bodyBold,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: AppSpacing.lg),
                           ProgressBarCard(
                             title: 'Overall Progress',
@@ -158,16 +227,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             icon: Icons.flag_rounded,
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          const Text(
-                            'Subject Progress',
-                            style: AppTextStyles.bodyBold,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          ...displaySubjects.map(
-                            (s) => _SubjectProgress(
-                              label: s['name'],
-                              score: (s['progress'] as int) / 100,
-                              color: s['color'],
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              borderRadius: AppRadius.r(AppRadius.xl),
+                              boxShadow: AppShadows.card,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Subject Progress',
+                                  style: AppTextStyles.bodyBold,
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                                ...displaySubjects.map(
+                                  (s) => _SubjectProgress(
+                                    label: s['name'],
+                                    score: (s['progress'] as int) / 100,
+                                    completedLevels: s['completedLevels'],
+                                    totalStars: s['totalStars'],
+                                    color: s['color'],
+                                    isLast: displaySubjects.last == s,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -191,7 +276,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 error: (e, st) => Text('Error loading profile: $e'),
               ),
               const SizedBox(height: AppSpacing.lg),
-              const _RecentActivity(),
+              _RecentActivity(childId: selectedChildId),
             ],
           ),
         );
@@ -214,7 +299,7 @@ class _ChildPicker extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
+        borderRadius: AppRadius.r(AppRadius.xl),
         boxShadow: AppShadows.card,
       ),
       child: Column(
@@ -239,31 +324,50 @@ class _SubjectProgress extends StatelessWidget {
   const _SubjectProgress({
     required this.label,
     required this.score,
+    required this.completedLevels,
+    required this.totalStars,
     required this.color,
+    this.isLast = false,
   });
   final String label;
   final double score;
+  final int completedLevels;
+  final int totalStars;
   final Color color;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(child: Text(label, style: AppTextStyles.small)),
-              Text('${(score * 100).round()}%', style: AppTextStyles.tiny),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('$completedLevels lessons', style: AppTextStyles.tiny),
+                  const Text(' • ', style: AppTextStyles.tiny),
+                  Text('$totalStars '),
+                  const Icon(Icons.star, size: 10, color: AppColors.star),
+                  const Text(' • ', style: AppTextStyles.tiny),
+                  Text('${(score * 100).round()}%', style: AppTextStyles.tiny),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          LinearProgressIndicator(
-            value: score,
-            minHeight: AppSpacing.sm,
-            color: color,
-            backgroundColor: AppColors.muted,
+          ClipRRect(
+            borderRadius: AppRadius.r(AppRadius.sm),
+            child: LinearProgressIndicator(
+              value: score,
+              minHeight: AppSpacing.sm,
+              color: color,
+              backgroundColor: AppColors.muted,
+            ),
           ),
         ],
       ),
@@ -271,30 +375,106 @@ class _SubjectProgress extends StatelessWidget {
   }
 }
 
-class _RecentActivity extends StatelessWidget {
-  const _RecentActivity();
+class _RecentActivity extends ConsumerWidget {
+  const _RecentActivity({required this.childId});
+  final String childId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final parentId = ref.watch(parentIdProvider);
+    final transactionsAsync = ref.watch(
+      starTransactionsProvider((parentId: parentId, childId: childId)),
+    );
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
+        borderRadius: AppRadius.r(AppRadius.xl),
         boxShadow: AppShadows.card,
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Recent Activity', style: AppTextStyles.bodyBold),
-          SizedBox(height: AppSpacing.sm),
-          Text(
-            'Completed Math Level 3       +2 stars',
-            style: AppTextStyles.small,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Recent Activity', style: AppTextStyles.bodyBold),
+              TextButton(
+                onPressed: () {
+                  context.push(
+                    Uri(
+                      path: AppRouter.starHistory,
+                      queryParameters: {'childId': childId},
+                    ).toString(),
+                  );
+                },
+                child: const Text('View All', style: AppTextStyles.tiny),
+              ),
+            ],
           ),
-          Text(
-            'Claimed Extra Screen Time   -40 stars',
-            style: AppTextStyles.small,
+          const SizedBox(height: AppSpacing.sm),
+          transactionsAsync.when(
+            data: (transactions) {
+              if (transactions.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: Center(
+                    child: Text(
+                      'No recent activity',
+                      style: AppTextStyles.small,
+                    ),
+                  ),
+                );
+              }
+
+              // Only show top 5 on dashboard
+              final recent = transactions.take(5).toList();
+
+              return Column(
+                children: recent.map((tx) {
+                  final isEarn = tx.type == 'earn';
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isEarn
+                              ? Icons.add_circle_outline
+                              : Icons.remove_circle_outline,
+                          size: 14,
+                          color: isEarn
+                              ? AppColors.accent
+                              : AppColors.destructive,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            tx.description,
+                            style: AppTextStyles.small,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${isEarn ? '+' : ''}${tx.amount}',
+                          style: AppTextStyles.small.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isEarn
+                                ? AppColors.accent
+                                : AppColors.destructive,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.star, size: 12, color: AppColors.star),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Text('Error: $err', style: AppTextStyles.tiny),
           ),
         ],
       ),

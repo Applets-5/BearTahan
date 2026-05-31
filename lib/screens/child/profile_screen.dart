@@ -136,8 +136,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                _ActivityCard(),
-                const SizedBox(height: AppSpacing.md),
                 FilledButton.icon(
                   onPressed: _enterParentMode,
                   icon: const Icon(Icons.login),
@@ -154,32 +152,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               onClose: () => setState(() => showPin = false),
               onEnter: () => context.go(AppRouter.parentDashboard),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActivityCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
-        boxShadow: AppShadows.card,
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Recent Activity', style: AppTextStyles.bodyBold),
-          SizedBox(height: AppSpacing.sm),
-          Text('Completed BM Level 4     +3 stars', style: AppTextStyles.small),
-          Text(
-            'Daily goal met            +5 stars',
-            style: AppTextStyles.small,
-          ),
         ],
       ),
     );

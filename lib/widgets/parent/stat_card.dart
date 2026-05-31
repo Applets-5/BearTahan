@@ -18,19 +18,35 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const Color titleColor = Color(0xFF333333); // Dark Charcoal
+    const Color subtitleColor = Color(0xFF666666); // Medium Slate Grey
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(20.0), // Generous padding
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
-        boxShadow: AppShadows.card,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24.0), // Highly rounded
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Icon(icon, color: color, size: AppSpacing.xxl),
           const SizedBox(height: AppSpacing.xs),
-          Text(value, style: AppTextStyles.cardTitle),
-          Text(label, style: AppTextStyles.tiny, textAlign: TextAlign.center),
+          Text(
+            value,
+            style: AppTextStyles.cardTitle.copyWith(color: titleColor),
+          ),
+          Text(
+            label,
+            style: AppTextStyles.tiny.copyWith(color: subtitleColor),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
