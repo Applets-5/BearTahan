@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../models/subject.dart';
 import '../../models/user_profile.dart';
@@ -352,7 +351,7 @@ class _SubjectProgress extends StatelessWidget {
                 children: [
                   Text('$completedLevels lessons', style: AppTextStyles.tiny),
                   const Text(' • ', style: AppTextStyles.tiny),
-                  Text('$totalStars ', style: AppTextStyles.tiny),
+                  Text('$totalStars '),
                   const Icon(Icons.star, size: 10, color: AppColors.star),
                   const Text(' • ', style: AppTextStyles.tiny),
                   Text('${(score * 100).round()}%', style: AppTextStyles.tiny),
@@ -377,7 +376,7 @@ class _SubjectProgress extends StatelessWidget {
 }
 
 class _RecentActivity extends ConsumerWidget {
-  const _RecentActivity({super.key, required this.childId});
+  const _RecentActivity({required this.childId});
   final String childId;
 
   @override

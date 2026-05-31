@@ -7,7 +7,6 @@ import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/missing_child_profile.dart';
 import '../../widgets/parent/reward_card.dart';
-import 'star_history_screen.dart';
 
 class RewardListScreen extends ConsumerWidget {
   const RewardListScreen({super.key});
