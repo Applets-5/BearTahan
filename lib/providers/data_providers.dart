@@ -6,6 +6,7 @@ import '../models/user_profile.dart';
 import '../models/question.dart';
 import '../models/reward.dart';
 import '../models/notification.dart';
+import '../models/star_transaction.dart';
 import '../services/firestore_service.dart';
 import '../services/security_service.dart';
 import '../services/tts_service.dart';
@@ -112,3 +113,15 @@ final levelStarsProvider =
           .watch(firestoreServiceProvider)
           .streamLevelStars(parentId, arg.childId, arg.subjectId);
     });
+
+final starTransactionsProvider =
+    StreamProvider.family<List<StarTransaction>, ({String parentId, String childId})>(
+  (ref, arg) {
+    if (arg.parentId.isEmpty || arg.childId.isEmpty) {
+      return const Stream.empty();
+    }
+    return ref
+        .watch(firestoreServiceProvider)
+        .streamStarTransactions(arg.parentId, arg.childId);
+  },
+);

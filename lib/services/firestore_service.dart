@@ -5,6 +5,7 @@ import '../models/user_profile.dart';
 import '../models/question.dart';
 import '../models/reward.dart';
 import '../models/notification.dart';
+import '../models/star_transaction.dart';
 import '../utils/streak_utils.dart';
 
 class FirestoreService {
@@ -66,6 +67,16 @@ class FirestoreService {
             'stars': currentBalance - reward.cost,
           });
 
+          // Record spend transaction
+          final transactionDocRef = childDocRef.collection('starHistory').doc();
+          transaction.set(transactionDocRef, {
+            'type': 'spend',
+            'amount': -reward.cost,
+            'description': 'Redeemed ${reward.title}',
+            'timestamp': FieldValue.serverTimestamp(),
+            'rewardId': reward.id,
+          });
+
       // Create notification
       final notification = ParentNotification(
         id: '',
@@ -77,6 +88,42 @@ class FirestoreService {
       );
       transaction.set(notificationColRef.doc(), notification.toFirestore());
     });
+  }
+
+  Stream<List<StarTransaction>> streamStarTransactions(
+    String parentId,
+    String childId,
+  ) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('starHistory')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => StarTransaction.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
+  }
+
+  String _getSubjectName(String id) {
+    switch (id) {
+      case 'bm':
+        return 'Bahasa Melayu';
+      case 'en':
+        return 'English';
+      case 'bc':
+        return 'Mandarin';
+      case 'math':
+        return 'Mathematics';
+      case 'science':
+        return 'Science';
+      default:
+        return id.toUpperCase();
+    }
   }
 
   Stream<List<ParentNotification>> streamNotifications(String parentId) {
@@ -310,6 +357,17 @@ Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
               ? 'stars'
               : 'starBalance';
           childUpdates[balanceField] = currentBalance + improvement;
+
+          // Record earn transaction
+          final transactionDocRef = childDocRef.collection('starHistory').doc();
+          transaction.set(transactionDocRef, {
+            'type': 'earn',
+            'amount': improvement,
+            'description': 'Learned ${_getSubjectName(subjectId)} (${levelId.toUpperCase()})',
+            'timestamp': FieldValue.serverTimestamp(),
+            'subjectId': subjectId,
+            'levelId': levelId,
+          });
         }
 
         if (childUpdates.isNotEmpty) {

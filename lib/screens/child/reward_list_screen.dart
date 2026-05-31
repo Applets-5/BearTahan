@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/data_providers.dart';
+import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/missing_child_profile.dart';
 import '../../widgets/parent/reward_card.dart';
+import 'star_history_screen.dart';
 
 class RewardListScreen extends ConsumerWidget {
   const RewardListScreen({super.key});
@@ -43,10 +45,31 @@ class RewardListScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              const Text('My Rewards', style: AppTextStyles.screenTitle),
-              const Text(
-                'Spend stars on real-world treats!',
-                style: AppTextStyles.small,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('My Rewards', style: AppTextStyles.screenTitle),
+                      Text(
+                        'Spend stars on real-world treats!',
+                        style: AppTextStyles.small,
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.history, color: AppColors.primary),
+                    onPressed: () {
+                      context.push(
+                        Uri(
+                          path: AppRouter.starHistory,
+                          queryParameters: {'childId': childId},
+                        ).toString(),
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.lg),
               Row(
