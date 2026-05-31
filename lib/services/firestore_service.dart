@@ -215,116 +215,173 @@ Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
   }
 
   Future<void> updateLevelProgress(
-  String parentId,
-  String childId,
-  String subjectId,
-  String levelId,
-  int stars,
-) async {
-  debugPrint(
-    'DEBUG: updateLevelProgress for child: $childId, subject: $subjectId, level: $levelId, stars: $stars',
-  );
-
-  final childDocRef = _db
-      .collection('parents')
-      .doc(parentId)
-      .collection('children')
-      .doc(childId);
-
-  final levelDocRef = childDocRef
-      .collection('subjectProgress')
-      .doc(subjectId)
-      .collection('levels')
-      .doc(levelId);
-
-  try {
-    final didImproveStars = await _db.runTransaction<bool>((transaction) async {
-      final levelSnapshot = await transaction.get(levelDocRef);
-      final childSnapshot = await transaction.get(childDocRef);
-
-      final int previousBestStars =
-          (levelSnapshot.data()?['stars'] ?? 0).toInt();
-      final childData = childSnapshot.data() ?? {};
-      final int currentBalance =
-          (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
-
-      final childUpdates = <String, dynamic>{};
-
-      final streakResult = StreakUtils.calculateStreak(
-        currentStreak: (childData['streakCount'] ?? 0).toInt(),
-        lastActivityDate: childData['lastActivityDate'] != null
-            ? (childData['lastActivityDate'] as Timestamp).toDate()
-            : null,
-        now: DateTime.now(),
-      );
-
-      if (streakResult.shouldUpdate) {
-        childUpdates['streakCount'] = streakResult.newStreak;
-        childUpdates['lastActivityDate'] =
-            Timestamp.fromDate(streakResult.lastActivityDate);
-      }
-
-      final didImprove = stars > previousBestStars;
-      if (didImprove) {
-        transaction.set(
-          levelDocRef,
-          {'stars': stars},
-          SetOptions(merge: true),
-        );
-
-        final int improvement = stars - previousBestStars;
-        childUpdates['stars'] = currentBalance + improvement;
-      }
-
-      if (childUpdates.isNotEmpty) {
-        debugPrint('DEBUG: Transaction child updates: $childUpdates');
-        transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
-      }
-
-      return didImprove;
-    });
-
+    String parentId,
+    String childId,
+    String subjectId,
+    String levelId,
+    int stars,
+  ) async {
     debugPrint(
-      'DEBUG: updateLevelProgress transaction complete. didImprove: $didImproveStars',
+      'DEBUG: updateLevelProgress for child: $childId, subject: $subjectId, level: $levelId, stars: $stars',
     );
 
-    if (!didImproveStars) return;
+    final childDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
 
-    final subjectDocRef =
-        childDocRef.collection('subjectProgress').doc(subjectId);
+    final subjectDocRef = childDocRef
+        .collection('subjectProgress')
+        .doc(subjectId);
+
+    final levelDocRef = subjectDocRef
+        .collection('levels')
+        .doc(levelId);
+
+    try {
+      bool shouldForceSync = false;
+
+      await _db.runTransaction((transaction) async {
+        final levelSnapshot = await transaction.get(levelDocRef);
+        final childSnapshot = await transaction.get(childDocRef);
+        final subjectSnapshot = await transaction.get(subjectDocRef);
+
+        final int previousBestStars = (levelSnapshot.data()?['stars'] ?? 0)
+            .toInt();
+        final childData = childSnapshot.data() ?? {};
+        final int currentBalance =
+            (childData['stars'] ?? childData['starBalance'] ?? 0).toInt();
+
+        final subjectData = subjectSnapshot.data() ?? {};
+        
+        // If the subject document is missing aggregation fields, 
+        // we should force a full sync after this transaction.
+        if (!subjectData.containsKey('totalStars') || !subjectData.containsKey('completedLevels')) {
+          shouldForceSync = true;
+        }
+
+        int currentTotalStars = (subjectData['totalStars'] ?? 0).toInt();
+        int currentCompletedLevels = (subjectData['completedLevels'] ?? 0).toInt();
+
+        final childUpdates = <String, dynamic>{};
+
+        final streakResult = StreakUtils.calculateStreak(
+          currentStreak: (childData['streakCount'] ?? 0).toInt(),
+          lastActivityDate: childData['lastActivityDate'] != null
+              ? (childData['lastActivityDate'] as Timestamp).toDate()
+              : null,
+          now: DateTime.now(),
+        );
+
+        if (streakResult.shouldUpdate) {
+          childUpdates['streakCount'] = streakResult.newStreak;
+          childUpdates['lastActivityDate'] = Timestamp.fromDate(
+            streakResult.lastActivityDate,
+          );
+        }
+
+        final didImprove = stars > previousBestStars;
+        if (didImprove) {
+          // Update level stars
+          transaction.set(levelDocRef, {
+            'stars': stars,
+          }, SetOptions(merge: true));
+
+          // Update aggregated subject progress incrementally
+          final int improvement = stars - previousBestStars;
+          currentTotalStars += improvement;
+          
+          if (previousBestStars == 0) {
+            currentCompletedLevels++;
+          }
+
+          final int progressPercentage = ((currentCompletedLevels / 8) * 100).toInt();
+          
+          transaction.set(subjectDocRef, {
+            'progress': progressPercentage,
+            'completedLevels': currentCompletedLevels,
+            'totalStars': currentTotalStars,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+          // Update child star balance
+          final String balanceField = childData.containsKey('stars')
+              ? 'stars'
+              : 'starBalance';
+          childUpdates[balanceField] = currentBalance + improvement;
+        }
+
+        if (childUpdates.isNotEmpty) {
+          transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
+        }
+      });
+
+      // If we detected missing aggregation data, perform a full sync now.
+      if (shouldForceSync) {
+        debugPrint('DEBUG: Forcing full subject sync for $subjectId');
+        await syncSubjectAggregation(parentId, childId, subjectId);
+      }
+
+      debugPrint('DEBUG: updateLevelProgress complete.');
+    } catch (e) {
+      debugPrint('DEBUG ERROR: updateLevelProgress failed: $e');
+    }
+  }
+
+  /// Performs a full scan of all subjects for a child and updates the 
+  /// aggregation documents. This is a one-time repair for legacy data.
+  Future<void> repairSubjectProgress(String parentId, String childId) async {
+    final subjects = ['bm', 'en', 'bc', 'math', 'science'];
+
+    for (final subjectId in subjects) {
+      await syncSubjectAggregation(parentId, childId, subjectId);
+    }
+  }
+
+  /// Performs a full scan of the levels subcollection and updates the 
+  /// subject aggregation document. This is used to bootstrap legacy data.
+  Future<void> syncSubjectAggregation(
+    String parentId,
+    String childId,
+    String subjectId,
+  ) async {
+    final subjectDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('subjectProgress')
+        .doc(subjectId);
+
+    // Get all levels for this subject to calculate true totals
     final levelsSnapshot = await subjectDocRef.collection('levels').get();
-
+    
     int totalStarsCount = 0;
     int completedLevels = 0;
-
+    
     for (var doc in levelsSnapshot.docs) {
-      final levelStars = (doc.data()['stars'] ?? 0) as num;
-      if (levelStars > 0) {
+      // Get the actual stars (0-3) earned for this specific level
+      final starsEarned = (doc.data()['stars'] ?? 0) as num;
+      if (starsEarned > 0) {
         completedLevels++;
-        totalStarsCount += levelStars.toInt();
+        totalStarsCount += starsEarned.toInt();
       }
     }
 
-    final int totalLevels =
-        levelsSnapshot.docs.length > 8 ? levelsSnapshot.docs.length : 8;
-    final int progressPercentage =
-        ((completedLevels / totalLevels) * 100).toInt().clamp(0, 100);
-
+    // Progress is based on total levels (min 8)
+    final int totalLevels = levelsSnapshot.docs.length > 8 ? levelsSnapshot.docs.length : 8;
+    final int progressPercentage = ((completedLevels / totalLevels) * 100).toInt().clamp(0, 100);
+    
     await subjectDocRef.set({
       'progress': progressPercentage,
       'completedLevels': completedLevels,
       'totalStars': totalStarsCount,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-
-    debugPrint(
-      'DEBUG: Subject progress updated: $progressPercentage% '
-      '($completedLevels/$totalLevels levels, $totalStarsCount stars)',
-    );
-  } catch (e) {
-    debugPrint('DEBUG ERROR: updateLevelProgress failed: $e');
+    
+    debugPrint('DEBUG: Subject $subjectId repaired. Total Stars: $totalStarsCount, Completed: $completedLevels');
   }
-}
 
   Stream<Map<String, int>> streamLevelStars(
     String parentId,

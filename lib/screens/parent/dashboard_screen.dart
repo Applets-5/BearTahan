@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/subject.dart';
 import '../../models/user_profile.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
@@ -42,6 +43,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (selectedChildId == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref.read(childIdProvider.notifier).update(children.first.uid);
+            
+            // One-time repair: recalculate missing or inaccurate aggregation fields
+            final parentId = ref.read(parentIdProvider);
+            for (final child in children) {
+              ref.read(firestoreServiceProvider).repairSubjectProgress(parentId, child.uid);
+            }
           });
           return const Center(child: CircularProgressIndicator());
         }
@@ -90,20 +97,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       // Merge real data with default subjects to ensure all are shown
                       final List<Map<String, dynamic>> displaySubjects =
                           _defaultSubjects.map((defaultSub) {
-                            final realSub = subjects.cast().firstWhere(
-                              (s) => s.id == defaultSub['id'],
+                        final realSub = subjects.cast<Subject?>().firstWhere(
+                              (s) => s?.id == defaultSub['id'],
                               orElse: () => null,
                             );
-                            return {
-                              'name': defaultSub['name'],
-                              'progress': realSub != null ? realSub.progress : 0,
-                              'completedLevels':
-                                  realSub != null ? realSub.completedLevels : 0,
-                              'totalStars':
-                                  realSub != null ? realSub.totalStars : 0,
-                              'color': defaultSub['color'],
-                            };
-                          }).toList();
+
+                        // Self-healing: if the subject exists but is missing aggregation, trigger a sync
+                        if (realSub != null &&
+                            (realSub.totalStars == 0 && realSub.progress > 0)) {
+                          debugPrint(
+                              'DEBUG: Self-healing triggered for ${realSub.id} on dashboard');
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            final parentId = ref.read(parentIdProvider);
+                            ref
+                                .read(firestoreServiceProvider)
+                                .syncSubjectAggregation(
+                                  parentId,
+                                  selectedChildId,
+                                  realSub.id,
+                                );
+                          });
+                        }
+
+                        return {
+                          'name': defaultSub['name'],
+                          'progress': realSub != null ? realSub.progress : 0,
+                          'completedLevels':
+                              realSub != null ? realSub.completedLevels : 0,
+                          'totalStars':
+                              realSub != null ? realSub.totalStars : 0,
+                          'color': defaultSub['color'],
+                        };
+                      }).toList();
 
                       int totalProgress = displaySubjects.fold(
                         0,

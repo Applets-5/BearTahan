@@ -81,7 +81,7 @@ final subjectProgressProvider = StreamProvider.family<List<Subject>, String>((
 ) {
   final parentId = ref.watch(parentIdProvider);
 
-  if (childId.isEmpty) {
+  if (childId.isEmpty || parentId.isEmpty) {
     return const Stream.empty();
   }
 

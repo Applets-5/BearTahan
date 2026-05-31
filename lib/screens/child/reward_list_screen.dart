@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/missing_child_profile.dart';
-import '../../widgets/common/star_balance_chip.dart';
 import '../../widgets/parent/reward_card.dart';
 
 class RewardListScreen extends ConsumerWidget {
@@ -29,6 +28,7 @@ class RewardListScreen extends ConsumerWidget {
     }
 
     final userProfileAsync = ref.watch(userProfileProvider(childId));
+    final subjectProgressAsync = ref.watch(subjectProgressProvider(childId));
 
     return SafeArea(
       child: rewardsAsync.when(
@@ -56,19 +56,68 @@ class RewardListScreen extends ConsumerWidget {
                       data: (profile) => _StarSummary(
                         label: 'Available',
                         value: profile.starBalance.toString(),
+                        icon: Icons.star,
+                        color: AppColors.star,
                       ),
-                      loading: () =>
-                          const _StarSummary(label: 'Available', value: '0'),
-                      error: (err, stack) =>
-                          const _StarSummary(label: 'Available', value: '0'),
+                      loading: () => _StarSummary(
+                        label: 'Available',
+                        value: '0',
+                        icon: Icons.star,
+                        color: AppColors.star,
+                      ),
+                      error: (err, stack) => _StarSummary(
+                        label: 'Available',
+                        value: '0',
+                        icon: Icons.star,
+                        color: AppColors.star,
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
-                  const Expanded(
-                    child: _StarSummary(
-                      label: 'Lifetime',
-                      value: '340',
-                    ), // Placeholder for lifetime stars
+                  Expanded(
+                    child: subjectProgressAsync.when(
+                      data: (subjects) {
+                        final totalLifetime = subjects.fold(
+                          0,
+                          (sum, s) {
+                            // Self-healing: if the subject exists but is missing aggregation, trigger a sync
+                            if (s.totalStars == 0 && s.progress > 0) {
+                              debugPrint(
+                                  'DEBUG: Self-healing triggered for ${s.id} on reward screen');
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                final parentId = ref.read(parentIdProvider);
+                                ref
+                                    .read(firestoreServiceProvider)
+                                    .syncSubjectAggregation(
+                                      parentId,
+                                      childId,
+                                      s.id,
+                                    );
+                              });
+                            }
+                            return sum + s.totalStars;
+                          },
+                        );
+                        return _StarSummary(
+                          label: 'Lifetime',
+                          value: totalLifetime.toString(),
+                          icon: Icons.auto_awesome,
+                          color: AppColors.star,
+                        );
+                      },
+                      loading: () => _StarSummary(
+                        label: 'Lifetime',
+                        value: '0',
+                        icon: Icons.auto_awesome,
+                        color: AppColors.star,
+                      ),
+                      error: (err, stack) => _StarSummary(
+                        label: 'Lifetime',
+                        value: '0',
+                        icon: Icons.auto_awesome,
+                        color: AppColors.star,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -162,9 +211,16 @@ class RewardListScreen extends ConsumerWidget {
 }
 
 class _StarSummary extends StatelessWidget {
-  const _StarSummary({required this.label, required this.value});
+  const _StarSummary({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
   final String label;
   final String value;
+  final IconData icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -172,13 +228,19 @@ class _StarSummary extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
+        borderRadius: AppRadius.r(AppRadius.xl),
         boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          StarBalanceChip(count: int.parse(value)),
+          Row(
+            children: [
+              Icon(icon, color: color, size: AppSpacing.xl),
+              const SizedBox(width: AppSpacing.xs),
+              Text(value, style: AppTextStyles.cardTitle),
+            ],
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(label, style: AppTextStyles.tiny),
         ],
