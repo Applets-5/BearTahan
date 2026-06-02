@@ -403,7 +403,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 child: AudioPromptPlayer(
                   key: ValueKey('audio_${question.id}'),
                   url: question.promptAudioUrl,
-                  textToSpeak: question.text,
+                  textToSpeak: question.promptAudioText ?? question.text,
                   language: language,
                   autoPlay: true,
                   isSmall: true,
@@ -497,7 +497,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             child: AudioPromptPlayer(
               key: ValueKey('audio_${question.id}'),
               url: question.promptAudioUrl,
-              textToSpeak: question.text,
+              textToSpeak: question.promptAudioText ?? question.text,
               language: language,
               autoPlay: true,
               isSmall: true,

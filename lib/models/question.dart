@@ -14,6 +14,7 @@ class Question {
   final int correctAnswerIndex;
   final String? imageUrl;
   final String? promptAudioUrl;
+  final String? promptAudioText;
   final String? type;
   final List<String>? correctOrder;
   final String? correctBlank;
@@ -25,6 +26,7 @@ class Question {
     required this.correctAnswerIndex,
     this.imageUrl,
     this.promptAudioUrl,
+    this.promptAudioText,
     this.type,
     this.correctOrder,
     this.correctBlank,
@@ -84,6 +86,12 @@ class Question {
         data['audio'] ??
         data['voice'];
 
+    String? finalAudioText =
+        data['promptAudioText'] ??
+        data['audioText'] ??
+        data['ttsText'] ??
+        data['spokenText'];
+
     // Map questionType (used in Firestore) to type
     String? type = (data['questionType'] ?? data['type'])?.toString();
 
@@ -142,6 +150,7 @@ class Question {
       correctAnswerIndex: finalIndex,
       imageUrl: finalImageUrl,
       promptAudioUrl: finalAudioUrl,
+      promptAudioText: finalAudioText,
       type: type,
       correctOrder: correctOrder,
       correctBlank: correctBlank,
