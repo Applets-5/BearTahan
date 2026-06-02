@@ -9,7 +9,7 @@
     "questionType": "mcq",
     "imageMode": "promptImage",
     "prompt": "看图选词",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l1/bc_c1_l1_q01.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l1/bc_c1_l1_q01.png",
     "options": [
       { "id": "A", "text": "太阳", "imageUrl": null },
       { "id": "B", "text": "蓝天", "imageUrl": null },
@@ -31,7 +31,7 @@
     "questionType": "mcq",
     "imageMode": "promptImage",
     "prompt": "看图选词",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l1/bc_c1_l1_q02.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l1/bc_c1_l1_q02.png",
     "options": [
       { "id": "A", "text": "上学", "imageUrl": null },
       { "id": "B", "text": "太阳", "imageUrl": null },
@@ -53,7 +53,7 @@
     "questionType": "mcq",
     "imageMode": "promptImage",
     "prompt": "看图选词",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l1/bc_c1_l1_q03.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l1/bc_c1_l1_q03.png",
     "options": [
       { "id": "A", "text": "读书", "imageUrl": null },
       { "id": "B", "text": "写字", "imageUrl": null },
@@ -75,7 +75,7 @@
     "questionType": "fillBlank",
     "imageMode": "promptImage",
     "prompt": "（ ）在天上飞。",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l1/bc_c1_l1_q04.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l1/bc_c1_l1_q04.png",
     "options": [
       { "id": "A", "text": "小鸟", "imageUrl": null },
       { "id": "B", "text": "太阳", "imageUrl": null },
@@ -96,7 +96,7 @@
     "questionType": "fillBlank",
     "imageMode": "promptImage",
     "prompt": "我要去学校（ ）了。",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l1/bc_c1_l1_q05.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l1/bc_c1_l1_q05.png",
     "options": [
       { "id": "A", "text": "写字", "imageUrl": null },
       { "id": "B", "text": "上学", "imageUrl": null },
@@ -117,7 +117,7 @@
     "questionType": "fillBlank",
     "imageMode": "promptImage",
     "prompt": "我用铅笔（ ）。",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l1/bc_c1_l1_q06.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l1/bc_c1_l1_q06.png",
     "options": [
       { "id": "A", "text": "读书", "imageUrl": null },
       { "id": "B", "text": "写字", "imageUrl": null },
@@ -138,7 +138,7 @@
     "questionType": "fillBlank",
     "imageMode": "promptImage",
     "prompt": "公园里的（ ）开得真漂亮。",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l1/bc_c1_l1_q07.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l1/bc_c1_l1_q07.png",
     "options": [
       { "id": "A", "text": "蓝天", "imageUrl": null },
       { "id": "B", "text": "草地", "imageUrl": null },
@@ -222,12 +222,12 @@
     "questionType": "mcq",
     "imageMode": "answerImage",
     "prompt": "认一认笔画 — 横",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_q01_prompt.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_q01_prompt.png",
     "options": [
-      { "id": "A", "text": "竖", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_shu.png" },
-      { "id": "B", "text": "横", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_heng.png" },
-      { "id": "C", "text": "撇", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_pie.png" },
-      { "id": "D", "text": "捺", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_na.png" }
+      { "id": "A", "text": "竖", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_shu.png" },
+      { "id": "B", "text": "横", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_heng.png" },
+      { "id": "C", "text": "撇", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_pie.png" },
+      { "id": "D", "text": "捺", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_na.png" }
     ],
     "correctAnswerId": "B",
     "correctOrder": null,
@@ -244,12 +244,12 @@
     "questionType": "mcq",
     "imageMode": "answerImage",
     "prompt": "认一认笔画 — 竖",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_q02_prompt.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_q02_prompt.png",
     "options": [
-      { "id": "A", "text": "竖", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_shu.png" },
-      { "id": "B", "text": "横", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_heng.png" },
-      { "id": "C", "text": "撇", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_pie.png" },
-      { "id": "D", "text": "捺", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_na.png" }
+      { "id": "A", "text": "竖", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_shu.png" },
+      { "id": "B", "text": "横", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_heng.png" },
+      { "id": "C", "text": "撇", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_pie.png" },
+      { "id": "D", "text": "捺", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_na.png" }
     ],
     "correctAnswerId": "A",
     "correctOrder": null,
@@ -266,12 +266,12 @@
     "questionType": "mcq",
     "imageMode": "answerImage",
     "prompt": "认一认笔画 — 撇",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_q03_prompt.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_q03_prompt.png",
     "options": [
-      { "id": "A", "text": "竖", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_shu.png" },
-      { "id": "B", "text": "横", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_heng.png" },
-      { "id": "C", "text": "撇", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_pie.png" },
-      { "id": "D", "text": "捺", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_na.png" }
+      { "id": "A", "text": "竖", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_shu.png" },
+      { "id": "B", "text": "横", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_heng.png" },
+      { "id": "C", "text": "撇", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_pie.png" },
+      { "id": "D", "text": "捺", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_na.png" }
     ],
     "correctAnswerId": "C",
     "correctOrder": null,
@@ -288,12 +288,12 @@
     "questionType": "mcq",
     "imageMode": "answerImage",
     "prompt": "认一认笔画 — 捺",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_q04_prompt.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_q04_prompt.png",
     "options": [
-      { "id": "A", "text": "竖", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_shu.png" },
-      { "id": "B", "text": "横", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_heng.png" },
-      { "id": "C", "text": "撇", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_pie.png" },
-      { "id": "D", "text": "捺", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_stroke_na.png" }
+      { "id": "A", "text": "竖", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_shu.png" },
+      { "id": "B", "text": "横", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_heng.png" },
+      { "id": "C", "text": "撇", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_pie.png" },
+      { "id": "D", "text": "捺", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_stroke_na.png" }
     ],
     "correctAnswerId": "D",
     "correctOrder": null,
@@ -310,7 +310,7 @@
     "questionType": "fillBlank",
     "imageMode": "promptImage",
     "prompt": "我在公园看到表姐，我向她（ ）。",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_q05.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_q05.png",
     "options": [
       { "id": "A", "text": "跑来跑去", "imageUrl": null },
       { "id": "B", "text": "跳来跳去", "imageUrl": null },
@@ -331,7 +331,7 @@
     "questionType": "fillBlank",
     "imageMode": "promptImage",
     "prompt": "保安叔叔站在（ ），保护学生的安全。",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_q06.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_q06.png",
     "options": [
       { "id": "A", "text": "草地",  "imageUrl": null },
       { "id": "B", "text": "校门口", "imageUrl": null },
@@ -352,7 +352,7 @@
     "questionType": "fillBlank",
     "imageMode": "promptImage",
     "prompt": "我和朋友一起在草地上（ ）。",
-    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/main/questions/bc/c1/l2/bc_c1_l2_q07.png",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/621d843df2d02c53b174bed038007fa591337741/questions/bc/c1/l2/bc_c1_l2_q07.png",
     "options": [
       { "id": "A", "text": "做早操", "imageUrl": null },
       { "id": "B", "text": "读书",   "imageUrl": null },
