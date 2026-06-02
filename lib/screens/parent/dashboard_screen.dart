@@ -78,6 +78,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   const Expanded(
                     child: Text('Dashboard', style: AppTextStyles.screenTitle),
                   ),
+                  IconButton(
+                    tooltip: 'Daily goals',
+                    onPressed: () => context.go(AppRouter.parentGoals),
+                    icon: const Icon(Icons.flag_rounded),
+                  ),
                   TextButton.icon(
                     onPressed: () => setState(() => expanded = !expanded),
                     icon: const Icon(Icons.child_care),

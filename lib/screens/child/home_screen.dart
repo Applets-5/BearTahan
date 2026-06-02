@@ -83,6 +83,7 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
+          SliverToBoxAdapter(child: _DailyGoalCard(childId: effectiveChildId)),
           subjectProgressAsync.when(
             data: (progressList) {
               // Calculate average progress
@@ -199,6 +200,57 @@ class HomeScreen extends ConsumerWidget {
       default:
         return name.toLowerCase().substring(0, math.min(name.length, 2));
     }
+  }
+}
+
+class _DailyGoalCard extends ConsumerWidget {
+  const _DailyGoalCard({required this.childId});
+
+  final String childId;
+
+  String _todayKey() {
+    final now = DateTime.now();
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return '${now.year}-$month-$day';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userProfileAsync = ref.watch(userProfileProvider(childId));
+
+    return userProfileAsync.maybeWhen(
+      data: (profile) {
+        final goal = profile.dailyGoal;
+        if (goal == null || !goal.isValid) {
+          return const SizedBox.shrink();
+        }
+
+        final todayProgress = goal.lastUpdatedDate == _todayKey()
+            ? goal.todayProgress
+            : 0;
+        final progress = (todayProgress / goal.target)
+            .clamp(0.0, 1.0)
+            .toDouble();
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: ProgressBarCard(
+            title: 'Daily Goal',
+            subtitle:
+                '$todayProgress of ${goal.target} ${goal.unitLabel} completed today',
+            progress: progress,
+            icon: goal.type == 'minutes' ? Icons.timer : Icons.flag_rounded,
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
   }
 }
 
