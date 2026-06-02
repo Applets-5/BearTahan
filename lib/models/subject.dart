@@ -8,6 +8,8 @@ class Subject {
   final IconData icon;
   final Color color;
   final int progress;
+  final int completedLevels;
+  final int totalStars;
 
   Subject({
     required this.id,
@@ -16,6 +18,8 @@ class Subject {
     required this.icon,
     required this.color,
     required this.progress,
+    this.completedLevels = 0,
+    this.totalStars = 0,
   });
 
   factory Subject.fromFirestore(String id, Map<String, dynamic> data) {
@@ -26,6 +30,8 @@ class Subject {
       icon: _getIconData(data['icon'] ?? ''),
       color: _getColor(data['color'] ?? ''),
       progress: (data['progress'] ?? 0).toInt(),
+      completedLevels: (data['completedLevels'] ?? 0).toInt(),
+      totalStars: (data['totalStars'] ?? 0).toInt(),
     );
   }
 
@@ -50,8 +56,10 @@ class Subject {
     switch (colorName) {
       case 'bm':
         return AppColors.subjectBm;
+      case 'en':
       case 'english':
         return AppColors.subjectEnglish;
+      case 'bc':
       case 'mandarin':
         return AppColors.subjectMandarin;
       case 'math':

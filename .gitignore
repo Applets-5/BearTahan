@@ -49,4 +49,13 @@ linux/flutter/
 macos/Flutter/GeneratedPluginRegistrant.swift
 windows/flutter/
 
-scripts/serviceAccountKey.json.json
+# Node.js
+node_modules/
+package-lock.json
+package.json
+!functions/package-lock.json
+!functions/package.json
+
+# Secrets
+service-account.json
+

@@ -797,7 +797,7 @@ As a parent, I want to receive a streak-at-risk alert if my child has not practi
 
 ---
 
-### BEAR-40 (starts 46)
+### BEAR-46 (40)
 **Epic:** Star Economy
 **Summary:** Child claims reward — pending flow with parent notification
 **Type:** Story
@@ -819,11 +819,11 @@ As a student, I want to claim a reward when I have enough stars and send a notif
 - Child's Rewards screen shows the reward as "Pending — waiting for parent approval"
 - Child cannot claim the same reward again while it is pending
 
-**Dependencies:** BEAR-33 (rewards must exist), BEAR-37 (notification channel)
+**Dependencies:** BEAR-37 (rewards must exist), BEAR-41 (notification channel)
 
 ---
 
-### BEAR-41
+### BEAR-47 (41)
 **Epic:** Star Economy
 **Summary:** Parent approves or rejects reward claim
 **Type:** Story
@@ -845,11 +845,11 @@ As a parent, I want to approve or reject my child's reward claim in the app, so 
 - Both parent and child see the updated status in real time via Firestore stream listeners
 - Star deduction writes a transaction: `{ type: "spend", source: "reward_redemption", amount: int }`
 
-**Dependencies:** BEAR-40
+**Dependencies:** BEAR-46
 
 ---
 
-### BEAR-42
+### BEAR-48 (42)
 **Epic:** Star Economy
 **Summary:** Lifetime vs. spendable star balance display
 **Type:** Story
@@ -867,11 +867,11 @@ As a student, I want to see both my lifetime stars earned and my available stars
 - "Total Earned" field is never decremented by any operation in the codebase
 - Both values update in real time
 
-**Dependencies:** Firestore fields `lifetimeStarsEarned` and `availableStars` already written by BEAR-24 and BEAR-41
+**Dependencies:** Firestore fields `lifetimeStarsEarned` and `availableStars` already written by BEAR-24 and BEAR-47
 
 ---
 
-### BEAR-43
+### BEAR-49 (43)
 **Epic:** Star Economy
 **Summary:** Star history and transaction log screen
 **Type:** Story
@@ -891,11 +891,11 @@ As a student, I want to view a history of all the stars I have earned and spent,
 - Empty state shown with a friendly message if no transactions yet
 - Parent can also see this screen from the dashboard
 
-**Dependencies:** Star transaction documents written by BEAR-24, BEAR-41, BEAR-46
+**Dependencies:** Star transaction documents written by BEAR-24, BEAR-47, BEAR-52
 
 ---
 
-### BEAR-44
+### BEAR-50 (44)
 **Epic:** Learning Engine / Review System
 **Summary:** Bear's Memory Challenge — dedicated wrong-answer review section
 **Type:** Story
@@ -916,11 +916,11 @@ As a student, I want to see a dedicated Bear's Memory Challenge section when I h
 - A question answered in review is removed from or deprioritised in the `wrongAnswerBank`
 - Banner does not appear if `wrongAnswerBank` is empty
 
-**Dependencies:** `wrongAnswerBank` populated by BEAR-19 (wrong-answer flagging), BEAR-46 (accumulation counter logic)
+**Dependencies:** `wrongAnswerBank` populated by BEAR-19 (wrong-answer flagging), BEAR-52 (accumulation counter logic)
 
 ---
 
-### BEAR-45
+### BEAR-51 (45)
 **Epic:** Learning Engine / Review System
 **Summary:** Silent injection of wrong-answer questions into level sessions
 **Type:** Story
@@ -940,11 +940,11 @@ As a student, I want to have wrong-answer questions silently mixed into my regul
 - Injected review questions increment `reviewQuestionCounter` the same as dedicated review sessions
 - Normal level score and star calculation is based on all 10 questions including injected ones
 
-**Dependencies:** `wrongAnswerBank` populated by BEAR-19, BEAR-44 (counter logic)
+**Dependencies:** `wrongAnswerBank` populated by BEAR-19, BEAR-50 (counter logic)
 
 ---
 
-### BEAR-46
+### BEAR-52 (46)
 **Epic:** Learning Engine / Review System
 **Summary:** Review accumulation star earning (every 20 answered = 1 star)
 **Type:** Story
@@ -964,11 +964,11 @@ As a student, I want to earn stars by accumulating review questions answered (ev
 - Counter is cross-subject — any review question from any subject counts toward the same counter
 - Unit test covers: counter increment, milestone trigger at exactly 20, reset after milestone
 
-**Dependencies:** BEAR-44, BEAR-45
+**Dependencies:** BEAR-50, BEAR-51
 
 ---
 
-### BEAR-47
+### BEAR-53 (47)
 **Epic:** Engagement & Cosmetics
 **Summary:** Quest unlock logic — outfit unlocked by completing mission
 **Type:** Story
@@ -988,11 +988,11 @@ As a student, I want to unlock new bear outfits by completing specific quest mis
 - When a quest condition is met: `isUnlocked = true` is written, an unlock animation is triggered
 - Outfit unlock is permanent — replaying conditions does not re-lock an outfit
 
-**Dependencies:** BEAR-49 (outfit selection must exist to equip the unlocked outfit)
+**Dependencies:** BEAR-55 (outfit selection must exist to equip the unlocked outfit)
 
 ---
 
-### BEAR-48
+### BEAR-54 (48)
 **Epic:** Engagement & Cosmetics
 **Summary:** Quests tab with progress bars and locked silhouettes
 **Type:** Story
@@ -1012,11 +1012,11 @@ As a student, I want to see a Quests tab showing all missions with progress bars
 - Active outfit has an "Active" badge instead of an "Equip" button
 - Progress data is read from `questProgress` subcollection in real time
 
-**Dependencies:** BEAR-47
+**Dependencies:** BEAR-53
 
 ---
 
-### BEAR-49
+### BEAR-55 (49)
 **Epic:** Engagement & Cosmetics
 **Summary:** Outfit selection and active outfit persistence
 **Type:** Story
@@ -1035,11 +1035,11 @@ As a student, I want to choose which unlocked outfit my bear wears, so that I fe
 - Changing outfit takes effect immediately with no app restart required
 - Equipping an outfit while another is active simply replaces the active outfit
 
-**Dependencies:** BEAR-47 (quests must exist), BEAR-48 (UI to trigger equip)
+**Dependencies:** BEAR-53 (quests must exist), BEAR-54 (UI to trigger equip)
 
 ---
 
-### BEAR-50
+### BEAR-56 (50)
 **Epic:** Engagement & Cosmetics
 **Summary:** Sound effects and mascot animations
 **Type:** Story
@@ -1059,11 +1059,11 @@ As a student, I want to hear fun sound effects and see mascot animations through
 - Animations are implemented using Flutter's animation system or a Lottie-compatible package
 - App respects system silent mode — sound is muted if device is on silent
 
-**Dependencies:** BEAR-19, BEAR-22, BEAR-47
+**Dependencies:** BEAR-19, BEAR-22, BEAR-53
 
 ---
 
-### BEAR-51
+### BEAR-57 (51)
 **Epic:** Parent Dashboard & Monitoring
 **Summary:** Level completion time data on parent dashboard
 **Type:** Story
@@ -1086,7 +1086,7 @@ As a parent, I want to see how long my child took to complete each level and the
 
 ---
 
-### BEAR-52
+### BEAR-58 (52)
 **Epic:** Content & Questions
 **Summary:** Mandarin stroke tracing for Standard 1 characters
 **Type:** Story
@@ -1110,11 +1110,11 @@ As a student, I want to practise Mandarin by tracing Chinese characters in the c
 
 **⚠️ Risk:** Highest-risk item in the project. Dev 4 starts on Sprint 3 Day 1. Escalate by Day 7 if not functional. Fallback: Mandarin ships as recognition-only and stroke tracing moves to icebox.
 
-**Dependencies:** BEAR-28 (Mandarin character data), stroke order data provided by Dev 3
+**Dependencies:** BEAR-30 (Mandarin character data), stroke order data provided by Dev 3
 
 ---
 
-### BEAR-53
+### BEAR-59 （53）
 **Epic:** Parent Dashboard & Monitoring
 **Summary:** Multi-child support — add profile and switch in dashboard
 **Type:** Story
@@ -1138,7 +1138,7 @@ As a parent, I want to add a second child profile and switch between them in the
 
 ---
 
-### BEAR-56
+### BEAR-60 (56)
 **Epic:** Parent Dashboard & Monitoring
 **Summary:** BearAI insight card — AI-generated child activity summary
 **Type:** Story
@@ -1166,7 +1166,7 @@ As a parent, I want to see an AI-generated insight card on my dashboard summaris
 
 ---
 
-### BEAR-57
+### BEAR-61 (57)
 **Epic:** Parent Dashboard & Monitoring
 **Summary:** BearAI chat interface — parent AI consultation
 **Type:** Story
@@ -1200,7 +1200,7 @@ As a parent, I want to chat with BearAI to ask questions about my child's progre
 
 ---
 
-### BEAR-54
+### BEAR-62 (54)
 **Epic:** Content & Questions
 **Summary:** Subject revision stage — cross-chapter mixed questions
 **Type:** Story
@@ -1224,7 +1224,7 @@ As a student, I want to access a Revision Stage that mixes all questions from co
 
 ---
 
-### BEAR-55
+### BEAR-63 (55)
 **Epic:** Parent Dashboard & Monitoring
 **Summary:** Parent configures push notification preferences
 **Type:** Story
@@ -1242,11 +1242,11 @@ As a parent, I want to configure which push notifications I receive, so that I d
 - All notification-sending functions (BEAR-36, 29, 31) check the relevant preference before sending
 - Default state: all notifications enabled
 
-**Dependencies:** BEAR-36, BEAR-37, BEAR-39
+**Dependencies:** BEAR-40, BEAR-41, BEAR-43
 
 ---
 
-### BEAR-56
+### BEAR-64 (56)
 **Epic:** System, Settings & Compliance
 **Summary:** Internal admin CMS for question bank management
 **Type:** Story
@@ -1273,7 +1273,7 @@ As a content creator, I want to use an internal admin tool to upload and manage 
 
 ---
 
-### BEAR-57
+### BEAR-65 (57)
 **Epic:** System, Settings & Compliance
 **Summary:** Friendly error messages for empty and broken states
 **Type:** Story
@@ -1295,7 +1295,7 @@ As a student, I want to see friendly error messages for empty and broken states,
 
 ---
 
-### BEAR-58
+### BEAR-66 (58)
 **Epic:** System, Settings & Compliance
 **Summary:** PDPA consent during registration
 **Type:** Story
@@ -1320,7 +1320,7 @@ As a parent, I want to give explicit consent for my child's data to be collected
 
 ---
 
-### BEAR-59
+### BEAR-67 (59)
 **Epic:** System, Settings & Compliance
 **Summary:** Full account and data deletion
 **Type:** Story
@@ -1344,7 +1344,7 @@ As a parent, I want to request full deletion of my account and all my child's da
 
 ---
 
-### BEAR-60
+### BEAR-68 (60)
 **Epic:** System, Settings & Compliance
 **Summary:** Settings screen — account details and sound toggle
 **Type:** Story
@@ -1367,7 +1367,7 @@ As a parent, I want to update my account details and toggle sound effects in set
 
 ---
 
-### BEAR-61
+### BEAR-69 (61)
 **Epic:** System, Settings & Compliance
 **Summary:** Final QA, bug fixes, performance, and demo polish
 **Type:** Story
@@ -1393,7 +1393,7 @@ As the team, we want to experience a polished, bug-free app across all completed
 
 ---
 
-### BEAR-72
+### BEAR-70 (72)
 **Epic:** Bear's Den
 **Summary:** Bear's Den — unlock logic, secret tile UI, parent Chapter Insights (BM)
 **Type:** Story
@@ -1427,7 +1427,7 @@ As a student, I want to discover and unlock Bear's Den inside Bahasa Melayu afte
 
 ---
 
-### BEAR-73
+### BEAR-71 (73)
 **Epic:** Bear's Den
 **Summary:** Bear's Den — cross-chapter AI-weighted session (BM)
 **Type:** Story
@@ -1440,7 +1440,7 @@ As a student, I want to discover and unlock Bear's Den inside Bahasa Melayu afte
 As a student, I want to attempt a Bear's Den session with cross-chapter questions that challenge everything I have learned, so that I strengthen my weaker chapters while earning stars for coming back daily.
 
 **Acceptance Criteria:**
-- Tapping the unlocked Bear's Den tile (BEAR-72) generates and starts a 10-question session
+- Tapping the unlocked Bear's Den tile (BEAR-70) generates and starts a 10-question session
 - Dev 2 implements `generateBearsDenSession()`: Needs Work chapters → 50% of questions; Average → 30%; Strong → 20%; questions drawn from BM Chapters 1–3 question bank only; shuffled before display (see BT-05 Section 14 for full algorithm)
 - Each question shows a small chapter tag in grey below the question text (e.g. "Chapter 2 — Keluarga") — subtle, 11px
 - **No "AI Generated" badge** — the AI weighting is invisible to the child
@@ -1456,7 +1456,7 @@ As a student, I want to attempt a Bear's Den session with cross-chapter question
 
 **⚠️ Sprint 4 priority note:** If Must stories are not complete by Sprint 4 Day 9, BEAR-72 and BEAR-73 move to icebox immediately. Do not delay QA.
 
-**Dependencies:** BEAR-72 (unlock tile and `bearsDenStarDate` field must exist), BEAR-28 (BM question bank complete), BEAR-57 (child Firestore document structure)
+**Dependencies:** BEAR-70 (unlock tile and `bearsDenStarDate` field must exist), BEAR-30 (BM question bank complete), BEAR-66 (child Firestore document structure)
 
 ---
 
@@ -1464,18 +1464,233 @@ As a student, I want to attempt a Bear's Den session with cross-chapter question
 
 Create these in the Jira Backlog without assigning them to any sprint. Any developer with spare capacity can drag one into the active sprint.
 
-| Jira ID | Summary | Epic | Story Points | Notes |
-|---|---|---|---|---|
-| BEAR-62 | Co-parent email invite — Netflix-style family account | Auth & Onboarding | 13 | Email invite; equal permissions; first to approve/reject claim finalises |
-| BEAR-63 | Apple Sign-In via Firebase | Auth & Onboarding | 3 | iOS only; Android-first for V1 |
-| BEAR-64 | Tablet-optimised responsive layout | Learning Engine | 8 | Flutter responsive breakpoints; phone-first for V1 |
-| BEAR-65 | Multilingual app UI — BM, English, Mandarin, Tamil | System | 13 | Flutter intl package; full i18n; English UI for V1 |
-| BEAR-66 | Standard 2 KSSR content | Content & Questions | 13 | New question bank; same app structure |
-| BEAR-67 | Student leaderboard by star total | Engagement | 8 | Privacy review required for minors |
-| BEAR-68 | WhatsApp Business notification channel | System | 8 | Meta Business API; not feasible in academic timeline |
-| BEAR-69 | XP experience bar and milestone system | Engagement | 5 | Secondary progression alongside stars |
-| BEAR-70 | Advanced AI learning analytics (post-BearAI V1) | BearAI | 13 | Post-BearAI V1; longitudinal trends, learning style classification; requires months of data and ML layer |
-| BEAR-71 | In-app purchases and monetisation | System | 13 | Google Play Billing; out of academic project scope |
-| BEAR-74 | Bear's Den — second unlock tier (Chapters 4–6) | Bear's Den | 5 | Requires BEAR-72/73 stable and Chapters 4–6 question bank; no code change if Firestore config used |
-| BEAR-75 | Bear's Den — multi-subject expansion | Bear's Den | 8 | Expand beyond BM; requires all 5 subject question banks verified |
-| BEAR-76 | Bear's Den — parent dashboard session history | Bear's Den | 3 | Filter attempt history by source: bears_den; surface in parent dashboard |
+BEAR-A (formerly I-1 / BEAR-62)
+Epic: Auth & Onboarding Summary: Co-parent email invite — Netflix-style family account Type: Story Priority: Could (Icebox) Story Points: 13 Assignee: Dev 2 Sprint: Icebox
+User Story: As a parent, I want to invite a co-parent via email so both parents can monitor the same child, so that both parents have real-time equal access without sharing login credentials
+.
+Acceptance Criteria:
+Parent A can send an email invite to Parent B (using Firebase Dynamic Links or a custom invite token stored in Firestore)
+.
+Co-parent UID is stored in the child's document upon accepting the invite
+.
+Firestore security rules are updated to allow both parent UIDs read/write access to the child's data
+.
+Both parents have identical permissions to view the dashboard, manage rewards, and approve/reject claims
+.
+Pending claims are visible to both parents in real-time, and the first parent to approve or reject finalises the decision for both
+.
+Neither parent can remove the other directly from the app (simplification for V1.x)
+. Dependencies: BEAR-25 (Parent dashboard base)
+, BEAR-37 (Parent creates custom real-world rewards)
+, BEAR-46 & BEAR-47 (Reward claim and approval flows)
+.
+
+--------------------------------------------------------------------------------
+BEAR-B (formerly I-2 / BEAR-63)
+Epic: Auth & Onboarding Summary: Apple Sign-In via Firebase Type: Story Priority: Could (Icebox) Story Points: 3 Assignee: Dev 2 Sprint: Icebox
+User Story: As a parent, I want to sign in with Apple ID in addition to Google, so that I can use my preferred account on iOS devices
+.
+Acceptance Criteria:
+An "Apple Sign-In" option is provided on the app launch screen alongside Google Sign-In.
+Firebase Auth is configured with the Apple Sign-In provider
+.
+Authentication integrates cleanly with existing ParentAccountService logic to create or resume parent sessions
+.
+iOS build configuration is completed to support the sign-in flow
+. Dependencies: BEAR-9 (Google Sign-In registration and login via Firebase)
+. Requires an active App Store Developer account to configure
+.
+
+--------------------------------------------------------------------------------
+BEAR-C (formerly I-3 / BEAR-64)
+Epic: Learning Engine Summary: Tablet-optimised responsive layout Type: Story Priority: Could (Icebox) Story Points: 8 Assignee: Dev 1 (UI) Sprint: Icebox
+User Story: As a student, I want to use the app on a tablet with a layout optimised for the larger screen, so that the experience feels native rather than a stretched phone layout
+.
+Acceptance Criteria:
+App layout adjusts seamlessly when opened on a tablet device, without simply stretching phone UI components
+.
+Flutter responsive layout breakpoints are established across all core screens (Home, Subject Map, Question Engine, Parent Dashboard)
+.
+Separate widget trees or adaptive layouts are implemented where single-column phone lists look empty on large screens
+. Dependencies: All core UI stories from Sprints 1–3 (e.g., BEAR-14 for Home Screen, BEAR-16 for Subject Navigation, BEAR-18 for Question Engine, BEAR-25 for Parent Dashboard)
+.
+
+BEAR-D (formerly I-4 / BEAR-65)
+Epic: System, Settings & Compliance Summary: Multilingual app UI — BM, English, Mandarin, Tamil Type: Story Priority: Could (Icebox) Story Points: 13 Assignee: Dev 1 (UI) Sprint: Icebox
+User Story: As a parent, I want to switch the app UI language between BM, English, Mandarin, and Tamil, so that parents and children who prefer a different language can use the app comfortably.
+Acceptance Criteria:
+Flutter intl package is integrated.
+.arb localisation files are created and populated for all 4 languages.
+Tamil font support is properly configured.
+A language selector dropdown is added to the settings screen.
+Dependencies:
+BEAR-68 (Settings screen)
+
+--------------------------------------------------------------------------------
+BEAR-E (formerly I-5 / BEAR-66)
+Epic: Content & Questions Summary: Standard 2 KSSR content Type: Story Priority: Could (Icebox) Story Points: 13 Assignee: Dev 3 Sprint: Icebox
+User Story: As a student, I want to access Standard 2 content once I complete all of Standard 1, so that I can continue learning and building on what I know.
+Acceptance Criteria:
+Full KSSR Standard 2 question banks are created for all 5 subjects.
+Content is uploaded to Firestore using the admin CMS.
+App UI successfully displays and unlocks Standard 2 chapters after Standard 1 is completed.
+Revision stage mechanics extend naturally to cover Standard 2 content.
+Dependencies:
+BEAR-30 (Standard 1 question banks)
+BEAR-62 (Subject revision stage)
+BEAR-64 (Internal admin CMS)
+
+--------------------------------------------------------------------------------
+BEAR-F (formerly I-6 / BEAR-67)
+Epic: Engagement & Cosmetics Summary: Student leaderboard by star total Type: Story Priority: Could (Icebox) Story Points: 8 Assignee: Dev 2 Sprint: Icebox
+User Story: As a student, I want to see a leaderboard showing how my star total compares to other students, so that I feel competitive and motivated to earn more stars
+.
+Acceptance Criteria:
+An opt-in consent flow is added for leaderboard participation due to privacy considerations.
+A Firestore aggregation query or Cloud Function is built to calculate and rank users based on lifetime stars
+.
+A new leaderboard UI screen is accessible to the child.
+Dependencies:
+BEAR-24 (Star earning logic)
+BEAR-66 (PDPA consent during registration)
+
+BEAR-G (formerly I-7 / BEAR-68)
+Epic: System
+Summary: WhatsApp Business notification channel
+Type: Story
+Priority: Could (Icebox)
+Story Points: 8
+Assignee: Dev 2
+Sprint: Icebox
+User Story: As a parent, I want to receive notifications via WhatsApp instead of or in addition to push notifications, so that I stay updated through the channel I use most
+.
+Acceptance Criteria:
+A WhatsApp Business API account and webhook integration are configured
+.
+Parent's phone number is collected during registration or settings update
+.
+Push notification triggers (daily goals, streak at risk, reward claims) are routed to WhatsApp based on parent preference
+.
+Dependencies:
+BEAR-63 (Parent configures push notification preferences)
+Meta WhatsApp Business API approval
+
+--------------------------------------------------------------------------------
+BEAR-H (formerly I-8 / BEAR-69)
+Epic: Engagement
+Summary: XP experience bar and milestone system
+Type: Story
+Priority: Could (Icebox)
+Story Points: 5
+Assignee: Dev 4
+Sprint: Icebox
+User Story: As a student, I want to earn XP points that fill an experience bar and unlock milestones, so that I have a secondary progression system alongside stars
+.
+Acceptance Criteria:
+XP field is added to the child document in Firestore
+.
+XP award rules are defined and implemented for specific in-app actions
+.
+An experience bar UI component is added to the child's home screen
+.
+Reaching milestone thresholds triggers visual celebrations or secondary unlocks
+.
+Dependencies:
+BEAR-14 (Kids home screen with subjects and progress bars)
+BEAR-24 (Star earning logic for basic levels)
+
+--------------------------------------------------------------------------------
+BEAR-I (formerly I-9 / BEAR-70)
+Epic: BearAI
+Summary: Advanced AI learning analytics (post-BearAI V1)
+Type: Story
+Priority: Could (Icebox)
+Story Points: 13
+Assignee: Dev 2
+Sprint: Icebox
+User Story: As a parent, I want to see deeper AI-generated insights about my child's learning traits, cognitive patterns, and long-term strengths, so that I understand not just their scores but how they learn best over time
+.
+Acceptance Criteria:
+Extended Firestore data pipeline stores longitudinal session history (spanning months)
+.
+Aggregation Cloud Functions process long-term trends and classify learning styles
+.
+Integrates a fine-tuned model or structured ML layer rather than prompt engineering alone
+.
+Advanced analytics UI dashboard displays predictive performance modelling
+.
+Dependencies:
+BEAR-60 (BearAI insight card)
+BEAR-61 (BearAI chat interface)
+
+BEAR-J (formerly I-10 / BEAR-71)
+Epic: System
+Summary: In-app purchases and monetisation
+Type: Story
+Priority: Could (Icebox)
+Story Points: 13
+Assignee: Dev 2
+Sprint: Icebox
+User Story: As a parent, I want to purchase premium features such as extra outfit packs or detailed analytics, so that I can support the app and access enhanced tools.
+Acceptance Criteria:
+In-app purchase integration is implemented via Google Play Billing.
+Premium content gating is enforced for specific UI elements or analytics tools.
+The revenue model (subscription or one-time purchase) is confirmed and configured in the backend.
+Dependencies:
+Requires external Google Play Console developer account setup and billing configuration.
+
+--------------------------------------------------------------------------------
+BEAR-K (formerly I-11 / BEAR-74)
+Epic: Bear's Den
+Summary: Bear's Den — second unlock tier (Chapters 4–6)
+Type: Story
+Priority: Could (Icebox)
+Story Points: 5
+Assignee: Dev 2
+Sprint: Icebox
+User Story: As a student, I want to unlock a second Bear's Den tier covering Chapters 4–6 once I complete those chapters, so that I have a new cross-chapter challenge as I progress further.
+Acceptance Criteria:
+A second entry is added to the /config/bearsDen Firestore config specifying the required chapter IDs and question pool range for Chapters 4–6.
+The chapter range themes are verified to match standard KSSR pacing.
+The UI automatically surfaces the second tier once unlocked (no new code change needed).
+Dependencies:
+BEAR-70 (Bear's Den unlock logic)
+BEAR-71 (Bear's Den session engine)
+BEAR-30 (Full question banks required for Chapters 4–6)
+
+--------------------------------------------------------------------------------
+BEAR-L (formerly I-12 / BEAR-75)
+Epic: Bear's Den
+Summary: Bear's Den — multi-subject expansion
+Type: Story
+Priority: Could (Icebox)
+Story Points: 8
+Assignee: Dev 1 (UI) + Dev 2 (logic)
+Sprint: Icebox
+User Story: As a student, I want to access Bear's Den for all 5 subjects, not just Bahasa Melayu, so that I can do cross-chapter practice in every subject I study.
+Acceptance Criteria:
+Unlock conditions for English, Mandarin, Maths, and Science are configured in the Bear's Den Firestore config.
+The Bear's Den locked/unlocked tile UI appears in the chapter maps of all subjects.
+The session engine successfully draws from the respective subject's question banks using the existing weighting algorithm.
+Dependencies:
+BEAR-70 & BEAR-71 (Stable Bahasa Melayu Bear's Den MVP)
+BEAR-30 (Verified question banks for all 5 subjects)
+
+--------------------------------------------------------------------------------
+BEAR-M (formerly I-13 / BEAR-76)
+Epic: Bear's Den
+Summary: Bear's Den — parent dashboard session history
+Type: Story
+Priority: Could (Icebox)
+Story Points: 3
+Assignee: Dev 2
+Sprint: Icebox
+User Story: As a parent, I want to see my child's Bear's Den session history and results on the parent dashboard, so that I can track how their cross-chapter knowledge is developing over time.
+Acceptance Criteria:
+The parent dashboard filters attempt history to isolate sessions with source: "bears_den".
+A "Bear's Den Results" card displays on the parent dashboard.
+The card shows the date, score, and chapter breakdown for each Bear's Den attempt.
+Dependencies:
+BEAR-25 (Parent dashboard base)
+BEAR-71 (Bear's Den session generating the attempt documents)
+

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -57,6 +58,9 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final effectiveChildId = childId ?? '';
+    if (effectiveChildId.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
     final subjectProgressAsync = ref.watch(
       subjectProgressProvider(effectiveChildId),
     );
@@ -79,16 +83,50 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: ProgressBarCard(
-                title: 'Daily Goal',
-                subtitle: '2 more lessons to go today',
-                progress: .4,
-                icon: Icons.flag_rounded,
+          SliverToBoxAdapter(child: _DailyGoalCard(childId: effectiveChildId)),
+          subjectProgressAsync.when(
+            data: (progressList) {
+              // Calculate average progress
+              int totalProgress = 0;
+              for (var s in subjectsList) {
+                final id = _getSubjectId(s.$1);
+                final dbS = progressList.firstWhere(
+                  (p) => p.id == id,
+                  orElse: () => Subject(
+                    id: id,
+                    name: s.$1,
+                    subtitle: s.$2,
+                    icon: s.$3,
+                    color: s.$4,
+                    progress: 0,
+                  ),
+                );
+                totalProgress += dbS.progress;
+              }
+              final avgProgress = (totalProgress / subjectsList.length).round();
+
+              return SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
+                  child: ProgressBarCard(
+                    title: 'Overall Progress',
+                    subtitle: '$avgProgress% of all subjects completed',
+                    progress: avgProgress / 100,
+                    icon: Icons.flag_rounded,
+                  ),
+                ),
+              );
+            },
+            loading: () => const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: LinearProgressIndicator(),
               ),
             ),
+            error: (err, _) =>
+                const SliverToBoxAdapter(child: SizedBox.shrink()),
           ),
           subjectProgressAsync.when(
             data: (progressList) {
@@ -117,6 +155,8 @@ class HomeScreen extends ConsumerWidget {
                       icon: s.$3,
                       color: s.$4,
                       progress: dbSubject.progress,
+                      completedLevels: dbSubject.completedLevels,
+                      totalStars: dbSubject.totalStars,
                       onTap: () => context.go(
                         Uri(
                           path: AppRouter.subject,
@@ -150,21 +190,73 @@ class HomeScreen extends ConsumerWidget {
       case 'Bahasa Melayu':
         return 'bm';
       case 'English':
-        return 'english';
+        return 'en';
       case 'Mandarin':
-        return 'mandarin';
+        return 'bc';
       case 'Mathematics':
         return 'math';
       case 'Science':
         return 'science';
       default:
-        return name.toLowerCase();
+        return name.toLowerCase().substring(0, math.min(name.length, 2));
     }
+  }
+}
+
+class _DailyGoalCard extends ConsumerWidget {
+  const _DailyGoalCard({required this.childId});
+
+  final String childId;
+
+  String _todayKey() {
+    final now = DateTime.now();
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return '${now.year}-$month-$day';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userProfileAsync = ref.watch(userProfileProvider(childId));
+
+    return userProfileAsync.maybeWhen(
+      data: (profile) {
+        final goal = profile.dailyGoal;
+        if (goal == null || !goal.isValid) {
+          return const SizedBox.shrink();
+        }
+
+        final todayProgress = goal.lastUpdatedDate == _todayKey()
+            ? goal.todayProgress
+            : 0;
+        final progress = (todayProgress / goal.target)
+            .clamp(0.0, 1.0)
+            .toDouble();
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: ProgressBarCard(
+            title: 'Daily Goal',
+            subtitle:
+                '$todayProgress of ${goal.target} ${goal.unitLabel} completed today',
+            progress: progress,
+            icon: goal.type == 'minutes' ? Icons.timer : Icons.flag_rounded,
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
   }
 }
 
 class _Header extends ConsumerWidget {
   const _Header({required this.childId});
+
   final String childId;
 
   @override
@@ -201,13 +293,13 @@ class _Header extends ConsumerWidget {
                 ),
                 userProfileAsync.when(
                   data: (profile) => Text(
-                    ' ${profile.streakCount}',
+                    ' ${profile.streakCount} days',
                     style: AppTextStyles.bodyBold,
                   ),
                   loading: () =>
-                      const Text(' -', style: AppTextStyles.bodyBold),
+                      const Text(' - days', style: AppTextStyles.bodyBold),
                   error: (_, _) =>
-                      const Text(' 0', style: AppTextStyles.bodyBold),
+                      const Text(' 0 days', style: AppTextStyles.bodyBold),
                 ),
               ],
             ),
