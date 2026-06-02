@@ -10,6 +10,8 @@ class SubjectCard extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.progress,
+    this.completedLevels = 0,
+    this.totalStars = 0,
     required this.onTap,
   });
 
@@ -18,22 +20,30 @@ class SubjectCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final int progress;
+  final int completedLevels;
+  final int totalStars;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: color,
-      borderRadius: AppRadius.r(AppRadius.xl),
+      borderRadius: BorderRadius.circular(24.0),
       elevation: 0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: AppRadius.r(AppRadius.xl),
+        borderRadius: BorderRadius.circular(24.0),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            borderRadius: AppRadius.r(AppRadius.xl),
-            boxShadow: AppShadows.card,
+            borderRadius: BorderRadius.circular(24.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,12 +86,22 @@ class SubjectCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  '$progress% selesai',
-                  style: AppTextStyles.whiteSmall,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '$completedLevels pelajaran',
+                        style: AppTextStyles.whiteSmall,
+                      ),
+                      const Text(' • ', style: AppTextStyles.whiteSmall),
+                      Text('$totalStars ', style: AppTextStyles.whiteSmall),
+                      const Icon(Icons.star, size: 12, color: Colors.white70),
+                    ],
+                  ),
+                  Text('$progress% selesai', style: AppTextStyles.whiteSmall),
+                ],
               ),
             ],
           ),

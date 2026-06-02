@@ -5,13 +5,15 @@ import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
 import '../models/reward.dart';
+import '../models/notification.dart';
+import '../models/star_transaction.dart';
 import '../services/firestore_service.dart';
-//import '../router/app_router.dart';
-
 import '../services/security_service.dart';
+import '../services/tts_service.dart';
 
 final firestoreServiceProvider = Provider((ref) => FirestoreService());
 final securityServiceProvider = Provider((ref) => SecurityService());
+final ttsServiceProvider = Provider((ref) => TtsService());
 final firebaseAuthProvider = Provider((ref) => FirebaseAuth.instance);
 
 final authStateProvider = StreamProvider<User?>((ref) {
@@ -33,6 +35,18 @@ final rewardsProvider = StreamProvider<List<Reward>>((ref) {
   final parentId = ref.watch(parentIdProvider);
   if (parentId.isEmpty) return const Stream.empty();
   return ref.watch(firestoreServiceProvider).streamRewards(parentId);
+});
+
+final childrenProvider = StreamProvider<List<UserProfile>>((ref) {
+  final parentId = ref.watch(parentIdProvider);
+  if (parentId.isEmpty) return const Stream.empty();
+  return ref.watch(firestoreServiceProvider).streamChildren(parentId);
+});
+
+final notificationsProvider = StreamProvider<List<ParentNotification>>((ref) {
+  final parentId = ref.watch(parentIdProvider);
+  if (parentId.isEmpty) return const Stream.empty();
+  return ref.watch(firestoreServiceProvider).streamNotifications(parentId);
 });
 
 // In Riverpod 3.0, StateProvider is removed. Use NotifierProvider instead.
@@ -68,7 +82,7 @@ final subjectProgressProvider = StreamProvider.family<List<Subject>, String>((
 ) {
   final parentId = ref.watch(parentIdProvider);
 
-  if (childId.isEmpty) {
+  if (childId.isEmpty || parentId.isEmpty) {
     return const Stream.empty();
   }
 
@@ -98,4 +112,17 @@ final levelStarsProvider =
       return ref
           .watch(firestoreServiceProvider)
           .streamLevelStars(parentId, arg.childId, arg.subjectId);
+    });
+
+final starTransactionsProvider =
+    StreamProvider.family<
+      List<StarTransaction>,
+      ({String parentId, String childId})
+    >((ref, arg) {
+      if (arg.parentId.isEmpty || arg.childId.isEmpty) {
+        return const Stream.empty();
+      }
+      return ref
+          .watch(firestoreServiceProvider)
+          .streamStarTransactions(arg.parentId, arg.childId);
     });

@@ -11,6 +11,7 @@ import '../screens/child/memory_challenge_screen.dart';
 import '../screens/child/profile_screen.dart';
 import '../screens/child/quests_screen.dart';
 import '../screens/child/reward_list_screen.dart';
+import '../screens/child/star_history_screen.dart';
 import '../screens/child/subject_screen.dart';
 import '../screens/child/mascot_selection_screen.dart';
 import '../screens/parent/dashboard_screen.dart';
@@ -56,11 +57,18 @@ class AppRouter {
 
   static String chapterFor(String? childId) => withChildId(chapter, childId);
 
-  static String levelSessionFor(String? childId, {String? levelPrefix}) {
+  static String levelSessionFor(
+    String? childId, {
+    String? levelPrefix,
+    String? subjectId,
+  }) {
     final params = <String, String>{};
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
     if (levelPrefix != null && levelPrefix.isNotEmpty) {
       params['levelPrefix'] = levelPrefix;
+    }
+    if (subjectId != null && subjectId.isNotEmpty) {
+      params['subjectId'] = subjectId;
     }
     return Uri(path: levelSession, queryParameters: params).toString();
   }
@@ -88,6 +96,7 @@ class AppRouter {
   static const quests = '/quests';
   static const rewards = '/rewards';
   static const profile = '/profile';
+  static const starHistory = '/star-history';
   static const memory = '/memory-challenge';
   static const parentDashboard = '/parent-dashboard';
   static const parentRewards = '/parent-rewards';
@@ -193,6 +202,16 @@ class AppRouter {
             path: profile,
             pageBuilder: (context, state) =>
                 _noTransitionPage(state, const ProfileScreen()),
+          ),
+          GoRoute(
+            path: starHistory,
+            pageBuilder: (context, state) {
+              final childId = state.uri.queryParameters['childId'] ?? '';
+              return _noTransitionPage(
+                state,
+                StarHistoryScreen(childId: childId),
+              );
+            },
           ),
 
           GoRoute(
