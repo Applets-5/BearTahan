@@ -51,9 +51,12 @@ class ParentNotification {
       case 'reward':
         return Icons.card_giftcard;
       case 'goal':
+      case 'goal_complete':
         return Icons.flag;
       case 'progress':
         return Icons.trending_up;
+      case 'streak_risk':
+        return Icons.local_fire_department;
       default:
         return Icons.notifications;
     }

@@ -127,5 +127,148 @@ void main() {
 
       expect(doc.data()?['isRead'], true);
     });
+
+    test('updateDailyGoal should store goal on child document', () async {
+      const parentId = 'p1';
+      const childId = 'c1';
+
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .set({'name': 'Aina'});
+
+      await firestoreService.updateDailyGoal(
+        parentId,
+        childId,
+        type: 'lessons',
+        target: 3,
+      );
+
+      final childDoc = await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .get();
+      final goal = childDoc.data()?['dailyGoal'] as Map<String, dynamic>;
+
+      expect(goal['type'], 'lessons');
+      expect(goal['target'], 3);
+      expect(goal['todayProgress'], 0);
+    });
+
+    test(
+      'recordAttempt should increment lesson goal and notify once when completed',
+      () async {
+        const parentId = 'p1';
+        const childId = 'c1';
+
+        await fakeFirestore.collection('parents').doc(parentId).set({
+          'dailyGoals': true,
+        });
+        await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .set({
+              'name': 'Aina',
+              'dailyGoal': {'type': 'lessons', 'target': 2},
+            });
+
+        await firestoreService.recordAttempt(
+          parentId,
+          childId,
+          subjectId: 'bm',
+          levelId: 'l1',
+          score: 1,
+          total: 1,
+          stars: 3,
+          timeInSeconds: 30,
+        );
+        await firestoreService.recordAttempt(
+          parentId,
+          childId,
+          subjectId: 'bm',
+          levelId: 'l2',
+          score: 1,
+          total: 1,
+          stars: 3,
+          timeInSeconds: 30,
+        );
+        await firestoreService.recordAttempt(
+          parentId,
+          childId,
+          subjectId: 'bm',
+          levelId: 'l3',
+          score: 1,
+          total: 1,
+          stars: 3,
+          timeInSeconds: 30,
+        );
+
+        final childDoc = await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .get();
+        final goal = childDoc.data()?['dailyGoal'] as Map<String, dynamic>;
+        expect(goal['todayProgress'], 3);
+
+        final notifications = await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('notifications')
+            .get();
+
+        expect(notifications.docs.length, 1);
+        expect(notifications.docs.first.data()['type'], 'goal_complete');
+      },
+    );
+
+    test(
+      'recordAttempt should increment minute goal using elapsed time',
+      () async {
+        const parentId = 'p1';
+        const childId = 'c1';
+
+        await fakeFirestore.collection('parents').doc(parentId).set({
+          'dailyGoals': true,
+        });
+        await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .set({
+              'name': 'Aina',
+              'dailyGoal': {'type': 'minutes', 'target': 5},
+            });
+
+        await firestoreService.recordAttempt(
+          parentId,
+          childId,
+          subjectId: 'bm',
+          levelId: 'l1',
+          score: 1,
+          total: 1,
+          stars: 3,
+          timeInSeconds: 125,
+        );
+
+        final childDoc = await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .get();
+        final goal = childDoc.data()?['dailyGoal'] as Map<String, dynamic>;
+
+        expect(goal['todayProgress'], 3);
+      },
+    );
   });
 }

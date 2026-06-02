@@ -195,6 +195,13 @@ class FirestoreService {
     }
   }
 
+  String _todayKey([DateTime? now]) {
+    final date = now ?? DateTime.now();
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
   Stream<List<ParentNotification>> streamNotifications(String parentId) {
     return _db
         .collection('parents')
@@ -332,6 +339,130 @@ class FirestoreService {
         .collection('parents')
         .doc(parentId)
         .set(settings, SetOptions(merge: true));
+  }
+
+  Future<void> updateDailyGoal(
+    String parentId,
+    String childId, {
+    required String type,
+    required int target,
+  }) async {
+    if (type != 'lessons' && type != 'minutes') {
+      throw ArgumentError.value(type, 'type', 'Use lessons or minutes');
+    }
+    if (target <= 0) {
+      throw ArgumentError.value(target, 'target', 'Target must be positive');
+    }
+
+    final today = _todayKey();
+    final childDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+
+    await _db.runTransaction((transaction) async {
+      final childSnapshot = await transaction.get(childDocRef);
+      final childData = childSnapshot.data() ?? {};
+      final currentGoal = childData['dailyGoal'] is Map
+          ? Map<String, dynamic>.from(childData['dailyGoal'] as Map)
+          : <String, dynamic>{};
+
+      final lastUpdatedDate = currentGoal['lastUpdatedDate']?.toString();
+      final existingProgress = lastUpdatedDate == today
+          ? (currentGoal['todayProgress'] ?? 0).toInt()
+          : 0;
+
+      transaction.set(childDocRef, {
+        'dailyGoal': {
+          'type': type,
+          'target': target,
+          'todayProgress': existingProgress,
+          'lastUpdatedDate': today,
+          'lastNotifiedDate': currentGoal['lastNotifiedDate'],
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
+  }
+
+  Future<void> updateDailyGoalProgress(
+    String parentId,
+    String childId, {
+    required int timeInSeconds,
+  }) async {
+    final today = _todayKey();
+    final childDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+    final parentDocRef = _db.collection('parents').doc(parentId);
+    final notificationColRef = parentDocRef.collection('notifications');
+
+    await _db.runTransaction((transaction) async {
+      final childSnapshot = await transaction.get(childDocRef);
+      final childData = childSnapshot.data() ?? {};
+      final dailyGoalData = childData['dailyGoal'];
+
+      if (dailyGoalData is! Map) return;
+
+      final goal = Map<String, dynamic>.from(dailyGoalData);
+      final type = goal['type']?.toString();
+      final target = (goal['target'] ?? 0).toInt();
+      if ((type != 'lessons' && type != 'minutes') || target <= 0) return;
+
+      final lastUpdatedDate = goal['lastUpdatedDate']?.toString();
+      final previousProgress = lastUpdatedDate == today
+          ? (goal['todayProgress'] ?? 0).toInt()
+          : 0;
+      final increment = type == 'minutes'
+          ? (timeInSeconds / 60).ceil().clamp(1, 1000000).toInt()
+          : 1;
+      final nextProgress = previousProgress + increment;
+      final wasComplete = previousProgress >= target;
+      final isComplete = nextProgress >= target;
+
+      final parentSnapshot = await transaction.get(parentDocRef);
+      final parentData = parentSnapshot.data() ?? {};
+      final goalNotificationsEnabled = parentData['dailyGoals'] != false;
+      final lastNotifiedDate = goal['lastNotifiedDate']?.toString();
+      final shouldNotify =
+          goalNotificationsEnabled &&
+          !wasComplete &&
+          isComplete &&
+          lastNotifiedDate != today;
+
+      final updatedGoal = {
+        ...goal,
+        'type': type,
+        'target': target,
+        'todayProgress': nextProgress,
+        'lastUpdatedDate': today,
+        if (shouldNotify) 'lastNotifiedDate': today,
+      };
+
+      transaction.set(childDocRef, {
+        'dailyGoal': updatedGoal,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (shouldNotify) {
+        final childName = childData['name']?.toString() ?? 'Your child';
+        final notification = ParentNotification(
+          id: '',
+          title: '$childName completed today\'s learning goal',
+          type: 'goal_complete',
+          timestamp: DateTime.now(),
+          childId: childId,
+          childName: childName,
+        );
+        transaction.set(notificationColRef.doc(), {
+          ...notification.toFirestore(),
+          'payload': {'type': 'goal_complete', 'childName': childName},
+        });
+      }
+    });
   }
 
   Future<void> updateLevelProgress(
@@ -574,5 +705,11 @@ class FirestoreService {
           'timeInSeconds': timeInSeconds,
           'completedAt': FieldValue.serverTimestamp(),
         });
+
+    await updateDailyGoalProgress(
+      parentId,
+      childId,
+      timeInSeconds: timeInSeconds,
+    );
   }
 }

@@ -1,5 +1,45 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class DailyGoal {
+  final String type; // 'lessons' or 'minutes'
+  final int target;
+  final int todayProgress;
+  final String? lastUpdatedDate;
+  final String? lastNotifiedDate;
+
+  const DailyGoal({
+    required this.type,
+    required this.target,
+    this.todayProgress = 0,
+    this.lastUpdatedDate,
+    this.lastNotifiedDate,
+  });
+
+  bool get isValid => (type == 'lessons' || type == 'minutes') && target > 0;
+
+  String get unitLabel => type == 'minutes' ? 'minutes' : 'lessons';
+
+  factory DailyGoal.fromMap(Map<String, dynamic> data) {
+    return DailyGoal(
+      type: data['type']?.toString() ?? 'lessons',
+      target: (data['target'] ?? 0).toInt(),
+      todayProgress: (data['todayProgress'] ?? 0).toInt(),
+      lastUpdatedDate: data['lastUpdatedDate']?.toString(),
+      lastNotifiedDate: data['lastNotifiedDate']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'type': type,
+      'target': target,
+      'todayProgress': todayProgress,
+      'lastUpdatedDate': lastUpdatedDate,
+      'lastNotifiedDate': lastNotifiedDate,
+    };
+  }
+}
+
 class UserProfile {
   final String uid;
   final String name;
@@ -9,6 +49,7 @@ class UserProfile {
 
   final int streakCount;
   final DateTime? lastActivityDate;
+  final DailyGoal? dailyGoal;
 
   UserProfile({
     required this.uid,
@@ -18,9 +59,11 @@ class UserProfile {
     this.parentId,
     this.streakCount = 0,
     this.lastActivityDate,
+    this.dailyGoal,
   });
 
   factory UserProfile.fromFirestore(String uid, Map<String, dynamic> data) {
+    final dailyGoalData = data['dailyGoal'];
     return UserProfile(
       uid: uid,
       name: data['name'] ?? 'Student',
@@ -30,6 +73,9 @@ class UserProfile {
       streakCount: (data['streakCount'] ?? 0).toInt(),
       lastActivityDate: data['lastActivityDate'] != null
           ? (data['lastActivityDate'] as Timestamp).toDate()
+          : null,
+      dailyGoal: dailyGoalData is Map
+          ? DailyGoal.fromMap(Map<String, dynamic>.from(dailyGoalData))
           : null,
     );
   }
