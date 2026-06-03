@@ -13,67 +13,88 @@ void main() {
   });
 
   group('FirestoreService Tests', () {
-    test('claimReward should deduct stars and create a notification', () async {
-      const parentId = 'p1';
-      const childId = 'c1';
-      const childName = 'Aina';
+    test(
+      'claimReward should create pending claim without deducting stars',
+      () async {
+        const parentId = 'p1';
+        const childId = 'c1';
+        const childName = 'Aina';
 
-      // Setup initial data in fake firestore
-      await fakeFirestore
-          .collection('parents')
-          .doc(parentId)
-          .collection('children')
-          .doc(childId)
-          .set({'starBalance': 150});
+        await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .set({'availableStars': 150, 'lifetimeStarsEarned': 150});
 
-      final reward = Reward(
-        id: 'r1',
-        title: 'Extra Screen Time',
-        description: '30 mins extra',
-        cost: 100,
-        status: 'available',
-      );
+        final reward = Reward(
+          id: 'r1',
+          title: 'Extra Screen Time',
+          description: '30 mins extra',
+          cost: 100,
+          status: 'available',
+        );
 
-      await fakeFirestore
-          .collection('parents')
-          .doc(parentId)
-          .collection('rewards')
-          .doc(reward.id)
-          .set(reward.toFirestore());
+        await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('rewards')
+            .doc(reward.id)
+            .set(reward.toFirestore());
 
-      // Execute claim
-      await firestoreService.claimReward(parentId, childId, reward, childName);
+        await firestoreService.claimReward(
+          parentId,
+          childId,
+          reward,
+          childName,
+        );
 
-      // Verify star deduction
-      final childDoc = await fakeFirestore
-          .collection('parents')
-          .doc(parentId)
-          .collection('children')
-          .doc(childId)
-          .get();
-      expect(childDoc.data()?['starBalance'], 50);
+        final childDoc = await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .get();
+        expect(childDoc.data()?['availableStars'], 150);
+        expect(childDoc.data()?['lifetimeStarsEarned'], 150);
 
-      // Verify reward status update
-      final rewardDoc = await fakeFirestore
-          .collection('parents')
-          .doc(parentId)
-          .collection('rewards')
-          .doc(reward.id)
-          .get();
-      expect(rewardDoc.data()?['status'], 'pending');
+        final rewardDoc = await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('rewards')
+            .doc(reward.id)
+            .get();
+        expect(rewardDoc.data()?['status'], 'available');
 
-      // Verify notification creation
-      final notifications = await fakeFirestore
-          .collection('parents')
-          .doc(parentId)
-          .collection('notifications')
-          .get();
-      expect(notifications.docs.length, 1);
-      expect(
-        notifications.docs.first.data()['title'],
-        contains('Aina wants to redeem Extra Screen Time'),
-      );
-    });
+        final claimDoc = await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .collection('rewardClaims')
+            .get();
+        expect(claimDoc.docs.length, 1);
+        expect(claimDoc.docs.first.data()['status'], 'pending');
+        expect(claimDoc.docs.first.data()['rewardId'], reward.id);
+        expect(claimDoc.docs.first.data()['rewardName'], 'Extra Screen Time');
+        expect(claimDoc.docs.first.data()['starCost'], 100);
+
+        final notifications = await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('notifications')
+            .get();
+        expect(notifications.docs.length, 1);
+        expect(
+          notifications.docs.first.data()['title'],
+          contains('Aina wants to redeem Extra Screen Time'),
+        );
+        expect(
+          notifications.docs.first.data()['payload']['type'],
+          'reward_claimed',
+        );
+      },
+    );
 
     test('claimReward should throw error if insufficient stars', () async {
       const parentId = 'p1';
@@ -84,7 +105,7 @@ void main() {
           .doc(parentId)
           .collection('children')
           .doc(childId)
-          .set({'starBalance': 50});
+          .set({'availableStars': 50, 'lifetimeStarsEarned': 50});
 
       final reward = Reward(
         id: 'r1',
@@ -102,6 +123,155 @@ void main() {
             contains('Insufficient stars'),
           ),
         ),
+      );
+    });
+
+    test('claimReward should block duplicate pending claim', () async {
+      const parentId = 'p1';
+      const childId = 'c1';
+      final reward = Reward(
+        id: 'r1',
+        title: 'Ice Cream',
+        description: 'Treat',
+        cost: 20,
+      );
+
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .set({'availableStars': 50});
+
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .collection('rewardClaims')
+          .doc('existing_pending_claim')
+          .set({'status': 'pending', 'rewardId': reward.id});
+
+      expect(
+        () => firestoreService.claimReward(parentId, childId, reward, 'Aina'),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('already pending'),
+          ),
+        ),
+      );
+    });
+
+    for (final status in ['approved', 'rejected', 'expired']) {
+      test('claimReward should allow claim after $status claim', () async {
+        const parentId = 'p1';
+        const childId = 'c1';
+        final reward = Reward(
+          id: 'r1',
+          title: 'Ice Cream',
+          description: 'Treat',
+          cost: 20,
+        );
+
+        await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .set({'availableStars': 50, 'lifetimeStarsEarned': 50});
+
+        await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .collection('rewardClaims')
+            .doc('resolved_claim')
+            .set({
+              'status': status,
+              'rewardId': reward.id,
+              'rewardName': reward.title,
+              'starCost': reward.cost,
+            });
+
+        await firestoreService.claimReward(parentId, childId, reward, 'Aina');
+
+        final claimDoc = await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .collection('rewardClaims')
+            .get();
+
+        expect(claimDoc.docs.length, 2);
+        expect(
+          claimDoc.docs.where((doc) => doc.data()['status'] == status).length,
+          1,
+        );
+        final pendingClaims = claimDoc.docs
+            .where((doc) => doc.data()['status'] == 'pending')
+            .toList();
+        expect(pendingClaims.length, 1);
+        expect(pendingClaims.first.data()['rewardId'], reward.id);
+        expect(pendingClaims.first.data()['rewardName'], reward.title);
+      });
+    }
+
+    test('claimReward should preserve repeated claim history', () async {
+      const parentId = 'p1';
+      const childId = 'c1';
+      final reward = Reward(
+        id: 'r1',
+        title: 'Game Time',
+        description: '15 minutes',
+        cost: 20,
+      );
+
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .set({'availableStars': 80, 'lifetimeStarsEarned': 80});
+
+      final claimsRef = fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .collection('rewardClaims');
+
+      await claimsRef.doc('first_claim').set({
+        'status': 'approved',
+        'rewardId': reward.id,
+        'rewardName': reward.title,
+        'starCost': reward.cost,
+      });
+      await claimsRef.doc('second_claim').set({
+        'status': 'rejected',
+        'rewardId': reward.id,
+        'rewardName': reward.title,
+        'starCost': reward.cost,
+      });
+
+      await firestoreService.claimReward(parentId, childId, reward, 'Aina');
+
+      final claims = await claimsRef.get();
+      expect(claims.docs.length, 3);
+      expect(
+        claims.docs.where((doc) => doc.data()['status'] == 'approved').length,
+        1,
+      );
+      expect(
+        claims.docs.where((doc) => doc.data()['status'] == 'rejected').length,
+        1,
+      );
+      expect(
+        claims.docs.where((doc) => doc.data()['status'] == 'pending').length,
+        1,
       );
     });
 

@@ -5,6 +5,7 @@ import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
 import '../models/reward.dart';
+import '../models/reward_claim.dart';
 import '../models/notification.dart';
 import '../models/star_transaction.dart';
 import '../services/firestore_service.dart';
@@ -125,4 +126,17 @@ final starTransactionsProvider =
       return ref
           .watch(firestoreServiceProvider)
           .streamStarTransactions(arg.parentId, arg.childId);
+    });
+
+final rewardClaimsProvider =
+    StreamProvider.family<
+      List<RewardClaim>,
+      ({String parentId, String childId})
+    >((ref, arg) {
+      if (arg.parentId.isEmpty || arg.childId.isEmpty) {
+        return const Stream.empty();
+      }
+      return ref
+          .watch(firestoreServiceProvider)
+          .streamRewardClaims(arg.parentId, arg.childId);
     });
