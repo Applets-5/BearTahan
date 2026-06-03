@@ -59,7 +59,7 @@ class StarHistoryScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '${isEarn ? '+' : ''}${tx.amount}',
+                      isEarn ? '+${tx.amount}' : '-${tx.amount.abs()}',
                       style: AppTextStyles.bodyBold.copyWith(
                         color: isEarn
                             ? AppColors.accent

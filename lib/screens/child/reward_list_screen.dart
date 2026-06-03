@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../models/reward_claim.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
@@ -29,16 +31,27 @@ class RewardListScreen extends ConsumerWidget {
     }
 
     final userProfileAsync = ref.watch(userProfileProvider(childId));
-    final subjectProgressAsync = ref.watch(subjectProgressProvider(childId));
+    final parentId = ref.watch(parentIdProvider);
+    final rewardClaimsAsync = ref.watch(
+      rewardClaimsProvider((parentId: parentId, childId: childId)),
+    );
 
     return SafeArea(
       child: rewardsAsync.when(
         data: (rewards) {
+          final claims = rewardClaimsAsync.value ?? [];
+          final pendingClaims = claims.where((c) => c.isPending).toList();
+          final resolvedClaims = claims.where((c) => !c.isPending).toList();
+          final pendingRewardIds = pendingClaims.map((c) => c.rewardId).toSet();
           final availableRewards = rewards
-              .where((r) => r.status == 'available')
+              .where(
+                (r) =>
+                    r.status == 'available' && !pendingRewardIds.contains(r.id),
+              )
               .toList();
 
-          final int currentBalance = userProfileAsync.value?.starBalance ?? 0;
+          final int currentBalance =
+              userProfileAsync.value?.availableStars ?? 0;
 
           // Sort: Enough stars first, then not enough
           availableRewards.sort((a, b) {
@@ -48,10 +61,6 @@ class RewardListScreen extends ConsumerWidget {
             if (!aEnough && bEnough) return 1;
             return a.cost.compareTo(b.cost); // Within groups, sort by cost
           });
-
-          final pendingRewards = rewards
-              .where((r) => r.status == 'pending')
-              .toList();
 
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -89,7 +98,7 @@ class RewardListScreen extends ConsumerWidget {
                     child: userProfileAsync.when(
                       data: (profile) => _StarSummary(
                         label: 'Available',
-                        value: profile.starBalance.toString(),
+                        value: profile.availableStars.toString(),
                         icon: Icons.star,
                         color: AppColors.star,
                       ),
@@ -109,42 +118,21 @@ class RewardListScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
-                    child: subjectProgressAsync.when(
-                      data: (subjects) {
-                        final totalLifetime = subjects.fold(0, (sum, s) {
-                          // Self-healing: if the subject exists but is missing aggregation, trigger a sync
-                          if (s.totalStars == 0 && s.progress > 0) {
-                            debugPrint(
-                              'DEBUG: Self-healing triggered for ${s.id} on reward screen',
-                            );
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              final parentId = ref.read(parentIdProvider);
-                              ref
-                                  .read(firestoreServiceProvider)
-                                  .syncSubjectAggregation(
-                                    parentId,
-                                    childId,
-                                    s.id,
-                                  );
-                            });
-                          }
-                          return sum + s.totalStars;
-                        });
-                        return _StarSummary(
-                          label: 'Lifetime',
-                          value: totalLifetime.toString(),
-                          icon: Icons.auto_awesome,
-                          color: AppColors.star,
-                        );
-                      },
+                    child: userProfileAsync.when(
+                      data: (profile) => _StarSummary(
+                        label: 'Total Earned',
+                        value: profile.lifetimeStarsEarned.toString(),
+                        icon: Icons.auto_awesome,
+                        color: AppColors.star,
+                      ),
                       loading: () => _StarSummary(
-                        label: 'Lifetime',
+                        label: 'Total Earned',
                         value: '0',
                         icon: Icons.auto_awesome,
                         color: AppColors.star,
                       ),
                       error: (err, stack) => _StarSummary(
-                        label: 'Lifetime',
+                        label: 'Total Earned',
                         value: '0',
                         icon: Icons.auto_awesome,
                         color: AppColors.star,
@@ -154,18 +142,18 @@ class RewardListScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (pendingRewards.isNotEmpty) ...[
+              if (pendingClaims.isNotEmpty) ...[
                 const Text('Pending Approval', style: AppTextStyles.tiny),
                 const SizedBox(height: AppSpacing.sm),
-                ...pendingRewards.map(
-                  (r) => Padding(
+                ...pendingClaims.map(
+                  (claim) => Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: RewardCard(
-                      title: r.title,
-                      description: r.description,
-                      cost: r.cost,
-                      status: r.status,
-                      currentStars: userProfileAsync.value?.starBalance,
+                      title: claim.rewardName,
+                      description: 'Pending — waiting for parent approval',
+                      cost: claim.starCost,
+                      status: claim.status,
+                      currentStars: userProfileAsync.value?.availableStars,
                       showBorder: false,
                     ),
                   ),
@@ -193,19 +181,41 @@ class RewardListScreen extends ConsumerWidget {
                     description: r.description,
                     cost: r.cost,
                     status: r.status,
-                    currentStars: userProfileAsync.value?.starBalance,
+                    currentStars: userProfileAsync.value?.availableStars,
                     showBorder: false,
                     primaryLabel: 'Claim',
                     onPrimary: () async {
                       final profile = userProfileAsync.value;
                       if (profile == null) return;
 
-                      if (profile.starBalance < r.cost) {
+                      if (profile.availableStars < r.cost) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Not enough stars!')),
                         );
                         return;
                       }
+
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Claim Reward'),
+                          content: Text(
+                            'This will use ${r.cost} stars. Are you sure?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Claim'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed != true) return;
 
                       try {
                         final parentId = ref.read(parentIdProvider);
@@ -236,11 +246,102 @@ class RewardListScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (resolvedClaims.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.lg),
+                const Text('Claim History', style: AppTextStyles.tiny),
+                const SizedBox(height: AppSpacing.sm),
+                ...resolvedClaims
+                    .take(5)
+                    .map(
+                      (claim) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: _ClaimHistoryTile(claim: claim),
+                      ),
+                    ),
+              ],
             ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Error: $e')),
+      ),
+    );
+  }
+}
+
+class _ClaimHistoryTile extends StatelessWidget {
+  const _ClaimHistoryTile({required this.claim});
+
+  final RewardClaim claim;
+
+  Color _statusColor() {
+    switch (claim.status) {
+      case 'approved':
+        return AppColors.accent;
+      case 'rejected':
+        return AppColors.destructive;
+      case 'expired':
+        return AppColors.mutedText;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  IconData _statusIcon() {
+    switch (claim.status) {
+      case 'approved':
+        return Icons.check_circle;
+      case 'rejected':
+        return Icons.cancel;
+      case 'expired':
+        return Icons.schedule;
+      default:
+        return Icons.info;
+    }
+  }
+
+  String _message() {
+    switch (claim.status) {
+      case 'approved':
+        return 'Approved - ${claim.starCost} stars used';
+      case 'rejected':
+        return 'Rejected - stars unchanged';
+      case 'expired':
+        return 'Expired - stars unchanged';
+      default:
+        return claim.status;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _statusColor();
+    final date = claim.resolvedAt ?? claim.claimedAt;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: AppRadius.r(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(_statusIcon(), color: color),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(claim.rewardName, style: AppTextStyles.bodyBold),
+                Text(
+                  '${_message()} - ${DateFormat('dd MMM yyyy').format(date)}',
+                  style: AppTextStyles.tiny,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

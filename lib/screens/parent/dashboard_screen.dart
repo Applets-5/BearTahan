@@ -154,11 +154,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         0,
                         (sum, s) => sum + (s['completedLevels'] as int),
                       );
-                      int totalStarsEarned = displaySubjects.fold(
-                        0,
-                        (sum, s) => sum + (s['totalStars'] as int),
-                      );
-
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -168,7 +163,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 child: StatCard(
                                   icon: Icons.auto_awesome,
                                   label: 'Stars Earned',
-                                  value: totalStarsEarned.toString(),
+                                  value: profile.lifetimeStarsEarned.toString(),
                                   color: AppColors.star,
                                 ),
                               ),
@@ -215,7 +210,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       ),
                                       const SizedBox(width: AppSpacing.sm),
                                       Text(
-                                        'Spendable balance: ${profile.starBalance} stars',
+                                        'Available: ${profile.availableStars} stars',
                                         style: AppTextStyles.bodyBold,
                                       ),
                                     ],
@@ -462,7 +457,7 @@ class _RecentActivity extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          '${isEarn ? '+' : ''}${tx.amount}',
+                          isEarn ? '+${tx.amount}' : '-${tx.amount.abs()}',
                           style: AppTextStyles.small.copyWith(
                             fontWeight: FontWeight.bold,
                             color: isEarn
