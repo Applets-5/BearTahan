@@ -33,19 +33,17 @@ function Run-Format-Check {
         return
     }
 
-    & dart format @dartFiles
+    & dart format --output=none --set-exit-if-changed @dartFiles
     if ($LASTEXITCODE -ne 0) {
         throw "Check formatting failed with exit code $LASTEXITCODE"
-    }
-
-    & git diff --quiet -- @dartFiles
-    if ($LASTEXITCODE -ne 0) {
-        throw "Formatting changed tracked Dart files. Review and commit the formatted files, then run verification again."
     }
 }
 
 Run-Step "Install dependencies" @("flutter", "pub", "get")
 Run-Format-Check
+if (Test-Path "functions/index.js") {
+    Run-Step "Check Firebase Functions syntax" @("node", "--check", "functions/index.js")
+}
 Run-Step "Analyze" @("flutter", "analyze", "--no-pub")
 Run-Step "Test" @("flutter", "test", "--no-pub")
 
