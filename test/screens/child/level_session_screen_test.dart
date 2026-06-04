@@ -189,6 +189,28 @@ void main() {
       expect(find.byType(AudioPromptPlayer), findsOneWidget);
     });
 
+    testWidgets('should render stroke tracing question type', (tester) async {
+      final questions = [
+        Question(
+          id: 'q_stroke',
+          text: 'Trace this character',
+          type: 'stroke_trace',
+          options: const [],
+          correctAnswerIndex: 0,
+          characterUnicode: '人',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questions, key: const ValueKey('stroke_trace')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.textContaining('Trace 人'), findsOneWidget);
+      expect(find.textContaining('attempts left'), findsOneWidget);
+    });
+
     testWidgets(
       'should handle empty question pool gracefully with error message',
       (tester) async {

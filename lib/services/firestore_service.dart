@@ -275,6 +275,41 @@ class FirestoreService {
         .update({'isRead': true});
   }
 
+  Future<void> flagWrongAnswer(
+    String parentId,
+    String childId, {
+    required String questionId,
+    required String subjectId,
+    required String levelId,
+    String? questionText,
+  }) async {
+    final wrongAnswerRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank')
+        .doc(questionId);
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(wrongAnswerRef);
+      final data = snapshot.data() ?? {};
+      final reviewCount = (data['reviewCount'] ?? 0).toInt();
+      final now = Timestamp.now();
+
+      transaction.set(wrongAnswerRef, {
+        'questionId': questionId,
+        'subjectId': subjectId,
+        'levelId': levelId,
+        if (questionText != null && questionText.isNotEmpty)
+          'questionText': questionText,
+        'reviewCount': reviewCount + 1,
+        'lastWrongAt': now,
+        'addedAt': data['addedAt'] ?? now,
+      }, SetOptions(merge: true));
+    });
+  }
+
   Stream<List<UserProfile>> streamChildren(String parentId) {
     return _db
         .collection('parents')

@@ -12,6 +12,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
 import '../../widgets/common/audio_prompt_player.dart';
+import '../../widgets/child/stroke_trace_question.dart';
 
 class LevelSessionScreen extends ConsumerStatefulWidget {
   const LevelSessionScreen({
@@ -341,6 +342,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                         child: Text(
                           selected == question.correctAnswerIndex
                               ? 'Correct! Well done!'
+                              : question.type?.toLowerCase() == 'stroke_trace'
+                              ? 'Not quite. Watch the stroke order and try again later.'
                               : (question.type?.toLowerCase() == 'rearrange' &&
                                     question.correctOrder != null)
                               ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
@@ -364,6 +367,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                             _rearrangeSubmitted = false;
                             _draggedOptionIndex = null;
                             _fillBlankSubmitted = false;
+                            _strokeTraceSubmitted = false;
                           });
                         }
                       },
@@ -512,6 +516,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final type = question.type?.toLowerCase() ?? 'mcq';
     if (type == 'rearrange') return _rearrangeSubmitted;
     if (type == 'fillblank') return _fillBlankSubmitted;
+    if (type == 'stroke_trace') return _strokeTraceSubmitted;
     return selected != null;
   }
 
@@ -523,6 +528,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         return _buildRearrangeQuestion(question);
       case 'fillblank':
         return _buildFillBlankQuestion(question);
+      case 'stroke_trace':
+        return _buildStrokeTraceQuestion(question);
       case 'mcq':
       default:
         return Column(
@@ -651,6 +658,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   // --- FILL IN THE BLANK TYPE ---
   int? _draggedOptionIndex;
   bool _fillBlankSubmitted = false;
+  bool _strokeTraceSubmitted = false;
 
   Widget _buildFillBlankQuestion(Question question) {
     return Column(
@@ -731,6 +739,41 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           style: AppTextStyles.bodyBold,
         ),
       ),
+    );
+  }
+
+  Widget _buildStrokeTraceQuestion(Question question) {
+    return StrokeTraceQuestion(
+      key: ValueKey('stroke_trace_${question.id}'),
+      question: question,
+      onWrongAttempt: () {
+        final parentId = ref.read(parentIdProvider);
+        final childId = widget.childId;
+        if (parentId.isEmpty || childId == null || childId.isEmpty) return;
+
+        ref
+            .read(firestoreServiceProvider)
+            .flagWrongAnswer(
+              parentId,
+              childId,
+              questionId: question.id,
+              subjectId: widget.subjectId,
+              levelId: widget.levelId,
+              questionText: question.text,
+            )
+            .catchError((error) {
+              debugPrint('Error flagging wrong stroke answer: $error');
+            });
+      },
+      onComplete: (isCorrect) {
+        if (_strokeTraceSubmitted) return;
+        setState(() {
+          _strokeTraceSubmitted = true;
+          selected = isCorrect ? question.correctAnswerIndex : -1;
+          if (isCorrect) score++;
+          _playFeedback(isCorrect);
+        });
+      },
     );
   }
 
