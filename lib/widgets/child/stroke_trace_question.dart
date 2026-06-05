@@ -64,16 +64,16 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
     final controller = StrokeOrderAnimationController(
       StrokeOrder(strokeJson),
       this,
-      showStroke: false,
+      showStroke: true,
       showOutline: true,
       showBackground: false,
       showMedian: false,
       showUserStroke: true,
       strokeColor: AppColors.primary,
-      outlineColor: AppColors.primary.withValues(alpha: 0.35),
-      brushColor: AppColors.accent,
+      outlineColor: AppColors.star.withValues(alpha: 0.55),
+      brushColor: AppColors.primary,
       hintColor: AppColors.star,
-      brushWidth: 16,
+      brushWidth: 24,
       hintAfterStrokes: 1,
       onWrongStrokeCallback: _handleWrongStroke,
       onQuizCompleteCallback: (_) => _handleQuizComplete(),
@@ -109,7 +109,7 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
       _controller?.showFullCharacter();
       setState(() {
         _completed = true;
-        _feedback = 'Watch the correct stroke order, then try again later.';
+        _feedback = 'The correct character is shown. Try again later.';
       });
       widget.onComplete(false);
       return;
@@ -213,12 +213,18 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
               ),
               child: AspectRatio(
                 aspectRatio: 1,
-                child: IgnorePointer(
-                  ignoring: _inputLocked || _completed,
-                  child: StrokeOrderAnimator(
-                    controller,
-                    key: ValueKey('stroke_animator_${widget.question.id}'),
-                  ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final canvasSize = constraints.biggest.shortestSide;
+                    return IgnorePointer(
+                      ignoring: _inputLocked || _completed,
+                      child: StrokeOrderAnimator(
+                        controller,
+                        size: Size.square(canvasSize),
+                        key: ValueKey('stroke_animator_${widget.question.id}'),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
