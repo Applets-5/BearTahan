@@ -92,20 +92,23 @@ void main() {
       expect(value, equals(8));
     });
 
-    test('returns completed Science levels before all topics are completed', () {
-      final quest = OutfitQuest.byId('explorer_bear');
+    test(
+      'returns completed Science levels before all topics are completed',
+      () {
+        final quest = OutfitQuest.byId('explorer_bear');
 
-      final value = QuestUtils.calculateQuestCurrentValue(
-        quest: quest,
-        lifetimeStarsEarned: 0,
-        subjectProgress: {
-          'science': {'progress': 75, 'completedLevels': 6},
-        },
-        attempts: [],
-      );
+        final value = QuestUtils.calculateQuestCurrentValue(
+          quest: quest,
+          lifetimeStarsEarned: 0,
+          subjectProgress: {
+            'science': {'progress': 75, 'completedLevels': 6},
+          },
+          attempts: [],
+        );
 
-      expect(value, equals(6));
-    });
+        expect(value, equals(6));
+      },
+    );
 
     test('returns 0 for unknown quest condition type', () {
       const quest = OutfitQuest(
@@ -181,24 +184,24 @@ void main() {
   });
 
   group('QuestUtils.isNewUnlock', () {
-    test('returns true when non-starter quest reaches target for first time', () {
-      final quest = OutfitQuest.byId('astro_bear');
+    test(
+      'returns true when non-starter quest reaches target for first time',
+      () {
+        final quest = OutfitQuest.byId('astro_bear');
 
-      final isNewUnlock = QuestUtils.isNewUnlock(
-        quest: quest,
-        currentValue: 3,
-      );
+        final isNewUnlock = QuestUtils.isNewUnlock(
+          quest: quest,
+          currentValue: 3,
+        );
 
-      expect(isNewUnlock, isTrue);
-    });
+        expect(isNewUnlock, isTrue);
+      },
+    );
 
     test('returns false for starter quest', () {
       final quest = OutfitQuest.byId('scholar_bear');
 
-      final isNewUnlock = QuestUtils.isNewUnlock(
-        quest: quest,
-        currentValue: 0,
-      );
+      final isNewUnlock = QuestUtils.isNewUnlock(quest: quest, currentValue: 0);
 
       expect(isNewUnlock, isFalse);
     });
@@ -218,10 +221,7 @@ void main() {
     test('returns false when non-starter quest is still below target', () {
       final quest = OutfitQuest.byId('pirate_bear');
 
-      final isNewUnlock = QuestUtils.isNewUnlock(
-        quest: quest,
-        currentValue: 9,
-      );
+      final isNewUnlock = QuestUtils.isNewUnlock(quest: quest, currentValue: 9);
 
       expect(isNewUnlock, isFalse);
     });

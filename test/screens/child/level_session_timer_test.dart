@@ -20,7 +20,7 @@ void main() {
 
   setUp(() {
     mockFirestoreService = MockFirestoreService();
-    // Default mock behavior
+
     when(() => mockFirestoreService.getQuestions(any())).thenAnswer(
       (_) async => [
         Question(
@@ -54,13 +54,19 @@ void main() {
         any(),
       ),
     ).thenAnswer((_) async => {});
+
+    when(
+      () => mockFirestoreService.evaluateAndUpdateQuestProgress(
+        any(),
+        any(),
+      ),
+    ).thenAnswer((_) async => <String>[]);
   });
 
   Widget createTestableWidget() {
     return ProviderScope(
       overrides: [
         firestoreServiceProvider.overrideWithValue(mockFirestoreService),
-        // Providing a dummy parent ID
         parentIdProvider.overrideWithValue('mock-parent-id'),
       ],
       child: const MaterialApp(
@@ -69,6 +75,7 @@ void main() {
           subjectId: 'bm',
           levelId: 'l1',
           levelPrefix: 'bm_c1_l1_',
+          showFeedbackMascot: false,
         ),
       ),
     );
@@ -81,19 +88,18 @@ void main() {
       await tester.pumpWidget(createTestableWidget());
       await tester.pumpAndSettle();
 
-      // Verify timer starts at 00:00
       expect(find.text('00:00'), findsOneWidget);
     });
 
-    testWidgets('Timer counts up in MM:SS format', (WidgetTester tester) async {
+    testWidgets('Timer counts up in MM:SS format', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(createTestableWidget());
       await tester.pumpAndSettle();
 
-      // Advance time by 3 seconds
       await tester.pump(const Duration(seconds: 3));
       expect(find.text('00:03'), findsOneWidget);
 
-      // Advance time by 65 seconds total (to check minutes)
       await tester.pump(const Duration(seconds: 62));
       expect(find.text('01:05'), findsOneWidget);
     });
@@ -107,11 +113,9 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       expect(find.text('00:05'), findsOneWidget);
 
-      // Tap the correct option 'Rumah'
       await tester.tap(find.text('Rumah'));
-      await tester.pump(); // Show feedback
+      await tester.pump();
 
-      // We are now on feedback screen, wait 4 more seconds
       await tester.pump(const Duration(seconds: 4));
       expect(find.text('00:09'), findsOneWidget);
     });
@@ -122,18 +126,14 @@ void main() {
       await tester.pumpWidget(createTestableWidget());
       await tester.pumpAndSettle();
 
-      // Play for 10 seconds
       await tester.pump(const Duration(seconds: 10));
 
-      // Select answer
       await tester.tap(find.text('Rumah'));
       await tester.pump();
 
-      // Tap Finish (it's the last and only question)
       await tester.tap(find.text('Finish'));
-      await tester.pumpAndSettle(); // Wait for completion flow
+      await tester.pumpAndSettle();
 
-      // Verify recordAttempt was called with exactly 10 seconds
       verify(
         () => mockFirestoreService.recordAttempt(
           'mock-parent-id',

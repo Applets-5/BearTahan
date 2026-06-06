@@ -57,11 +57,7 @@ class MascotWidget extends StatelessWidget {
             ),
             child: image,
           )
-        : SizedBox(
-            height: size,
-            width: size,
-            child: image,
-          );
+        : SizedBox(height: size, width: size, child: image);
 
     if (message == null) return mascot;
 

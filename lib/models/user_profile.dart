@@ -78,7 +78,9 @@ class UserProfile {
           .toInt(),
       availableStars: availableStars,
       activeMascotOutfit:
-          data['activeOutfitID'] ?? data['activeMascotOutfit'] ?? 'scholar_bear',
+          data['activeOutfitID'] ??
+          data['activeMascotOutfit'] ??
+          'scholar_bear',
       parentId: data['parentId'],
       streakCount: (data['streakCount'] ?? 0).toInt(),
       lastActivityDate: data['lastActivityDate'] != null

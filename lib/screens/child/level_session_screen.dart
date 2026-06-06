@@ -21,12 +21,14 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
     this.levelPrefix = 'bm_c1_l1_',
     this.subjectId = 'bm',
     this.levelId = 'l1',
+    this.showFeedbackMascot = true,
   });
 
   final String? childId;
   final String levelPrefix;
   final String subjectId;
   final String levelId;
+  final bool showFeedbackMascot;
 
   @override
   ConsumerState<LevelSessionScreen> createState() => _LevelSessionScreenState();
@@ -353,12 +355,14 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            ActiveMascotWidget(
-                              childId: widget.childId,
-                              size: 56,
-                              showBackground: false,
-                            ),
-                            const SizedBox(width: AppSpacing.md),
+                            if (widget.showFeedbackMascot) ...[
+                              ActiveMascotWidget(
+                                childId: widget.childId,
+                                size: 56,
+                                showBackground: false,
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                            ],
                             Expanded(
                               child: Text(
                                 selected == question.correctAnswerIndex

@@ -242,8 +242,8 @@ class FirestoreService {
     }
   }
 
-  CollectionReference<Map<String, dynamic>> get _outfitQuestsRef => _db
-      .collection('outfitQuests');
+  CollectionReference<Map<String, dynamic>> get _outfitQuestsRef =>
+      _db.collection('outfitQuests');
 
   DocumentReference<Map<String, dynamic>> _childDocRef(
     String parentId,
@@ -290,15 +290,15 @@ class FirestoreService {
     String parentId,
     String childId,
   ) {
-    return _childDocRef(parentId, childId)
-        .collection('questProgress')
-        .snapshots()
-        .map((snapshot) {
-          return {
-            for (final doc in snapshot.docs)
-              doc.id: OutfitQuestProgress.fromFirestore(doc.id, doc.data()),
-          };
-        });
+    return _childDocRef(
+      parentId,
+      childId,
+    ).collection('questProgress').snapshots().map((snapshot) {
+      return {
+        for (final doc in snapshot.docs)
+          doc.id: OutfitQuestProgress.fromFirestore(doc.id, doc.data()),
+      };
+    });
   }
 
   Future<void> setActiveOutfit(
@@ -306,10 +306,10 @@ class FirestoreService {
     String childId,
     String outfitId,
   ) async {
-    final progressDoc = await _childDocRef(parentId, childId)
-        .collection('questProgress')
-        .doc(outfitId)
-        .get();
+    final progressDoc = await _childDocRef(
+      parentId,
+      childId,
+    ).collection('questProgress').doc(outfitId).get();
 
     final isScholarBear = outfitId == 'scholar_bear';
     final isUnlocked =
@@ -393,17 +393,21 @@ class FirestoreService {
         newlyUnlocked.add(quest.id);
       }
 
-      batch.set(childDocRef.collection('questProgress').doc(quest.id), {
-        'outfitID': quest.id,
-        'outfitName': quest.name,
-        'conditionType': quest.conditionType,
-        if (quest.subjectId != null) 'subjectId': quest.subjectId,
-        'currentValue': currentValue,
-        'targetValue': quest.target,
-        'isUnlocked': shouldUnlock,
-        'updatedAt': FieldValue.serverTimestamp(),
-        if (isNewUnlock) 'unlockedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      batch.set(
+        childDocRef.collection('questProgress').doc(quest.id),
+        {
+          'outfitID': quest.id,
+          'outfitName': quest.name,
+          'conditionType': quest.conditionType,
+          if (quest.subjectId != null) 'subjectId': quest.subjectId,
+          'currentValue': currentValue,
+          'targetValue': quest.target,
+          'isUnlocked': shouldUnlock,
+          'updatedAt': FieldValue.serverTimestamp(),
+          if (isNewUnlock) 'unlockedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
     }
 
     await batch.commit();

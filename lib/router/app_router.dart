@@ -192,10 +192,7 @@ class AppRouter {
             path: quests,
             pageBuilder: (context, state) {
               final childId = state.uri.queryParameters['childId'];
-              return _noTransitionPage(
-                state,
-                QuestsScreen(childId: childId),
-              );
+              return _noTransitionPage(state, QuestsScreen(childId: childId));
             },
           ),
           GoRoute(

@@ -148,7 +148,9 @@ class OutfitQuestProgress {
       currentValue: (data['currentValue'] ?? 0).toInt(),
       targetValue: (data['targetValue'] ?? 0).toInt(),
       isUnlocked: data['isUnlocked'] == true,
-      unlockedAt: unlockedAtValue is Timestamp ? unlockedAtValue.toDate() : null,
+      unlockedAt: unlockedAtValue is Timestamp
+          ? unlockedAtValue.toDate()
+          : null,
     );
   }
 }
