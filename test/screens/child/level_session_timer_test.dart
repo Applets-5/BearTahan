@@ -56,10 +56,7 @@ void main() {
     ).thenAnswer((_) async => {});
 
     when(
-      () => mockFirestoreService.evaluateAndUpdateQuestProgress(
-        any(),
-        any(),
-      ),
+      () => mockFirestoreService.evaluateAndUpdateQuestProgress(any(), any()),
     ).thenAnswer((_) async => <String>[]);
   });
 
@@ -91,9 +88,7 @@ void main() {
       expect(find.text('00:00'), findsOneWidget);
     });
 
-    testWidgets('Timer counts up in MM:SS format', (
-      WidgetTester tester,
-    ) async {
+    testWidgets('Timer counts up in MM:SS format', (WidgetTester tester) async {
       await tester.pumpWidget(createTestableWidget());
       await tester.pumpAndSettle();
 

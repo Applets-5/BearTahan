@@ -393,7 +393,7 @@ class _OutfitImage extends StatelessWidget {
                   opacity: 0.75,
                   child: ColorFiltered(
                     colorFilter: ColorFilter.mode(
-                      AppColors.mutedText.withOpacity(0.55),
+                      AppColors.mutedText.withValues(alpha: 0.55),
                       BlendMode.srcIn,
                     ),
                     child: biggerImage,

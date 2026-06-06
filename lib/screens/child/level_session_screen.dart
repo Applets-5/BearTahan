@@ -368,8 +368,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                                 selected == question.correctAnswerIndex
                                     ? 'Correct! Well done!'
                                     : (question.type?.toLowerCase() ==
-                                                  'rearrange' &&
-                                              question.correctOrder != null)
+                                              'rearrange' &&
+                                          question.correctOrder != null)
                                     ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
                                     : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
                                 style: AppTextStyles.bodyBold.copyWith(
