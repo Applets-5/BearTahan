@@ -12,12 +12,14 @@ class MascotWidget extends StatelessWidget {
     this.message,
     this.locked = false,
     this.outfitId = 'scholar_bear',
+    this.showBackground = true,
   });
 
   final double size;
   final String? message;
   final bool locked;
   final String outfitId;
+  final bool showBackground;
 
   static const Map<String, String> outfitImages = {
     'scholar_bear': 'assets/images/bear1.png',
@@ -32,26 +34,34 @@ class MascotWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final imagePath = outfitImages[outfitId] ?? outfitImages['scholar_bear']!;
 
-    final mascot = Container(
-      height: size,
-      width: size,
-      padding: EdgeInsets.all(size * 0.08),
-      decoration: BoxDecoration(
-        color: AppColors.imagePlaceholder,
-        borderRadius: AppRadius.r(AppRadius.xl),
-      ),
-      child: locked
-          ? Icon(Icons.lock, color: AppColors.mutedText, size: size * .45)
-          : Image.asset(
-              imagePath,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Icon(
-                Icons.pets_rounded,
-                color: AppColors.mutedText,
-                size: size * .45,
-              ),
+    final image = locked
+        ? Icon(Icons.lock, color: AppColors.mutedText, size: size * .45)
+        : Image.asset(
+            imagePath,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => Icon(
+              Icons.pets_rounded,
+              color: AppColors.mutedText,
+              size: size * .45,
             ),
-    );
+          );
+
+    final mascot = showBackground
+        ? Container(
+            height: size,
+            width: size,
+            padding: EdgeInsets.all(size * 0.08),
+            decoration: BoxDecoration(
+              color: AppColors.imagePlaceholder,
+              borderRadius: AppRadius.r(AppRadius.xl),
+            ),
+            child: image,
+          )
+        : SizedBox(
+            height: size,
+            width: size,
+            child: image,
+          );
 
     if (message == null) return mascot;
 
@@ -84,18 +94,24 @@ class ActiveMascotWidget extends ConsumerWidget {
     this.childId,
     this.size = 72,
     this.message,
+    this.showBackground = true,
   });
 
   final String? childId;
   final double size;
   final String? message;
+  final bool showBackground;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(firebaseAuthProvider).currentUser;
 
     if (user == null || childId == null) {
-      return MascotWidget(size: size, message: message);
+      return MascotWidget(
+        size: size,
+        message: message,
+        showBackground: showBackground,
+      );
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -109,7 +125,12 @@ class ActiveMascotWidget extends ConsumerWidget {
         final data = snapshot.data?.data();
         final outfitId = data?['activeOutfitID'] as String? ?? 'scholar_bear';
 
-        return MascotWidget(size: size, message: message, outfitId: outfitId);
+        return MascotWidget(
+          size: size,
+          message: message,
+          outfitId: outfitId,
+          showBackground: showBackground,
+        );
       },
     );
   }

@@ -12,6 +12,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
 import '../../widgets/common/audio_prompt_player.dart';
+import '../../widgets/common/mascot_widget.dart';
 
 class LevelSessionScreen extends ConsumerStatefulWidget {
   const LevelSessionScreen({
@@ -349,14 +350,30 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                               : AppColors.destructiveLight,
                           borderRadius: AppRadius.r(AppRadius.lg),
                         ),
-                        child: Text(
-                          selected == question.correctAnswerIndex
-                              ? 'Correct! Well done!'
-                              : (question.type?.toLowerCase() == 'rearrange' &&
-                                    question.correctOrder != null)
-                              ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
-                              : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
-                          style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            ActiveMascotWidget(
+                              childId: widget.childId,
+                              size: 56,
+                              showBackground: false,
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Text(
+                                selected == question.correctAnswerIndex
+                                    ? 'Correct! Well done!'
+                                    : (question.type?.toLowerCase() ==
+                                                  'rearrange' &&
+                                              question.correctOrder != null)
+                                    ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
+                                    : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
+                                style: AppTextStyles.bodyBold.copyWith(
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

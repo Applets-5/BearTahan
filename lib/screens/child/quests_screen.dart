@@ -317,7 +317,7 @@ class _QuestOutfitCard extends StatelessWidget {
                     )
                   else if (unlocked)
                     _SmallStatusButton(
-                      label: 'Set Active',
+                      label: 'Equip',
                       backgroundColor: AppColors.muted,
                       textColor: AppColors.mutedText,
                       onTap: onSetActive,
