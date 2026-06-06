@@ -77,7 +77,8 @@ class UserProfile {
       lifetimeStarsEarned: (data['lifetimeStarsEarned'] ?? availableStars)
           .toInt(),
       availableStars: availableStars,
-      activeMascotOutfit: data['activeMascotOutfit'] ?? 'default',
+      activeMascotOutfit:
+          data['activeOutfitID'] ?? data['activeMascotOutfit'] ?? 'scholar_bear',
       parentId: data['parentId'],
       streakCount: (data['streakCount'] ?? 0).toInt(),
       lastActivityDate: data['lastActivityDate'] != null

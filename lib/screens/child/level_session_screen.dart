@@ -106,6 +106,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         .play(AssetSource(audioPath))
         .then((_) => _audioPlayer.onPlayerComplete.first);
 
+    final newlyUnlockedOutfits = <String>[];
+
     try {
       final parentId = ref.read(parentIdProvider);
       if (widget.childId != null && parentId.isNotEmpty) {
@@ -131,6 +133,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           widget.levelId,
           stars,
         );
+
+        newlyUnlockedOutfits.addAll(
+          await firestore.evaluateAndUpdateQuestProgress(
+            parentId,
+            widget.childId!,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error saving attempt: $e');
@@ -147,6 +156,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         'levelId': widget.levelId,
         'subjectId': widget.subjectId,
         'stars': stars.toString(),
+        if (newlyUnlockedOutfits.isNotEmpty)
+          'unlockedOutfits': newlyUnlockedOutfits.join(','),
       };
       context.go(
         Uri(path: AppRouter.completion, queryParameters: params).toString(),

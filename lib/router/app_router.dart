@@ -190,8 +190,13 @@ class AppRouter {
           ),
           GoRoute(
             path: quests,
-            pageBuilder: (context, state) =>
-                _noTransitionPage(state, const QuestsScreen()),
+            pageBuilder: (context, state) {
+              final childId = state.uri.queryParameters['childId'];
+              return _noTransitionPage(
+                state,
+                QuestsScreen(childId: childId),
+              );
+            },
           ),
           GoRoute(
             path: rewards,
@@ -303,6 +308,12 @@ class AppRouter {
           final stars = int.tryParse(state.uri.queryParameters['stars'] ?? '');
           final levelId = state.uri.queryParameters['levelId'] ?? 'l1';
           final subjectId = state.uri.queryParameters['subjectId'] ?? 'bm';
+          final unlockedOutfits =
+              state.uri.queryParameters['unlockedOutfits']
+                  ?.split(',')
+                  .where((id) => id.isNotEmpty)
+                  .toList() ??
+              const <String>[];
 
           return _noTransitionPage(
             state,
@@ -313,6 +324,7 @@ class AppRouter {
               stars: stars,
               levelId: levelId,
               subjectId: subjectId,
+              unlockedOutfits: unlockedOutfits,
             ),
           );
         },
