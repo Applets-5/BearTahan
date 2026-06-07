@@ -14,6 +14,9 @@ void main() {
           'test_prefix',
         ).overrideWith((ref) => Future.value(questions)),
         parentIdProvider.overrideWithValue('test_parent_id'),
+        parentSettingsProvider.overrideWith(
+          (ref) => Stream.value({'soundEffects': true}),
+        ),
       ],
       child: MaterialApp(
         home: LevelSessionScreen(
@@ -208,7 +211,14 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.textContaining('Trace 人'), findsOneWidget);
-      expect(find.textContaining('attempts left'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('stroke_progress_markers')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('attempt_progress_markers')),
+        findsOneWidget,
+      );
     });
 
     testWidgets(

@@ -9,6 +9,7 @@ import '../../models/question.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/sound_effects.dart';
 import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
 import '../../widgets/common/audio_prompt_player.dart';
@@ -43,6 +44,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   List<Question>? shuffledQuestions;
   List<Question>? _lastRawQuestions;
   final AudioPlayer _audioPlayer = AudioPlayer();
+  AudioPool? _correctStrokePool;
+  AudioPool? _wrongStrokePool;
+  StopFunction? _stopCorrectStroke;
+  StopFunction? _stopWrongStroke;
 
   @override
   void initState() {
@@ -50,20 +55,110 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startSessionTimer();
     });
+    unawaited(_initializeStrokeAudio());
   }
 
-  void _playFeedback(bool isCorrect) async {
-    if (isCorrect) {
-      await _audioPlayer.play(AssetSource('audio/correctAns.mp3'));
-    } else {
-      await _audioPlayer.play(AssetSource('audio/wrongAns.mp3'));
+  bool get _soundEffectsEnabled {
+    return soundEffectsEnabled(ref.read(parentSettingsProvider).value);
+  }
+
+  Future<void> _initializeStrokeAudio() async {
+    try {
+      final pools = await Future.wait([
+        AudioPool.createFromAsset(
+          path: 'audio/stroke_correct.wav',
+          minPlayers: 1,
+          maxPlayers: 1,
+          playerMode: PlayerMode.lowLatency,
+        ),
+        AudioPool.createFromAsset(
+          path: 'audio/stroke_wrong.wav',
+          minPlayers: 1,
+          maxPlayers: 1,
+          playerMode: PlayerMode.lowLatency,
+        ),
+      ]);
+
+      if (!mounted) {
+        await Future.wait(pools.map((pool) => pool.dispose()));
+        return;
+      }
+
+      _correctStrokePool = pools[0];
+      _wrongStrokePool = pools[1];
+    } catch (error) {
+      debugPrint('Unable to initialize stroke sounds: $error');
     }
+  }
+
+  Future<void> _playSound(Future<void> Function() play) async {
+    if (!_soundEffectsEnabled) return;
+    try {
+      await play();
+    } catch (error) {
+      debugPrint('Unable to play sound effect: $error');
+    }
+  }
+
+  Future<void> _playQuestionFeedback(
+    Question question,
+    bool isCorrect, {
+    bool allowStrokeTrace = false,
+  }) {
+    if (!shouldPlayQuestionFeedback(
+      question.type,
+      allowStrokeTrace: allowStrokeTrace,
+    )) {
+      return Future.value();
+    }
+
+    return _playSound(() {
+      return _audioPlayer.play(
+        AssetSource(isCorrect ? 'audio/correctAns.mp3' : 'audio/wrongAns.mp3'),
+        volume: 0.70,
+      );
+    });
+  }
+
+  Future<void> _playTracingCompletionFeedback(
+    Question question,
+    bool isCorrect,
+  ) async {
+    await Future<void>.delayed(Duration(milliseconds: isCorrect ? 120 : 160));
+    if (!mounted) return;
+    await _playQuestionFeedback(question, isCorrect, allowStrokeTrace: true);
+  }
+
+  Future<void> _playStrokeCorrect(int strokeIndex) {
+    return _playSound(() async {
+      final pool = _correctStrokePool;
+      if (pool == null) return;
+      await _stopCorrectStroke?.call();
+      _stopCorrectStroke = await pool.start(volume: 1.0);
+    });
+  }
+
+  Future<void> _playStrokeWrong() {
+    return _playSound(() async {
+      final pool = _wrongStrokePool;
+      if (pool == null) return;
+      await _stopWrongStroke?.call();
+      _stopWrongStroke = await pool.start(volume: 1.0);
+    });
+  }
+
+  Future<void> _disposeStrokeAudio() async {
+    await _stopCorrectStroke?.call();
+    await _stopWrongStroke?.call();
+    await _correctStrokePool?.dispose();
+    await _wrongStrokePool?.dispose();
   }
 
   @override
   void dispose() {
     _stopSessionTimer();
-    _audioPlayer.dispose();
+    unawaited(_disposeStrokeAudio());
+    unawaited(_audioPlayer.dispose());
     super.dispose();
   }
 
@@ -103,9 +198,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final String audioPath = stars > 0
         ? 'audio/levelPassed.mp3'
         : 'audio/levelFailed.mp3';
-    final playFuture = _audioPlayer
-        .play(AssetSource(audioPath))
-        .then((_) => _audioPlayer.onPlayerComplete.first);
+    final playFuture = _playSound(() async {
+      final completed = _audioPlayer.onPlayerComplete.first;
+      await _audioPlayer.play(AssetSource(audioPath), volume: 0.60);
+      await completed;
+    });
 
     try {
       final parentId = ref.read(parentIdProvider);
@@ -190,6 +287,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final questionsAsync = ref.watch(questionsProvider(widget.levelPrefix));
+    ref.watch(parentSettingsProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -623,7 +721,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 _rearrangeSubmitted = true;
                 selected = isCorrect ? question.correctAnswerIndex : -1;
                 if (isCorrect) score++;
-                _playFeedback(isCorrect);
+                _playQuestionFeedback(question, isCorrect);
               });
             },
           ),
@@ -712,7 +810,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 _fillBlankSubmitted = true;
                 selected = isCorrect ? question.correctAnswerIndex : -1;
                 if (isCorrect) score++;
-                _playFeedback(isCorrect);
+                _playQuestionFeedback(question, isCorrect);
               });
             },
           ),
@@ -747,6 +845,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       key: ValueKey('stroke_trace_${question.id}'),
       question: question,
       onWrongAttempt: () {
+        unawaited(_playStrokeWrong());
         final parentId = ref.read(parentIdProvider);
         final childId = widget.childId;
         if (parentId.isEmpty || childId == null || childId.isEmpty) return;
@@ -765,14 +864,17 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               debugPrint('Error flagging wrong stroke answer: $error');
             });
       },
+      onCorrectStroke: (strokeIndex) {
+        unawaited(_playStrokeCorrect(strokeIndex));
+      },
       onComplete: (isCorrect) {
         if (_strokeTraceSubmitted) return;
         setState(() {
           _strokeTraceSubmitted = true;
           selected = isCorrect ? question.correctAnswerIndex : -1;
           if (isCorrect) score++;
-          _playFeedback(isCorrect);
         });
+        unawaited(_playTracingCompletionFeedback(question, isCorrect));
       },
     );
   }
@@ -798,10 +900,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 final isCorrect = index == question.correctAnswerIndex;
                 if (isCorrect) {
                   HapticFeedback.mediumImpact();
-                  _playFeedback(true);
+                  _playQuestionFeedback(question, true);
                 } else {
                   HapticFeedback.vibrate();
-                  _playFeedback(false);
+                  _playQuestionFeedback(question, false);
                 }
                 setState(() {
                   selected = index;

@@ -11,31 +11,53 @@ class StrokeTraceQuestion extends StatefulWidget {
     required this.question,
     required this.onComplete,
     required this.onWrongAttempt,
+    this.onCorrectStroke,
   });
 
   final Question question;
   final ValueChanged<bool> onComplete;
   final VoidCallback onWrongAttempt;
+  final ValueChanged<int>? onCorrectStroke;
 
   @override
-  State<StrokeTraceQuestion> createState() => _StrokeTraceQuestionState();
+  StrokeTraceQuestionState createState() => StrokeTraceQuestionState();
 }
 
-class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
+class StrokeTraceQuestionState extends State<StrokeTraceQuestion>
     with TickerProviderStateMixin {
   static const int maxAttempts = 3;
   static const Duration _resetDelay = Duration(milliseconds: 650);
+  static const Color _activeStrokeColor = Color(0xBF22B8CF);
+  static const Color _acceptedStrokeColor = Color(0xFF087F8C);
+  static const Color _outlineColor = Color(0xFFCBDDE2);
 
   StrokeOrderAnimationController? _controller;
+  late final AnimationController _feedbackController;
+  late final Animation<double> _shakeAnimation;
   Future<void>? _loadFuture;
   int _attemptsUsed = 0;
-  bool _inputLocked = false;
+  bool _isFeedbackPlaying = false;
   bool _completed = false;
+  bool _wasSuccessful = false;
   String? _feedback;
 
   @override
   void initState() {
     super.initState();
+    _feedbackController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _shakeAnimation =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 0, end: -8), weight: 1),
+          TweenSequenceItem(tween: Tween(begin: -8, end: 8), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 8, end: -6), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: -6, end: 6), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 6, end: 0), weight: 1),
+        ]).animate(
+          CurvedAnimation(parent: _feedbackController, curve: Curves.easeOut),
+        );
     _loadFuture = _loadController();
   }
 
@@ -46,9 +68,11 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
       _controller?.dispose();
       _controller = null;
       _attemptsUsed = 0;
-      _inputLocked = false;
+      _isFeedbackPlaying = false;
       _completed = false;
+      _wasSuccessful = false;
       _feedback = null;
+      _feedbackController.reset();
       _loadFuture = _loadController();
     }
   }
@@ -56,6 +80,7 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
   @override
   void dispose() {
     _controller?.dispose();
+    _feedbackController.dispose();
     super.dispose();
   }
 
@@ -68,14 +93,15 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
       showOutline: true,
       showBackground: false,
       showMedian: false,
-      showUserStroke: true,
-      strokeColor: AppColors.primary,
-      outlineColor: AppColors.star.withValues(alpha: 0.55),
-      brushColor: AppColors.primary,
-      hintColor: AppColors.star,
+      showUserStroke: false,
+      strokeColor: _acceptedStrokeColor,
+      outlineColor: _outlineColor,
+      brushColor: _activeStrokeColor,
+      hintColor: _acceptedStrokeColor,
       brushWidth: 24,
       hintAfterStrokes: 1,
       onWrongStrokeCallback: _handleWrongStroke,
+      onCorrectStrokeCallback: _handleCorrectStroke,
       onQuizCompleteCallback: (_) => _handleQuizComplete(),
     );
 
@@ -98,17 +124,20 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
   }
 
   void _handleWrongStroke(int strokeIndex) {
-    if (_inputLocked || _completed) return;
+    if (_isFeedbackPlaying || _completed) return;
 
-    _inputLocked = true;
+    _isFeedbackPlaying = true;
     _attemptsUsed++;
     widget.onWrongAttempt();
+    HapticFeedback.mediumImpact();
+    _feedbackController.forward(from: 0);
 
     if (_attemptsUsed >= maxAttempts) {
       _controller?.stopQuiz();
       _controller?.showFullCharacter();
       setState(() {
         _completed = true;
+        _wasSuccessful = false;
         _feedback = 'The correct character is shown. Try again later.';
       });
       widget.onComplete(false);
@@ -117,8 +146,7 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
 
     _controller?.stopQuiz();
     setState(() {
-      _feedback =
-          'Not quite. Start again from stroke 1. ${maxAttempts - _attemptsUsed} attempts left.';
+      _feedback = 'Try again from stroke 1!';
     });
 
     Future.delayed(_resetDelay, () {
@@ -126,16 +154,34 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
       _controller?.reset();
       _controller?.startQuiz();
       setState(() {
-        _inputLocked = false;
+        _isFeedbackPlaying = false;
       });
     });
   }
 
+  @visibleForTesting
+  void simulateWrongStroke() {
+    _handleWrongStroke(_controller?.currentStroke ?? 0);
+  }
+
+  void _handleCorrectStroke(int strokeIndex) {
+    widget.onCorrectStroke?.call(strokeIndex);
+  }
+
+  @visibleForTesting
+  void simulateCorrectStroke(int strokeIndex) {
+    _handleCorrectStroke(strokeIndex);
+  }
+
+  @visibleForTesting
+  static bool usesStrokeMarkers(int strokeCount) => strokeCount <= 6;
+
   void _handleQuizComplete() {
-    if (_inputLocked || _completed) return;
+    if (_isFeedbackPlaying || _completed) return;
 
     setState(() {
       _completed = true;
+      _wasSuccessful = true;
       _feedback = 'Correct stroke order!';
     });
     widget.onComplete(true);
@@ -180,51 +226,69 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.sm),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: AppSpacing.lg,
+              runSpacing: AppSpacing.sm,
               children: [
-                const Icon(Icons.edit_rounded, size: 18),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  _completed
-                      ? 'Complete'
-                      : 'Stroke ${controller.currentStroke + 1}/${controller.strokeOrder.nStrokes}',
-                  style: AppTextStyles.bodyBold,
+                _buildProgressGroup(
+                  label: 'Strokes',
+                  child: ListenableBuilder(
+                    listenable: controller,
+                    builder: (context, _) => _buildStrokeProgress(controller),
+                  ),
                 ),
-                const SizedBox(width: AppSpacing.md),
-                const Icon(Icons.replay_rounded, size: 18),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  '$remainingAttempts attempts left',
-                  style: AppTextStyles.bodyBold,
+                _buildProgressGroup(
+                  label: 'Attempts',
+                  child: _buildAttemptProgress(),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(maxWidth: 320),
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: AppRadius.r(AppRadius.xl),
-                border: Border.all(color: AppColors.border),
-                boxShadow: AppShadows.card,
+            AnimatedBuilder(
+              animation: _feedbackController,
+              builder: (context, child) => Transform.translate(
+                offset: Offset(_shakeAnimation.value, 0),
+                child: child,
               ),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final canvasSize = constraints.biggest.shortestSide;
-                    return IgnorePointer(
-                      ignoring: _inputLocked || _completed,
-                      child: StrokeOrderAnimator(
-                        controller,
-                        size: Size.square(canvasSize),
-                        key: ValueKey('stroke_animator_${widget.question.id}'),
-                      ),
-                    );
-                  },
+              child: AnimatedContainer(
+                key: const ValueKey('stroke_canvas_feedback'),
+                duration: const Duration(milliseconds: 120),
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 320),
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: _isFeedbackPlaying
+                      ? AppColors.destructiveLight
+                      : AppColors.card,
+                  borderRadius: AppRadius.r(AppRadius.xl),
+                  border: Border.all(
+                    color: _isFeedbackPlaying
+                        ? AppColors.destructive
+                        : AppColors.border,
+                    width: _isFeedbackPlaying ? 2 : 1,
+                  ),
+                  boxShadow: AppShadows.card,
+                ),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final canvasSize = constraints.biggest.shortestSide;
+                      return IgnorePointer(
+                        key: const ValueKey('stroke_input_blocker'),
+                        ignoring: _isFeedbackPlaying || _completed,
+                        child: StrokeOrderAnimator(
+                          controller,
+                          size: Size.square(canvasSize),
+                          key: ValueKey(
+                            'stroke_animator_${widget.question.id}',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -243,6 +307,129 @@ class _StrokeTraceQuestionState extends State<StrokeTraceQuestion>
           ],
         );
       },
+    );
+  }
+
+  Widget _buildProgressGroup({required String label, required Widget child}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          key: ValueKey('progress_label_${label.toLowerCase()}'),
+          style: AppTextStyles.tiny,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        child,
+      ],
+    );
+  }
+
+  Widget _buildStrokeProgress(StrokeOrderAnimationController controller) {
+    final strokeCount = controller.strokeOrder.nStrokes;
+    final completedStrokes = controller.currentStroke.clamp(0, strokeCount);
+
+    if (!usesStrokeMarkers(strokeCount)) {
+      final displayedStroke = _completed
+          ? strokeCount
+          : (completedStrokes + 1).clamp(1, strokeCount);
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.edit_rounded, size: 18),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            'Stroke $displayedStroke of $strokeCount',
+            key: const ValueKey('stroke_progress_text'),
+            style: AppTextStyles.bodyBold,
+          ),
+        ],
+      );
+    }
+
+    return Semantics(
+      label: '$completedStrokes of $strokeCount strokes complete',
+      child: Row(
+        key: const ValueKey('stroke_progress_markers'),
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(strokeCount, (index) {
+          final complete = index < completedStrokes;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: complete ? _acceptedStrokeColor : AppColors.muted,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: complete ? _acceptedStrokeColor : AppColors.border,
+                ),
+              ),
+              child: Icon(
+                complete ? Icons.check_rounded : Icons.edit_rounded,
+                size: 15,
+                color: complete ? Colors.white : AppColors.mutedText,
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildAttemptProgress() {
+    return Semantics(
+      label: '${maxAttempts - _attemptsUsed} attempts remaining',
+      child: Row(
+        key: const ValueKey('attempt_progress_markers'),
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(maxAttempts, (index) {
+          final failed = index < _attemptsUsed;
+          final successful =
+              _wasSuccessful &&
+              index == _attemptsUsed.clamp(0, maxAttempts - 1);
+          final current =
+              !_completed && !failed && index == _attemptsUsed.clamp(0, 2);
+
+          final color = failed
+              ? AppColors.destructive
+              : successful
+              ? AppColors.accent
+              : current
+              ? _activeStrokeColor
+              : AppColors.border;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+            child: AnimatedContainer(
+              key: ValueKey('attempt_marker_$index'),
+              duration: const Duration(milliseconds: 150),
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: failed || successful ? color : AppColors.card,
+                shape: BoxShape.circle,
+                border: Border.all(color: color, width: current ? 2 : 1),
+              ),
+              child: Icon(
+                failed
+                    ? Icons.close_rounded
+                    : successful
+                    ? Icons.check_rounded
+                    : Icons.circle,
+                size: failed || successful ? 15 : 8,
+                color: failed || successful
+                    ? Colors.white
+                    : current
+                    ? _activeStrokeColor
+                    : AppColors.border,
+              ),
+            ),
+          );
+        }),
+      ),
     );
   }
 }
