@@ -55,6 +55,37 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
     }
   }
 
+  Future<void> _showQuestDetails({
+    required OutfitQuest quest,
+    required OutfitQuestProgress progress,
+    required bool unlocked,
+    required bool active,
+    required String parentId,
+    required String childId,
+  }) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return _QuestDetailsDialog(
+          quest: quest,
+          progress: progress,
+          unlocked: unlocked,
+          active: active,
+          onEquip: unlocked && !active
+              ? () {
+                  Navigator.of(dialogContext).pop();
+                  _setActiveOutfit(quest, parentId, childId);
+                }
+              : null,
+          onClose: () => Navigator.of(dialogContext).pop(),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final routeChildId = GoRouterState.of(
@@ -168,7 +199,19 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
                               progress: progress,
                               unlocked: unlocked,
                               active: active,
-                              onSetActive: unlocked && !active
+
+                              // Click bear/card -> detail popup appears.
+                              onOpenDetails: () => _showQuestDetails(
+                                quest: quest,
+                                progress: progress,
+                                unlocked: unlocked,
+                                active: active,
+                                parentId: parentId,
+                                childId: childId,
+                              ),
+
+                              // Click Equip button on card -> equips directly.
+                              onEquip: unlocked && !active
                                   ? () => _setActiveOutfit(
                                       quest,
                                       parentId,
@@ -243,14 +286,16 @@ class _QuestOutfitCard extends StatelessWidget {
     required this.progress,
     required this.unlocked,
     required this.active,
-    required this.onSetActive,
+    required this.onOpenDetails,
+    required this.onEquip,
   });
 
   final OutfitQuest quest;
   final OutfitQuestProgress progress;
   final bool unlocked;
   final bool active;
-  final VoidCallback? onSetActive;
+  final VoidCallback onOpenDetails;
+  final VoidCallback? onEquip;
 
   @override
   Widget build(BuildContext context) {
@@ -258,7 +303,7 @@ class _QuestOutfitCard extends StatelessWidget {
       color: Colors.transparent,
       borderRadius: AppRadius.r(AppRadius.xl),
       child: InkWell(
-        onTap: onSetActive,
+        onTap: onOpenDetails,
         borderRadius: AppRadius.r(AppRadius.xl),
         child: Stack(
           clipBehavior: Clip.none,
@@ -304,7 +349,7 @@ class _QuestOutfitCard extends StatelessWidget {
                   _QuestTag(text: quest.description),
                   const SizedBox(height: AppSpacing.sm),
 
-                  if (!unlocked) ...[
+                  if (!quest.isStarter) ...[
                     _QuestProgressSection(progress: progress),
                     const SizedBox(height: AppSpacing.sm),
                   ],
@@ -320,7 +365,7 @@ class _QuestOutfitCard extends StatelessWidget {
                       label: 'Equip',
                       backgroundColor: AppColors.muted,
                       textColor: AppColors.mutedText,
-                      onTap: onSetActive,
+                      onTap: onEquip,
                     )
                   else
                     Text(
@@ -356,6 +401,139 @@ class _QuestOutfitCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _QuestDetailsDialog extends StatelessWidget {
+  const _QuestDetailsDialog({
+    required this.quest,
+    required this.progress,
+    required this.unlocked,
+    required this.active,
+    required this.onEquip,
+    required this.onClose,
+  });
+
+  final OutfitQuest quest;
+  final OutfitQuestProgress progress;
+  final bool unlocked;
+  final bool active;
+  final VoidCallback? onEquip;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(AppSpacing.lg),
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 420),
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: AppRadius.r(AppRadius.xl),
+          boxShadow: AppShadows.strong,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: onClose,
+                  child: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.mutedText,
+                    size: 22,
+                  ),
+                ),
+              ),
+              _OutfitImage(quest: quest, locked: !unlocked),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                quest.name,
+                style: AppTextStyles.bodyBold.copyWith(
+                  fontSize: 18,
+                  color: AppColors.foreground,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _QuestTag(text: quest.description),
+
+              if (!quest.isStarter) ...[
+                const SizedBox(height: AppSpacing.md),
+                _QuestProgressSection(progress: progress),
+              ],
+
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                _detailMessage(quest),
+                style: AppTextStyles.small.copyWith(color: AppColors.mutedText),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: active
+                        ? const _SmallStatusButton(
+                            label: '✔ Active',
+                            backgroundColor: AppColors.primary,
+                            textColor: Colors.white,
+                          )
+                        : unlocked
+                        ? _SmallStatusButton(
+                            label: 'Equip',
+                            backgroundColor: AppColors.primary,
+                            textColor: Colors.white,
+                            onTap: onEquip,
+                          )
+                        : const _SmallStatusButton(
+                            label: '🔒 Locked',
+                            backgroundColor: AppColors.muted,
+                            textColor: AppColors.mutedText,
+                          ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _SmallStatusButton(
+                      label: 'Close',
+                      backgroundColor: AppColors.card,
+                      textColor: AppColors.mutedText,
+                      borderColor: AppColors.border,
+                      onTap: onClose,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _detailMessage(OutfitQuest quest) {
+    switch (quest.id) {
+      case 'scholar_bear':
+        return 'This is your starter outfit.';
+      case 'chef_bear':
+        return 'Complete 5 BM lessons to unlock this outfit.';
+      case 'astro_bear':
+        return 'Score 100% on 3 Maths quizzes to unlock this outfit.';
+      case 'pirate_bear':
+        return 'Complete 10 English lessons to find the treasure!';
+      case 'super_bear':
+        return 'Earn 500 total stars to unlock this outfit.';
+      case 'explorer_bear':
+        return 'Complete all Science topics to unlock this outfit.';
+      default:
+        return quest.description;
+    }
   }
 }
 
@@ -517,32 +695,41 @@ class _SmallStatusButton extends StatelessWidget {
     required this.label,
     required this.backgroundColor,
     required this.textColor,
+    this.borderColor,
     this.onTap,
   });
 
   final String label;
   final Color backgroundColor;
   final Color textColor;
+  final Color? borderColor;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        height: 30,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: AppRadius.r(AppRadius.xxl),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.tiny.copyWith(
-            color: textColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+    return Material(
+      color: backgroundColor,
+      borderRadius: AppRadius.r(AppRadius.xxl),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.r(AppRadius.xxl),
+        child: Container(
+          width: double.infinity,
+          height: 34,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.r(AppRadius.xxl),
+            border: borderColor == null
+                ? null
+                : Border.all(color: borderColor!),
+          ),
+          child: Text(
+            label,
+            style: AppTextStyles.tiny.copyWith(
+              color: textColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
