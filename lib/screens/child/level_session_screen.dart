@@ -231,7 +231,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               final List<Question> temp = List.from(rawQuestions)..shuffle();
               
               // Summary levels get 15 questions, regular levels get 10
-              final isSummary = widget.levelId.toLowerCase() == 'summary';
+              final isSummary = widget.levelId.toLowerCase().contains('summary');
               final questionLimit = isSummary ? 15 : 10;
               
               shuffledQuestions = temp.take(questionLimit).toList();

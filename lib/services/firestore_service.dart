@@ -319,21 +319,22 @@ class FirestoreService {
         .collection('subjects')
         .doc(subjectId)
         .collection('chapters')
-        .orderBy('index') // Assuming chapters have an 'index' for ordering
+        .orderBy('index')
         .get();
 
     if (snapshot.docs.isEmpty) {
       // Fallback for English as per Samy's requirement if DB is empty
       if (subjectId == 'bi') {
         return [
-          ChapterData(id: 'c0', name: 'Chapter 0', levelIds: ['l1', 'l2', 'l3', 'summary']),
-          ChapterData(id: 'c1', name: 'Chapter 1', levelIds: ['l4', 'l5', 'l6', 'l7', 'l8', 'l9', 'summary']),
+          ChapterData(id: 'c0', name: 'Chapter 0', levelIds: ['c0_l1', 'c0_l2', 'c0_l3', 'c0_summary']),
+          ChapterData(id: 'c1', name: 'Chapter 1', levelIds: ['c1_l1', 'c1_l2', 'c1_l3', 'c1_l4', 'c1_l5', 'c1_l6', 'c1_summary']),
+          ChapterData(id: 'c2', name: 'Chapter 2', levelIds: ['c2_l1', 'c2_l2', 'c2_l3', 'c2_l4', 'c2_l5', 'c2_l6', 'c2_summary']),
         ];
       }
       // Default fallback for other subjects (Chapters 1 and 2, 4 levels each + summary)
       return [
-        ChapterData(id: 'c1', name: 'Chapter 1', levelIds: ['l1', 'l2', 'l3', 'l4', 'l5', 'summary']),
-        ChapterData(id: 'c2', name: 'Chapter 2', levelIds: ['l6', 'l7', 'l8', 'summary']),
+        ChapterData(id: 'c1', name: 'Chapter 1', levelIds: ['c1_l1', 'c1_l2', 'c1_l3', 'c1_l4', 'c1_l5', 'c1_summary']),
+        ChapterData(id: 'c2', name: 'Chapter 2', levelIds: ['c2_l6', 'c2_l7', 'c2_l8', 'c2_summary']),
       ];
     }
 
@@ -342,8 +343,8 @@ class FirestoreService {
       final levelIds = List<String>.from(data['levelIds'] ?? []);
       
       // Automatically inject the chapter summary as the final boss if not explicitly listed
-      if (levelIds.isNotEmpty && levelIds.last.toLowerCase() != 'summary') {
-        levelIds.add('summary');
+      if (levelIds.isNotEmpty && !levelIds.last.toLowerCase().contains('summary')) {
+        levelIds.add('${doc.id}_summary');
       }
 
       return ChapterData(id: doc.id, name: data['name'] ?? '', levelIds: levelIds);

@@ -101,10 +101,11 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
                       subjectId: widget.subjectId,
                       childId: widget.childId,
                       onLevelTap: (levelId, isBoss, chapterId) {
-                        String prefix = '${widget.subjectId}_${chapterId}_${levelId}_';
+                        // levelId is already namespaced with the chapter (e.g., 'c1_l4' or 'c1_summary')
+                        String prefix = '${widget.subjectId}_${levelId}_';
                         
                         // If it's a summary level, query all questions from the chapter
-                        if (levelId.toLowerCase() == 'summary') {
+                        if (levelId.toLowerCase().contains('summary')) {
                           prefix = '${widget.subjectId}_${chapterId}_';
                         }
 
@@ -113,7 +114,7 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
                             widget.childId,
                             levelPrefix: prefix,
                             subjectId: widget.subjectId,
-                            levelId: levelId, // Pass the explicit levelId so progress saves under 'summary'
+                            levelId: levelId, // Pass the explicit levelId so progress saves under 'c1_summary', 'c1_l4', etc.
                           ),
                         );
                       },
