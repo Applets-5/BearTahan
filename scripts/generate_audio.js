@@ -20,33 +20,49 @@ const ttsClient = new textToSpeech.TextToSpeechClient({
 
 async function generateAudio() {
   console.log("🚀 Starting audio generation...");
+
+  // Add IDs here that you want to force-regenerate
+  const forceIds = [
+    // Add specific IDs here if needed
+    'bi_c0_l3_q07',
+    'bi_c0_l3_q09'
+  ];
   
   const snapshot = await db.collection('questions').get();
   
   for (const doc of snapshot.docs) {
     const data = doc.data();
     
-    // Skip if audio already exists (optional: remove this if you want to force re-generation)
-    if (data.promptAudioUrl) {
+    // Check if it's an English question that needs its accent fixed
+    const isEnglish = doc.id.toLowerCase().startsWith('bi_') || doc.id.toLowerCase().startsWith('en_');
+    const needsAccentFix = isEnglish && data.promptAudioUrl; // If it has audio already, it might be the bad Malay one
+
+    // Skip if audio already exists, UNLESS it's in the forceIds list OR it's an English question that needs fixing
+    if (data.promptAudioUrl && !forceIds.includes(doc.id) && !needsAccentFix) {
       console.log(`- Skipping ${doc.id} (already has audio)`);
       continue;
     }
 
-    // Try multiple field names for the text
-    const text = data.prompt || data.text || data.questionText;
+    if (forceIds.includes(doc.id) || needsAccentFix) {
+      console.log(`🔄 Force regenerating audio for ${doc.id}...`);
+    }
+
+    // Try multiple field names for the text, prioritizing promptAudioText
+    const text = data.promptAudioText || data.prompt || data.text || data.questionText;
     if (!text) {
-      console.log(`- Skipping ${doc.id} (no 'prompt', 'text', or 'questionText' field found)`);
+      console.log(`- Skipping ${doc.id} (no 'promptAudioText', 'prompt', 'text', or 'questionText' field found)`);
       continue;
     }
 
     // Detect Language based on document ID prefix
+    const lowerId = doc.id.toLowerCase();
     let langCode = 'ms-MY';
     let voiceName = 'ms-MY-Wavenet-A'; 
 
-    if (doc.id.startsWith('en_')) {
+    if (lowerId.startsWith('en_') || lowerId.startsWith('bi_')) {
       langCode = 'en-GB';
-      voiceName = 'en-GB-Wavenet-A';
-    } else if (doc.id.startsWith('zh_') || doc.id.startsWith('bc_')) {
+      voiceName = 'en-GB-Neural2-A'; // Upgraded from Wavenet to Neural2 for a much more natural, less robotic voice
+    } else if (lowerId.startsWith('zh_') || lowerId.startsWith('bc_')) {
       langCode = 'cmn-CN';
       voiceName = 'cmn-CN-Wavenet-A';
     }
@@ -80,7 +96,9 @@ async function generateAudio() {
 
       // Make file public and get URL
       await file.makePublic();
-      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      // Add a timestamp query parameter to bust the cache in the Flutter app!
+      const cacheBuster = Date.now();
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}?t=${cacheBuster}`;
 
       // Update Firestore
       await doc.ref.update({ promptAudioUrl: publicUrl });

@@ -12,6 +12,8 @@ import '../../theme/app_theme.dart';
 import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
 import '../../widgets/common/audio_prompt_player.dart';
+import '../../widgets/questions/drag_drop_spelling_widget.dart';
+import '../../widgets/questions/matching_widget.dart';
 
 class LevelSessionScreen extends ConsumerStatefulWidget {
   const LevelSessionScreen({
@@ -221,13 +223,18 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               );
             }
 
-            // Shuffle and pick 10 questions once per session
+            // Shuffle and pick questions once per session
             // Reset if rawQuestions changed (important for testing and prefix changes)
             if (shuffledQuestions == null ||
                 _lastRawQuestions != rawQuestions) {
               _lastRawQuestions = rawQuestions;
               final List<Question> temp = List.from(rawQuestions)..shuffle();
-              shuffledQuestions = temp.take(10).toList();
+              
+              // Summary levels get 15 questions, regular levels get 10
+              final isSummary = widget.levelId.toLowerCase() == 'summary';
+              final questionLimit = isSummary ? 15 : 10;
+              
+              shuffledQuestions = temp.take(questionLimit).toList();
             }
 
             final questions = shuffledQuestions!;
@@ -239,9 +246,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               switch (widget.subjectId.toLowerCase()) {
                 case 'bm':
                   return 'ms-MY';
-                case 'english':
+                case 'bi':
                   return 'en-GB';
-                case 'mandarin':
+                case 'bc':
                   return 'zh-CN';
                 default:
                   return 'en-GB';
@@ -343,8 +350,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                               ? 'Correct! Well done!'
                               : (question.type?.toLowerCase() == 'rearrange' &&
                                     question.correctOrder != null)
-                              ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
-                              : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
+                              ? 'Not quite! The correct sentence is "${question.correctOrder!.join(' ')}".'
+                              : question.options[question.correctAnswerIndex].text.isNotEmpty
+                                  ? 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".'
+                                  : 'Not quite! The correct answer is option ${String.fromCharCode(65 + question.correctAnswerIndex)}.',
                           style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
                         ),
                       ),
@@ -364,6 +373,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                             _rearrangeSubmitted = false;
                             _draggedOptionIndex = null;
                             _fillBlankSubmitted = false;
+                            _dragDropSpellingSubmitted = false;
+                            _matchingSubmitted = false;
                           });
                         }
                       },
@@ -382,7 +393,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
   Widget _buildQuestionText(Question question, String language) {
     final type = question.type?.toLowerCase() ?? 'mcq';
-    if (type == 'fillblank') {
+    if (type == 'fillblank' || type == 'fillblanklistening') {
       return _buildFillBlankSentence(question, language);
     }
 
@@ -511,7 +522,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   bool _isQuestionComplete(Question question) {
     final type = question.type?.toLowerCase() ?? 'mcq';
     if (type == 'rearrange') return _rearrangeSubmitted;
-    if (type == 'fillblank') return _fillBlankSubmitted;
+    if (type == 'fillblank' || type == 'fillblanklistening') {
+      return _fillBlankSubmitted;
+    }
+    if (type == 'dragdropspelling') return _dragDropSpellingSubmitted;
+    if (type == 'matching') return _matchingSubmitted;
     return selected != null;
   }
 
@@ -522,7 +537,32 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       case 'rearrange':
         return _buildRearrangeQuestion(question);
       case 'fillblank':
+      case 'fillblanklistening':
         return _buildFillBlankQuestion(question);
+      case 'dragdropspelling':
+        return DragDropSpellingWidget(
+          question: question,
+          onCompleted: (isCorrect) {
+            setState(() {
+              _dragDropSpellingSubmitted = true;
+              selected = isCorrect ? question.correctAnswerIndex : -1;
+              if (isCorrect) score++;
+              _playFeedback(isCorrect);
+            });
+          },
+        );
+      case 'matching':
+        return MatchingWidget(
+          question: question,
+          onCompleted: (isCorrect) {
+            setState(() {
+              _matchingSubmitted = true;
+              selected = isCorrect ? question.correctAnswerIndex : -1;
+              if (isCorrect) score++;
+              _playFeedback(isCorrect);
+            });
+          },
+        );
       case 'mcq':
       default:
         return Column(
@@ -651,6 +691,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   // --- FILL IN THE BLANK TYPE ---
   int? _draggedOptionIndex;
   bool _fillBlankSubmitted = false;
+  bool _dragDropSpellingSubmitted = false;
+  bool _matchingSubmitted = false;
 
   Widget _buildFillBlankQuestion(Question question) {
     return Column(
@@ -813,7 +855,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 ),
                 const SizedBox(width: AppSpacing.md),
               ],
-              Expanded(child: Text(option.text, style: AppTextStyles.bodyBold)),
+              if (option.text.isNotEmpty)
+                Expanded(child: Text(option.text, style: AppTextStyles.bodyBold)),
             ],
           ),
         ),

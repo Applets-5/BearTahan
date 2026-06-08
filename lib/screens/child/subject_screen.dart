@@ -67,46 +67,63 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
         subjectId: widget.subjectId,
       )),
     );
+    final chaptersAsync = ref.watch(subjectChaptersProvider(widget.subjectId));
 
     return Scaffold(
       body: starsAsync.when(
         data: (starMap) {
-          int completedCount = starMap.values.where((s) => s > 0).length;
-          double progress = completedCount / 8;
+          return chaptersAsync.when(
+            data: (chapters) {
+              // Calculate progress based on dynamic chapters
+              int totalPossibleLevels = chapters.fold(0, (sum, c) => sum + c.levelIds.length);
+              int completedCount = starMap.values.where((s) => s > 0).length;
+              double progress = totalPossibleLevels > 0 ? completedCount / totalPossibleLevels : 0;
 
-          // Trigger auto-scroll once
-          _scrollToActiveLevel(starMap);
+              // Trigger auto-scroll once
+              _scrollToActiveLevel(starMap);
 
-          return CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              SliverToBoxAdapter(
-                child: _SubjectHeader(
-                  completedCount: completedCount,
-                  totalCount: 8,
-                  progress: progress,
-                  subjectId: widget.subjectId,
-                  onBack: () =>
-                      context.go(AppRouter.childHomeFor(widget.childId)),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: LevelWindingPath(
-                  starMap: starMap,
-                  subjectId: widget.subjectId,
-                  childId: widget.childId,
-                  onLevelTap: (levelId, isBoss) {
-                    context.push(
-                      AppRouter.levelSessionFor(
-                        widget.childId,
-                        levelPrefix: '${widget.subjectId}_c1_${levelId}_',
-                        subjectId: widget.subjectId,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
+              return CustomScrollView(
+                controller: _scrollController,
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _SubjectHeader(
+                      completedCount: completedCount,
+                      totalCount: totalPossibleLevels,
+                      progress: progress,
+                      subjectId: widget.subjectId,
+                      onBack: () => context.go(AppRouter.childHomeFor(widget.childId)),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: LevelWindingPath(
+                      starMap: starMap,
+                      chapters: chapters,
+                      subjectId: widget.subjectId,
+                      childId: widget.childId,
+                      onLevelTap: (levelId, isBoss, chapterId) {
+                        String prefix = '${widget.subjectId}_${chapterId}_${levelId}_';
+                        
+                        // If it's a summary level, query all questions from the chapter
+                        if (levelId.toLowerCase() == 'summary') {
+                          prefix = '${widget.subjectId}_${chapterId}_';
+                        }
+
+                        context.push(
+                          AppRouter.levelSessionFor(
+                            widget.childId,
+                            levelPrefix: prefix,
+                            subjectId: widget.subjectId,
+                            levelId: levelId, // Pass the explicit levelId so progress saves under 'summary'
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Error loading chapters: $err')),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -134,7 +151,7 @@ class _SubjectHeader extends StatelessWidget {
     switch (subjectId) {
       case 'bm':
         return 'Bahasa Melayu';
-      case 'en':
+      case 'bi':
         return 'English';
       case 'bc':
         return 'Mandarin';
@@ -151,7 +168,7 @@ class _SubjectHeader extends StatelessWidget {
     switch (subjectId) {
       case 'bm':
         return AppColors.subjectBm;
-      case 'en':
+      case 'bi':
         return AppColors.subjectEnglish;
       case 'bc':
         return AppColors.subjectMandarin;

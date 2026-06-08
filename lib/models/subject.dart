@@ -56,6 +56,7 @@ class Subject {
     switch (colorName) {
       case 'bm':
         return AppColors.subjectBm;
+      case 'bi':
       case 'en':
       case 'english':
         return AppColors.subjectEnglish;

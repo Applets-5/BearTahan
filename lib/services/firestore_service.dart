@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../models/chapter_data.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
@@ -182,7 +183,7 @@ class FirestoreService {
     switch (id) {
       case 'bm':
         return 'Bahasa Melayu';
-      case 'en':
+      case 'bi':
         return 'English';
       case 'bc':
         return 'Mandarin';
@@ -311,6 +312,42 @@ class FirestoreService {
               .map((doc) => Subject.fromFirestore(doc.id, doc.data()))
               .toList();
         });
+  }
+
+  Future<List<ChapterData>> getSubjectChapters(String subjectId) async {
+    final snapshot = await _db
+        .collection('subjects')
+        .doc(subjectId)
+        .collection('chapters')
+        .orderBy('index') // Assuming chapters have an 'index' for ordering
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      // Fallback for English as per Samy's requirement if DB is empty
+      if (subjectId == 'bi') {
+        return [
+          ChapterData(id: 'c0', name: 'Chapter 0', levelIds: ['l1', 'l2', 'l3', 'summary']),
+          ChapterData(id: 'c1', name: 'Chapter 1', levelIds: ['l4', 'l5', 'l6', 'l7', 'l8', 'l9', 'summary']),
+        ];
+      }
+      // Default fallback for other subjects (Chapters 1 and 2, 4 levels each + summary)
+      return [
+        ChapterData(id: 'c1', name: 'Chapter 1', levelIds: ['l1', 'l2', 'l3', 'l4', 'l5', 'summary']),
+        ChapterData(id: 'c2', name: 'Chapter 2', levelIds: ['l6', 'l7', 'l8', 'summary']),
+      ];
+    }
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      final levelIds = List<String>.from(data['levelIds'] ?? []);
+      
+      // Automatically inject the chapter summary as the final boss if not explicitly listed
+      if (levelIds.isNotEmpty && levelIds.last.toLowerCase() != 'summary') {
+        levelIds.add('summary');
+      }
+
+      return ChapterData(id: doc.id, name: data['name'] ?? '', levelIds: levelIds);
+    }).toList();
   }
 
   Future<List<Question>> getQuestions(String prefix) async {
@@ -596,7 +633,7 @@ class FirestoreService {
   /// Performs a full scan of all subjects for a child and updates the
   /// aggregation documents. This is a one-time repair for legacy data.
   Future<void> repairSubjectProgress(String parentId, String childId) async {
-    final subjects = ['bm', 'en', 'bc', 'math', 'science'];
+    final subjects = ['bm', 'bi', 'bc', 'math', 'science'];
 
     for (final subjectId in subjects) {
       await syncSubjectAggregation(parentId, childId, subjectId);

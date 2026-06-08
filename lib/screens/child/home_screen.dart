@@ -190,7 +190,7 @@ class HomeScreen extends ConsumerWidget {
       case 'Bahasa Melayu':
         return 'bm';
       case 'English':
-        return 'en';
+        return 'bi';
       case 'Mandarin':
         return 'bc';
       case 'Mathematics':

@@ -61,6 +61,7 @@ class AppRouter {
     String? childId, {
     String? levelPrefix,
     String? subjectId,
+    String? levelId,
   }) {
     final params = <String, String>{};
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
@@ -69,6 +70,9 @@ class AppRouter {
     }
     if (subjectId != null && subjectId.isNotEmpty) {
       params['subjectId'] = subjectId;
+    }
+    if (levelId != null && levelId.isNotEmpty) {
+      params['levelId'] = levelId;
     }
     return Uri(path: levelSession, queryParameters: params).toString();
   }
@@ -276,10 +280,13 @@ class AppRouter {
           final childId = state.uri.queryParameters['childId'];
           final levelPrefix =
               state.uri.queryParameters['levelPrefix'] ?? 'bm_c1_l1_';
+          
+          final explicitLevelId = state.uri.queryParameters['levelId'];
+          
           // Extract subject and level from prefix (e.g., bm_c1_l1_ -> bm and l1)
           final parts = levelPrefix.split('_');
           final subjectId = parts.isNotEmpty ? parts[0] : 'bm';
-          final levelId = parts.length >= 3 ? parts[2] : 'l1';
+          final levelId = explicitLevelId ?? (parts.length >= 3 && parts[2].isNotEmpty ? parts[2] : 'l1');
 
           return _noTransitionPage(
             state,
