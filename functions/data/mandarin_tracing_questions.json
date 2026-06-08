@@ -2,26 +2,26 @@
   {
     "id": "bc_c1_l3_trace_ren",
     "characterUnicode": "人",
-    "prompt": "Trace 人"
+    "prompt": "请按笔顺写汉字“人”。"
   },
   {
     "id": "bc_c1_l3_trace_da",
     "characterUnicode": "大",
-    "prompt": "Trace 大"
+    "prompt": "请按笔顺写汉字“大”。"
   },
   {
     "id": "bc_c1_l3_trace_xiao",
     "characterUnicode": "小",
-    "prompt": "Trace 小"
+    "prompt": "请按笔顺写汉字“小”。"
   },
   {
     "id": "bc_c1_l3_trace_shan",
     "characterUnicode": "山",
-    "prompt": "Trace 山"
+    "prompt": "请按笔顺写汉字“山”。"
   },
   {
     "id": "bc_c1_l3_trace_ri",
     "characterUnicode": "日",
-    "prompt": "Trace 日"
+    "prompt": "请按笔顺写汉字“日”。"
   }
 ]

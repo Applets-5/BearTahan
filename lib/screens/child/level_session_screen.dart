@@ -340,7 +340,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                   return 'ms-MY';
                 case 'english':
                   return 'en-GB';
+                case 'bc':
                 case 'mandarin':
+                case 'zh':
+                case 'chinese':
                   return 'zh-CN';
                 default:
                   return 'en-GB';

@@ -31,7 +31,12 @@ const db = admin.firestore();
 const questions = db.collection("questions");
 
 function buildQuestion(definition, existingData) {
+  const promptChanged =
+    existingData?.prompt !== definition.prompt ||
+    existingData?.questionText !== definition.prompt;
+
   return {
+    ...(existingData ?? {}),
     id: definition.id,
     subjectId: "BC",
     chapterId: "BC_C1",
@@ -49,7 +54,7 @@ function buildQuestion(definition, existingData) {
     correctOrder: null,
     imageMode: "none",
     imageUrl: null,
-    promptAudioUrl: existingData?.promptAudioUrl ?? null,
+    promptAudioUrl: promptChanged ? null : existingData?.promptAudioUrl ?? null,
     options: [],
     createdAt: existingData?.createdAt ?? admin.firestore.FieldValue.serverTimestamp(),
   };
@@ -88,6 +93,9 @@ async function inspect() {
     if (snapshot.exists) {
       const data = snapshot.data();
       console.log(Object.keys(data).sort().join(", "));
+      console.log(`  prompt: ${JSON.stringify(data.prompt ?? null)}`);
+      console.log(`  questionText: ${JSON.stringify(data.questionText ?? null)}`);
+      console.log(`  promptAudioUrl: ${JSON.stringify(data.promptAudioUrl ?? null)}`);
     }
   }
 }
