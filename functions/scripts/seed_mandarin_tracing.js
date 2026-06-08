@@ -2,6 +2,7 @@
 
 const path = require("path");
 const admin = require("firebase-admin");
+const fs = require("fs");
 
 const projectRoot = path.resolve(__dirname, "..", "..");
 const serviceAccountPath = path.join(projectRoot, "service-account.json");
@@ -29,11 +30,27 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const questions = db.collection("questions");
+const tracingPrefix = "bc_c1_l3_trace_";
+
+function desiredIds() {
+  return new Set(definitions.map((definition) => definition.id));
+}
+
+function isTracingQuestion(data) {
+  return data?.type === "stroke_trace" || data?.questionType === "stroke_trace";
+}
+
+function loadStrokeOrderData(character) {
+  const assetPath = path.join(projectRoot, "assets", "hanzi", `${character}.json`);
+  const strokeOrderData = JSON.parse(fs.readFileSync(assetPath, "utf8"));
+  return JSON.stringify(strokeOrderData);
+}
 
 function buildQuestion(definition, existingData) {
   const promptChanged =
     existingData?.prompt !== definition.prompt ||
     existingData?.questionText !== definition.prompt;
+  const strokeOrderData = loadStrokeOrderData(definition.characterUnicode);
 
   return {
     ...(existingData ?? {}),
@@ -45,6 +62,8 @@ function buildQuestion(definition, existingData) {
     difficulty: 1,
     prompt: definition.prompt,
     questionText: definition.prompt,
+    lesson: definition.lesson ?? existingData?.lesson ?? null,
+    strokeOrderData,
     questionType: "stroke_trace",
     type: "stroke_trace",
     characterUnicode: definition.characterUnicode,
@@ -87,6 +106,8 @@ function diffFields(existing, desired) {
 }
 
 async function inspect() {
+  const obsolete = await getObsoleteTracingDocs();
+
   for (const definition of definitions) {
     const snapshot = await questions.doc(definition.id).get();
     console.log(`\n${definition.id}: ${snapshot.exists ? "exists" : "missing"}`);
@@ -98,10 +119,18 @@ async function inspect() {
       console.log(`  promptAudioUrl: ${JSON.stringify(data.promptAudioUrl ?? null)}`);
     }
   }
+
+  if (obsolete.length > 0) {
+    console.log("\nObsolete tracing docs currently under bc_c1_l3_trace_:");
+    for (const doc of obsolete) {
+      console.log(`  ${doc.id}`);
+    }
+  }
 }
 
 async function dryRun() {
   let changedCount = 0;
+  const obsolete = await getObsoleteTracingDocs();
 
   for (const definition of definitions) {
     const snapshot = await questions.doc(definition.id).get();
@@ -123,11 +152,18 @@ async function dryRun() {
     }
   }
 
+  for (const doc of obsolete) {
+    changedCount++;
+    console.log(`\n${doc.id}: DELETE`);
+    console.log("  Obsolete stroke_trace doc under bc_c1_l3_trace_.");
+  }
+
   console.log(`\nDry run complete. ${changedCount} document(s) would change.`);
 }
 
 async function apply() {
   const batch = db.batch();
+  const obsolete = await getObsoleteTracingDocs();
 
   for (const definition of definitions) {
     const reference = questions.doc(definition.id);
@@ -136,8 +172,27 @@ async function apply() {
     batch.set(reference, buildQuestion(definition, existing));
   }
 
+  for (const doc of obsolete) {
+    batch.delete(doc.ref);
+  }
+
   await batch.commit();
-  console.log(`Applied ${definitions.length} Mandarin tracing document(s).`);
+  console.log(
+    `Applied ${definitions.length} Mandarin tracing document(s), deleted ${obsolete.length} obsolete document(s).`,
+  );
+}
+
+async function getObsoleteTracingDocs() {
+  const desired = desiredIds();
+  const snapshot = await questions
+    .where(admin.firestore.FieldPath.documentId(), ">=", tracingPrefix)
+    .where(admin.firestore.FieldPath.documentId(), "<", `${tracingPrefix}\uf8ff`)
+    .get();
+
+  return snapshot.docs.filter((doc) => {
+    if (desired.has(doc.id)) return false;
+    return isTracingQuestion(doc.data());
+  });
 }
 
 async function main() {

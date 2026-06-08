@@ -1,27 +1,92 @@
 [
   {
-    "id": "bc_c1_l3_trace_ren",
-    "characterUnicode": "人",
-    "prompt": "请按笔顺写汉字“人”。"
+    "id": "bc_c1_l3_trace_tian",
+    "characterUnicode": "天",
+    "prompt": "请按笔顺写汉字“天”。",
+    "lesson": "识字一"
   },
   {
-    "id": "bc_c1_l3_trace_da",
-    "characterUnicode": "大",
-    "prompt": "请按笔顺写汉字“大”。"
+    "id": "bc_c1_l3_trace_tai",
+    "characterUnicode": "太",
+    "prompt": "请按笔顺写汉字“太”。",
+    "lesson": "识字一"
+  },
+  {
+    "id": "bc_c1_l3_trace_yang",
+    "characterUnicode": "阳",
+    "prompt": "请按笔顺写汉字“阳”。",
+    "lesson": "识字一"
+  },
+  {
+    "id": "bc_c1_l3_trace_shang",
+    "characterUnicode": "上",
+    "prompt": "请按笔顺写汉字“上”。",
+    "lesson": "识字一"
+  },
+  {
+    "id": "bc_c1_l3_trace_xue",
+    "characterUnicode": "学",
+    "prompt": "请按笔顺写汉字“学”。",
+    "lesson": "识字一"
+  },
+  {
+    "id": "bc_c1_l3_trace_le",
+    "characterUnicode": "了",
+    "prompt": "请按笔顺写汉字“了”。",
+    "lesson": "第一单元（一）上学了"
+  },
+  {
+    "id": "bc_c1_l3_trace_yi",
+    "characterUnicode": "一",
+    "prompt": "请按笔顺写汉字“一”。",
+    "lesson": "第一单元（一）上学了"
+  },
+  {
+    "id": "bc_c1_l3_trace_zou",
+    "characterUnicode": "走",
+    "prompt": "请按笔顺写汉字“走”。",
+    "lesson": "第一单元（一）上学了"
+  },
+  {
+    "id": "bc_c1_l3_trace_men",
+    "characterUnicode": "门",
+    "prompt": "请按笔顺写汉字“门”。",
+    "lesson": "第一单元（一）上学了"
+  },
+  {
+    "id": "bc_c1_l3_trace_kou",
+    "characterUnicode": "口",
+    "prompt": "请按笔顺写汉字“口”。",
+    "lesson": "第一单元（一）上学了"
   },
   {
     "id": "bc_c1_l3_trace_xiao",
     "characterUnicode": "小",
-    "prompt": "请按笔顺写汉字“小”。"
+    "prompt": "请按笔顺写汉字“小”。",
+    "lesson": "第一单元（二）早操"
   },
   {
-    "id": "bc_c1_l3_trace_shan",
-    "characterUnicode": "山",
-    "prompt": "请按笔顺写汉字“山”。"
+    "id": "bc_c1_l3_trace_niao",
+    "characterUnicode": "鸟",
+    "prompt": "请按笔顺写汉字“鸟”。",
+    "lesson": "第一单元（二）早操"
   },
   {
-    "id": "bc_c1_l3_trace_ri",
-    "characterUnicode": "日",
-    "prompt": "请按笔顺写汉字“日”。"
+    "id": "bc_c1_l3_trace_zao",
+    "characterUnicode": "早",
+    "prompt": "请按笔顺写汉字“早”。",
+    "lesson": "第一单元（二）早操"
+  },
+  {
+    "id": "bc_c1_l3_trace_lai",
+    "characterUnicode": "来",
+    "prompt": "请按笔顺写汉字“来”。",
+    "lesson": "第一单元（二）早操"
+  },
+  {
+    "id": "bc_c1_l3_trace_qu",
+    "characterUnicode": "去",
+    "prompt": "请按笔顺写汉字“去”。",
+    "lesson": "第一单元（二）早操"
   }
 ]
