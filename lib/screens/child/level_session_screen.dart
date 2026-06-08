@@ -15,6 +15,7 @@ import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
 import '../../widgets/common/audio_prompt_player.dart';
 import '../../widgets/child/stroke_trace_question.dart';
+import '../../widgets/common/mascot_widget.dart';
 
 class LevelSessionScreen extends ConsumerStatefulWidget {
   const LevelSessionScreen({
@@ -23,12 +24,14 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
     this.levelPrefix = 'bm_c1_l1_',
     this.subjectId = 'bm',
     this.levelId = 'l1',
+    this.showFeedbackMascot = true,
   });
 
   final String? childId;
   final String levelPrefix;
   final String subjectId;
   final String levelId;
+  final bool showFeedbackMascot;
 
   @override
   ConsumerState<LevelSessionScreen> createState() => _LevelSessionScreenState();
@@ -247,6 +250,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       await completed;
     });
 
+    final newlyUnlockedOutfits = <String>[];
+
     try {
       final parentId = ref.read(parentIdProvider);
       if (widget.childId != null && parentId.isNotEmpty) {
@@ -272,6 +277,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           widget.levelId,
           stars,
         );
+
+        newlyUnlockedOutfits.addAll(
+          await firestore.evaluateAndUpdateQuestProgress(
+            parentId,
+            widget.childId!,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error saving attempt: $e');
@@ -288,6 +300,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         'levelId': widget.levelId,
         'subjectId': widget.subjectId,
         'stars': stars.toString(),
+        if (newlyUnlockedOutfits.isNotEmpty)
+          'unlockedOutfits': newlyUnlockedOutfits.join(','),
       };
       context.go(
         Uri(path: AppRouter.completion, queryParameters: params).toString(),
@@ -483,16 +497,35 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                               : AppColors.destructiveLight,
                           borderRadius: AppRadius.r(AppRadius.lg),
                         ),
-                        child: Text(
-                          selected == question.correctAnswerIndex
-                              ? 'Correct! Well done!'
-                              : question.type?.toLowerCase() == 'stroke_trace'
-                              ? 'Not quite. Watch the stroke order and try again later.'
-                              : (question.type?.toLowerCase() == 'rearrange' &&
-                                    question.correctOrder != null)
-                              ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
-                              : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
-                          style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (widget.showFeedbackMascot) ...[
+                              ActiveMascotWidget(
+                                childId: widget.childId,
+                                size: 56,
+                                showBackground: false,
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                            ],
+                            Expanded(
+                              child: Text(
+                                selected == question.correctAnswerIndex
+                                    ? 'Correct! Well done!'
+                                    : question.type?.toLowerCase() ==
+                                          'stroke_trace'
+                                    ? 'Not quite. Watch the stroke order and try again later.'
+                                    : (question.type?.toLowerCase() ==
+                                              'rearrange' &&
+                                          question.correctOrder != null)
+                                    ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
+                                    : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
+                                style: AppTextStyles.bodyBold.copyWith(
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

@@ -6,8 +6,10 @@ import '../models/question.dart';
 import '../models/reward.dart';
 import '../models/reward_claim.dart';
 import '../models/notification.dart';
+import '../models/outfit_quest.dart';
 import '../models/star_transaction.dart';
 import '../utils/streak_utils.dart';
+import '../utils/quest_utils.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db;
@@ -238,6 +240,178 @@ class FirestoreService {
       default:
         return id.toUpperCase();
     }
+  }
+
+  CollectionReference<Map<String, dynamic>> get _outfitQuestsRef =>
+      _db.collection('outfitQuests');
+
+  DocumentReference<Map<String, dynamic>> _childDocRef(
+    String parentId,
+    String childId,
+  ) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+  }
+
+  Future<void> seedDefaultOutfitQuests({bool overwrite = false}) async {
+    final batch = _db.batch();
+    var writeCount = 0;
+
+    for (final quest in OutfitQuest.defaults) {
+      final docRef = _outfitQuestsRef.doc(quest.id);
+      final snapshot = await docRef.get();
+      if (overwrite || !snapshot.exists) {
+        batch.set(docRef, quest.toFirestore(), SetOptions(merge: true));
+        writeCount++;
+      }
+    }
+
+    if (writeCount > 0) {
+      await batch.commit();
+    }
+  }
+
+  Stream<List<OutfitQuest>> streamOutfitQuests() {
+    return _outfitQuestsRef.orderBy('displayOrder').snapshots().map((snapshot) {
+      if (snapshot.docs.isEmpty) {
+        return OutfitQuest.defaults;
+      }
+
+      return snapshot.docs
+          .map((doc) => OutfitQuest.fromFirestore(doc.id, doc.data()))
+          .toList();
+    });
+  }
+
+  Stream<Map<String, OutfitQuestProgress>> streamQuestProgress(
+    String parentId,
+    String childId,
+  ) {
+    return _childDocRef(
+      parentId,
+      childId,
+    ).collection('questProgress').snapshots().map((snapshot) {
+      return {
+        for (final doc in snapshot.docs)
+          doc.id: OutfitQuestProgress.fromFirestore(doc.id, doc.data()),
+      };
+    });
+  }
+
+  Future<void> setActiveOutfit(
+    String parentId,
+    String childId,
+    String outfitId,
+  ) async {
+    final progressDoc = await _childDocRef(
+      parentId,
+      childId,
+    ).collection('questProgress').doc(outfitId).get();
+
+    final isScholarBear = outfitId == 'scholar_bear';
+    final isUnlocked =
+        isScholarBear || progressDoc.data()?['isUnlocked'] == true;
+
+    if (!isUnlocked) {
+      throw Exception('This outfit is still locked.');
+    }
+
+    await _childDocRef(parentId, childId).set({
+      'activeOutfitID': outfitId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<List<String>> evaluateAndUpdateQuestProgress(
+    String parentId,
+    String childId,
+  ) async {
+    final childDocRef = _childDocRef(parentId, childId);
+
+    final questSnapshot = await _outfitQuestsRef.orderBy('displayOrder').get();
+    final quests = questSnapshot.docs.isEmpty
+        ? OutfitQuest.defaults
+        : questSnapshot.docs
+              .map((doc) => OutfitQuest.fromFirestore(doc.id, doc.data()))
+              .toList();
+
+    final childSnapshot = await childDocRef.get();
+    final childData = childSnapshot.data() ?? {};
+    final lifetimeStarsEarned =
+        (childData['lifetimeStarsEarned'] ??
+                childData['availableStars'] ??
+                childData['starBalance'] ??
+                childData['stars'] ??
+                0)
+            .toInt();
+
+    final subjectProgressSnapshot = await childDocRef
+        .collection('subjectProgress')
+        .get();
+    final subjectProgress = {
+      for (final doc in subjectProgressSnapshot.docs) doc.id: doc.data(),
+    };
+
+    final attemptsSnapshot = await childDocRef.collection('attempts').get();
+    final attempts = attemptsSnapshot.docs.map((doc) => doc.data()).toList();
+
+    final existingProgressSnapshot = await childDocRef
+        .collection('questProgress')
+        .get();
+    final existingProgress = {
+      for (final doc in existingProgressSnapshot.docs) doc.id: doc.data(),
+    };
+
+    final batch = _db.batch();
+    final newlyUnlocked = <String>[];
+
+    for (final quest in quests) {
+      final currentValue = QuestUtils.calculateQuestCurrentValue(
+        quest: quest,
+        lifetimeStarsEarned: lifetimeStarsEarned,
+        subjectProgress: subjectProgress,
+        attempts: attempts,
+      );
+
+      final existingData = existingProgress[quest.id] ?? {};
+      final wasUnlocked = existingData['isUnlocked'] == true;
+      final shouldUnlock = QuestUtils.isQuestUnlocked(
+        quest: quest,
+        currentValue: currentValue,
+        wasUnlocked: wasUnlocked,
+      );
+      final isNewUnlock = QuestUtils.isNewUnlock(
+        quest: quest,
+        currentValue: currentValue,
+        wasUnlocked: wasUnlocked,
+      );
+
+      if (isNewUnlock) {
+        newlyUnlocked.add(quest.id);
+      }
+
+      batch.set(
+        childDocRef.collection('questProgress').doc(quest.id),
+        {
+          'outfitID': quest.id,
+          'outfitName': quest.name,
+          'conditionType': quest.conditionType,
+          if (quest.subjectId != null) 'subjectId': quest.subjectId,
+          'currentValue': currentValue,
+          'targetValue': quest.target,
+          'isUnlocked': shouldUnlock,
+          'updatedAt': FieldValue.serverTimestamp(),
+          if (isNewUnlock) 'unlockedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    }
+
+    await batch.commit();
+    return newlyUnlocked;
   }
 
   String _todayKey([DateTime? now]) {
