@@ -298,6 +298,50 @@ void main() {
       expect(doc.data()?['isRead'], true);
     });
 
+    test(
+      'flagWrongAnswer should create and increment wrong answer record',
+      () async {
+        const parentId = 'p1';
+        const childId = 'c1';
+        const questionId = 'bc_c1_l1_trace_ren';
+
+        await firestoreService.flagWrongAnswer(
+          parentId,
+          childId,
+          questionId: questionId,
+          subjectId: 'bc',
+          levelId: 'l1',
+          questionText: 'Trace 人',
+        );
+        await firestoreService.flagWrongAnswer(
+          parentId,
+          childId,
+          questionId: questionId,
+          subjectId: 'bc',
+          levelId: 'l1',
+          questionText: 'Trace 人',
+        );
+
+        final doc = await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .collection('wrongAnswerBank')
+            .doc(questionId)
+            .get();
+
+        expect(doc.exists, true);
+        expect(doc.data()?['questionId'], questionId);
+        expect(doc.data()?['subjectId'], 'bc');
+        expect(doc.data()?['levelId'], 'l1');
+        expect(doc.data()?['questionText'], 'Trace 人');
+        expect(doc.data()?['reviewCount'], 2);
+        expect(doc.data()?['addedAt'], isNotNull);
+        expect(doc.data()?['lastWrongAt'], isNotNull);
+      },
+    );
+
     test('updateDailyGoal should store goal on child document', () async {
       const parentId = 'p1';
       const childId = 'c1';

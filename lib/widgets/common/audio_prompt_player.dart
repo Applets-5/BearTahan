@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/audio_contexts.dart';
 
 class AudioPromptPlayer extends ConsumerStatefulWidget {
   final String? url;
@@ -26,6 +27,7 @@ class AudioPromptPlayer extends ConsumerStatefulWidget {
 
 class _AudioPromptPlayerState extends ConsumerState<AudioPromptPlayer> {
   late AudioPlayer _player;
+  late final Future<void> _audioContextReady;
   bool _isPlaying = false;
   bool _hasError = false;
 
@@ -33,6 +35,7 @@ class _AudioPromptPlayerState extends ConsumerState<AudioPromptPlayer> {
   void initState() {
     super.initState();
     _player = AudioPlayer();
+    _audioContextReady = _player.setAudioContext(promptAudioContext());
     _player.onPlayerStateChanged.listen((state) {
       if (mounted) {
         setState(() {
@@ -73,6 +76,7 @@ class _AudioPromptPlayerState extends ConsumerState<AudioPromptPlayer> {
     if (!hasUrl && !hasText) return;
 
     try {
+      await _audioContextReady;
       if (hasUrl) {
         await ref.read(ttsServiceProvider).stop();
         await _player.stop();
