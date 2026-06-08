@@ -9,6 +9,7 @@ import '../../models/question.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/audio_contexts.dart';
 import '../../utils/sound_effects.dart';
 import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
@@ -44,38 +45,63 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   List<Question>? shuffledQuestions;
   List<Question>? _lastRawQuestions;
   final AudioPlayer _audioPlayer = AudioPlayer();
+  late final Future<void> _feedbackAudioContextReady;
+  AudioPool? _correctAnswerPool;
+  AudioPool? _wrongAnswerPool;
   AudioPool? _correctStrokePool;
   AudioPool? _wrongStrokePool;
+  StopFunction? _stopCorrectAnswer;
+  StopFunction? _stopWrongAnswer;
   StopFunction? _stopCorrectStroke;
   StopFunction? _stopWrongStroke;
 
   @override
   void initState() {
     super.initState();
+    _feedbackAudioContextReady = _audioPlayer.setAudioContext(
+      soundEffectAudioContext(),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startSessionTimer();
     });
-    unawaited(_initializeStrokeAudio());
+    unawaited(_initializeSoundEffectAudio());
   }
 
   bool get _soundEffectsEnabled {
     return soundEffectsEnabled(ref.read(parentSettingsProvider).value);
   }
 
-  Future<void> _initializeStrokeAudio() async {
+  Future<void> _initializeSoundEffectAudio() async {
     try {
+      final context = soundEffectAudioContext();
       final pools = await Future.wait([
-        AudioPool.createFromAsset(
-          path: 'audio/stroke_correct.wav',
+        AudioPool.create(
+          source: AssetSource('audio/correctAns.mp3'),
           minPlayers: 1,
           maxPlayers: 1,
           playerMode: PlayerMode.lowLatency,
+          audioContext: context,
         ),
-        AudioPool.createFromAsset(
-          path: 'audio/stroke_wrong.wav',
+        AudioPool.create(
+          source: AssetSource('audio/wrongAns.mp3'),
           minPlayers: 1,
           maxPlayers: 1,
           playerMode: PlayerMode.lowLatency,
+          audioContext: context,
+        ),
+        AudioPool.create(
+          source: AssetSource('audio/stroke_correct.wav'),
+          minPlayers: 1,
+          maxPlayers: 1,
+          playerMode: PlayerMode.lowLatency,
+          audioContext: context,
+        ),
+        AudioPool.create(
+          source: AssetSource('audio/stroke_wrong.wav'),
+          minPlayers: 1,
+          maxPlayers: 1,
+          playerMode: PlayerMode.lowLatency,
+          audioContext: context,
         ),
       ]);
 
@@ -84,10 +110,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         return;
       }
 
-      _correctStrokePool = pools[0];
-      _wrongStrokePool = pools[1];
+      _correctAnswerPool = pools[0];
+      _wrongAnswerPool = pools[1];
+      _correctStrokePool = pools[2];
+      _wrongStrokePool = pools[3];
     } catch (error) {
-      debugPrint('Unable to initialize stroke sounds: $error');
+      debugPrint('Unable to initialize sound effects: $error');
     }
   }
 
@@ -113,11 +141,21 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     }
 
     return _playSound(() {
-      return _audioPlayer.play(
-        AssetSource(isCorrect ? 'audio/correctAns.mp3' : 'audio/wrongAns.mp3'),
-        volume: 0.70,
-      );
+      return _playAnswerFeedback(isCorrect);
     });
+  }
+
+  Future<void> _playAnswerFeedback(bool isCorrect) async {
+    final pool = isCorrect ? _correctAnswerPool : _wrongAnswerPool;
+    if (pool == null) return;
+
+    if (isCorrect) {
+      await _stopCorrectAnswer?.call();
+      _stopCorrectAnswer = await pool.start(volume: 0.70);
+    } else {
+      await _stopWrongAnswer?.call();
+      _stopWrongAnswer = await pool.start(volume: 0.70);
+    }
   }
 
   Future<void> _playTracingCompletionFeedback(
@@ -147,9 +185,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     });
   }
 
-  Future<void> _disposeStrokeAudio() async {
+  Future<void> _disposeSoundEffectAudio() async {
+    await _stopCorrectAnswer?.call();
+    await _stopWrongAnswer?.call();
     await _stopCorrectStroke?.call();
     await _stopWrongStroke?.call();
+    await _correctAnswerPool?.dispose();
+    await _wrongAnswerPool?.dispose();
     await _correctStrokePool?.dispose();
     await _wrongStrokePool?.dispose();
   }
@@ -157,7 +199,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   @override
   void dispose() {
     _stopSessionTimer();
-    unawaited(_disposeStrokeAudio());
+    unawaited(_disposeSoundEffectAudio());
     unawaited(_audioPlayer.dispose());
     super.dispose();
   }
@@ -199,6 +241,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         ? 'audio/levelPassed.mp3'
         : 'audio/levelFailed.mp3';
     final playFuture = _playSound(() async {
+      await _feedbackAudioContextReady;
       final completed = _audioPlayer.onPlayerComplete.first;
       await _audioPlayer.play(AssetSource(audioPath), volume: 0.60);
       await completed;
