@@ -77,10 +77,15 @@ class _ChapterScreenState extends ConsumerState<ChapterScreen> {
                   final threshold = (data['summaryThreshold'] ?? 0) as int;
 
                   String goalText = "Goal: 80% to earn a star";
-                  if (threshold == 1) goalText = "Goal: 90% to earn a star";
-                  if (threshold == 2) goalText = "Goal: 100% to earn a star";
-                  if (threshold >= 3)
+                  if (threshold == 1) {
+                    goalText = "Goal: 90% to earn a star";
+                  }
+                  if (threshold == 2) {
+                    goalText = "Goal: 100% to earn a star";
+                  }
+                  if (threshold >= 3) {
                     goalText = "Goal: 100% for a Daily Bonus!";
+                  }
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
