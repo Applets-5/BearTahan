@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 //import 'package:go_router/go_router.dart';
+import '../models/chapter_data.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
@@ -145,6 +146,24 @@ final starTransactionsProvider =
           .watch(firestoreServiceProvider)
           .streamStarTransactions(arg.parentId, arg.childId);
     });
+
+final subjectChaptersProvider =
+    FutureProvider.family<List<ChapterData>, String>((ref, subjectId) {
+      return ref.watch(firestoreServiceProvider).getSubjectChapters(subjectId);
+    });
+
+final allSubjectsTotalLevelsProvider = FutureProvider<Map<String, int>>((
+  ref,
+) async {
+  final service = ref.watch(firestoreServiceProvider);
+  final subjects = ['bm', 'bi', 'bc', 'math', 'sci'];
+  final Map<String, int> results = {};
+  for (final id in subjects) {
+    final chapters = await service.getSubjectChapters(id);
+    results[id] = chapters.fold(0, (sum, c) => sum + c.levelIds.length);
+  }
+  return results;
+});
 
 final rewardClaimsProvider =
     StreamProvider.family<

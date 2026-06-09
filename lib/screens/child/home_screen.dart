@@ -12,7 +12,7 @@ import '../../widgets/common/progress_bar_card.dart';
 import '../../widgets/common/star_balance_chip.dart';
 import '../../widgets/common/subject_card.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, this.childId});
 
   final String? childId;
@@ -56,14 +56,63 @@ class HomeScreen extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final effectiveChildId = childId ?? '';
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+
+  static String _getSubjectId(String name) {
+    switch (name) {
+      case 'Bahasa Melayu':
+        return 'bm';
+      case 'English':
+        return 'bi';
+      case 'Mandarin':
+        return 'bc';
+      case 'Mathematics':
+        return 'math';
+      case 'Science':
+        return 'sci';
+      default:
+        return name.toLowerCase().substring(0, math.min(name.length, 2));
+    }
+  }
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _didRepair = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAndRepair();
+  }
+
+  void _checkAndRepair() {
+    if (_didRepair) return;
+    _didRepair = true;
+
+    final childId = widget.childId ?? '';
+    if (childId.isEmpty) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final parentId = ref.read(parentIdProvider);
+      if (parentId.isNotEmpty) {
+        debugPrint('DEBUG: Triggering subject progress repair for $childId');
+        ref
+            .read(firestoreServiceProvider)
+            .repairSubjectProgress(parentId, childId);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveChildId = widget.childId ?? '';
     if (effectiveChildId.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     final subjectProgressAsync = ref.watch(
       subjectProgressProvider(effectiveChildId),
     );
+    final totalLevelsAsync = ref.watch(allSubjectsTotalLevelsProvider);
 
     return SafeArea(
       child: CustomScrollView(
@@ -78,7 +127,7 @@ class HomeScreen extends ConsumerWidget {
                 AppSpacing.sm,
               ),
               child: ActiveMascotWidget(
-                childId: childId,
+                childId: widget.childId,
                 message: 'Pick a subject to start!',
               ),
             ),
@@ -86,37 +135,54 @@ class HomeScreen extends ConsumerWidget {
           SliverToBoxAdapter(child: _DailyGoalCard(childId: effectiveChildId)),
           subjectProgressAsync.when(
             data: (progressList) {
-              // Calculate average progress
-              int totalProgress = 0;
-              for (var s in subjectsList) {
-                final id = _getSubjectId(s.$1);
-                final dbS = progressList.firstWhere(
-                  (p) => p.id == id,
-                  orElse: () => Subject(
-                    id: id,
-                    name: s.$1,
-                    subtitle: s.$2,
-                    icon: s.$3,
-                    color: s.$4,
-                    progress: 0,
-                  ),
-                );
-                totalProgress += dbS.progress;
-              }
-              final avgProgress = (totalProgress / subjectsList.length).round();
+              return totalLevelsAsync.when(
+                data: (totals) {
+                  // Calculate average progress
+                  int totalProgress = 0;
+                  for (var s in HomeScreen.subjectsList) {
+                    final id = HomeScreen._getSubjectId(s.$1);
+                    final dbS = progressList.firstWhere(
+                      (p) => p.id == id,
+                      orElse: () => Subject(
+                        id: id,
+                        name: s.$1,
+                        subtitle: s.$2,
+                        icon: s.$3,
+                        color: s.$4,
+                        progress: 0,
+                      ),
+                    );
 
-              return SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                  ),
-                  child: ProgressBarCard(
-                    title: 'Overall Progress',
-                    subtitle: '$avgProgress% of all subjects completed',
-                    progress: avgProgress / 100,
-                    icon: Icons.flag_rounded,
-                  ),
-                ),
+                    final total = totals[id] ?? 8;
+                    final calculatedProgress = total > 0
+                        ? (dbS.completedLevels / total * 100).toInt().clamp(
+                            0,
+                            100,
+                          )
+                        : 0;
+                    totalProgress += calculatedProgress;
+                  }
+                  final avgProgress =
+                      (totalProgress / HomeScreen.subjectsList.length).round();
+
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                      ),
+                      child: ProgressBarCard(
+                        title: 'Overall Progress',
+                        subtitle: '$avgProgress% of all subjects completed',
+                        progress: avgProgress / 100,
+                        icon: Icons.flag_rounded,
+                      ),
+                    ),
+                  );
+                },
+                loading: () =>
+                    const SliverToBoxAdapter(child: SizedBox.shrink()),
+                error: (err, _) =>
+                    const SliverToBoxAdapter(child: SizedBox.shrink()),
               );
             },
             loading: () => const SliverToBoxAdapter(
@@ -130,47 +196,64 @@ class HomeScreen extends ConsumerWidget {
           ),
           subjectProgressAsync.when(
             data: (progressList) {
-              return SliverPadding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                sliver: SliverList.separated(
-                  itemBuilder: (context, index) {
-                    final s = subjectsList[index];
-                    // Match progress from DB using ID
-                    final subjectId = _getSubjectId(s.$1);
-                    final dbSubject = progressList.firstWhere(
-                      (dbS) => dbS.id == subjectId,
-                      orElse: () => Subject(
-                        id: subjectId,
-                        name: s.$1,
-                        subtitle: s.$2,
-                        icon: s.$3,
-                        color: s.$4,
-                        progress: 0,
-                      ),
-                    );
+              return totalLevelsAsync.when(
+                data: (totals) {
+                  return SliverPadding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    sliver: SliverList.separated(
+                      itemBuilder: (context, index) {
+                        final s = HomeScreen.subjectsList[index];
+                        // Match progress from DB using ID
+                        final subjectId = HomeScreen._getSubjectId(s.$1);
+                        final dbSubject = progressList.firstWhere(
+                          (dbS) => dbS.id == subjectId,
+                          orElse: () => Subject(
+                            id: subjectId,
+                            name: s.$1,
+                            subtitle: s.$2,
+                            icon: s.$3,
+                            color: s.$4,
+                            progress: 0,
+                          ),
+                        );
 
-                    return SubjectCard(
-                      name: s.$1,
-                      subtitle: s.$2,
-                      icon: s.$3,
-                      color: s.$4,
-                      progress: dbSubject.progress,
-                      completedLevels: dbSubject.completedLevels,
-                      totalStars: dbSubject.totalStars,
-                      onTap: () => context.go(
-                        Uri(
-                          path: AppRouter.subject,
-                          queryParameters: {
-                            'childId': childId ?? '',
-                            'subjectId': subjectId,
-                          },
-                        ).toString(),
-                      ),
-                    );
-                  },
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: AppSpacing.md),
-                  itemCount: subjectsList.length,
+                        final total = totals[subjectId] ?? 8;
+                        final calculatedProgress = total > 0
+                            ? (dbSubject.completedLevels / total * 100)
+                                  .toInt()
+                                  .clamp(0, 100)
+                            : 0;
+
+                        return SubjectCard(
+                          name: s.$1,
+                          subtitle: s.$2,
+                          icon: s.$3,
+                          color: s.$4,
+                          progress: calculatedProgress,
+                          completedLevels: dbSubject.completedLevels,
+                          totalStars: dbSubject.totalStars,
+                          onTap: () => context.go(
+                            Uri(
+                              path: AppRouter.subject,
+                              queryParameters: {
+                                'childId': widget.childId ?? '',
+                                'subjectId': subjectId,
+                              },
+                            ).toString(),
+                          ),
+                        );
+                      },
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: AppSpacing.md),
+                      itemCount: HomeScreen.subjectsList.length,
+                    ),
+                  );
+                },
+                loading: () => const SliverToBoxAdapter(
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (err, _) => SliverToBoxAdapter(
+                  child: Center(child: Text('Error: $err')),
                 ),
               );
             },
@@ -183,23 +266,6 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  String _getSubjectId(String name) {
-    switch (name) {
-      case 'Bahasa Melayu':
-        return 'bm';
-      case 'English':
-        return 'en';
-      case 'Mandarin':
-        return 'bc';
-      case 'Mathematics':
-        return 'math';
-      case 'Science':
-        return 'science';
-      default:
-        return name.toLowerCase().substring(0, math.min(name.length, 2));
-    }
   }
 }
 

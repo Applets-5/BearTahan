@@ -18,6 +18,8 @@ class CompletionScreen extends ConsumerStatefulWidget {
     this.levelId = 'l1',
     this.subjectId = 'bm',
     this.stars,
+    this.isEscalated = false,
+    this.isDailyBonus = false,
     this.unlockedOutfits = const [],
   });
 
@@ -27,6 +29,8 @@ class CompletionScreen extends ConsumerStatefulWidget {
   final String levelId;
   final String subjectId;
   final int? stars;
+  final bool isEscalated;
+  final bool isDailyBonus;
   final List<String> unlockedOutfits;
 
   @override
@@ -152,17 +156,36 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
-                  3,
+                  widget.isDailyBonus ? 4 : 3,
                   (index) => Icon(
                     Icons.star,
                     size: 40,
-                    color: index < earnedStars
+                    color: index < (widget.isDailyBonus ? 4 : earnedStars)
                         ? AppColors.star
                         : AppColors.muted,
                   ),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
+              if (widget.isEscalated)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: AppRadius.r(AppRadius.lg),
+                    ),
+                    child: Text(
+                      'Goal Increased! Next time try for more!',
+                      style: AppTextStyles.whiteBodyBold,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -172,7 +195,9 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 ),
                 child: Text(
                   passed
-                      ? '+$earnedStars stars added to your wallet!'
+                      ? widget.isDailyBonus
+                            ? 'You earned a Daily Bonus Star! Amazing!'
+                            : '+$earnedStars stars added to your wallet!'
                       : 'You need at least 50% to earn a star. Don\'t give up!',
                   style: AppTextStyles.bodyBold,
                   textAlign: TextAlign.center,
