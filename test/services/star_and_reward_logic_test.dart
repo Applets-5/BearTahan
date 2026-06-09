@@ -2,10 +2,15 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bear_tahan/services/firestore_service.dart';
 import 'package:bear_tahan/models/reward_claim.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+class MockFirebaseAuth extends Mock implements FirebaseAuth {}
 
 void main() {
   late FirestoreService firestoreService;
   late FakeFirebaseFirestore fakeFirestore;
+  late MockFirebaseAuth mockAuth;
 
   const parentId = 'test_parent';
   const childId = 'test_child';
@@ -14,7 +19,11 @@ void main() {
 
   setUp(() {
     fakeFirestore = FakeFirebaseFirestore();
-    firestoreService = FirestoreService(firestore: fakeFirestore);
+    mockAuth = MockFirebaseAuth();
+    firestoreService = FirestoreService(
+      firestore: fakeFirestore,
+      auth: mockAuth,
+    );
   });
 
   group('Star Logic Tests', () {

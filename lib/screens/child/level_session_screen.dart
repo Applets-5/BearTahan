@@ -756,7 +756,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         SizedBox(
           height: 200,
           child: ReorderableListView(
-            onReorder: (oldIndex, newIndex) {
+            onReorderItem: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
                 if (newIndex > oldIndex) newIndex -= 1;

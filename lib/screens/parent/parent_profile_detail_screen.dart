@@ -190,7 +190,7 @@ class _ParentProfileDetailScreenState
                     ),
                     const SizedBox(height: AppSpacing.md),
                     DropdownButtonFormField<String>(
-                      value: selectedGrade,
+                      initialValue: selectedGrade,
                       decoration: const InputDecoration(labelText: 'Grade'),
                       items: grades.map((g) {
                         return DropdownMenuItem(value: g, child: Text(g));
