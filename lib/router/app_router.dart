@@ -55,7 +55,17 @@ class AppRouter {
     return Uri(path: subject, queryParameters: params).toString();
   }
 
-  static String chapterFor(String? childId) => withChildId(chapter, childId);
+  static String chapterFor(String? childId, {String? subjectId, String? chapterId}) {
+    final params = <String, String>{};
+    if (childId != null && childId.isNotEmpty) params['childId'] = childId;
+    if (subjectId != null && subjectId.isNotEmpty) {
+      params['subjectId'] = subjectId;
+    }
+    if (chapterId != null && chapterId.isNotEmpty) {
+      params['chapterId'] = chapterId;
+    }
+    return Uri(path: chapter, queryParameters: params).toString();
+  }
 
   static String levelSessionFor(
     String? childId, {
@@ -82,12 +92,20 @@ class AppRouter {
     int? score,
     int? total,
     int? stars,
+    String? levelId,
+    String? subjectId,
+    bool? isEscalated,
+    bool? isDailyBonus,
   }) {
     final params = <String, String>{};
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
     if (score != null) params['score'] = score.toString();
     if (total != null) params['total'] = total.toString();
     if (stars != null) params['stars'] = stars.toString();
+    if (levelId != null) params['levelId'] = levelId;
+    if (subjectId != null) params['subjectId'] = subjectId;
+    if (isEscalated != null) params['isEscalated'] = isEscalated.toString();
+    if (isDailyBonus != null) params['isDailyBonus'] = isDailyBonus.toString();
     return Uri(path: completion, queryParameters: params).toString();
   }
 
@@ -271,7 +289,16 @@ class AppRouter {
         path: chapter,
         pageBuilder: (context, state) {
           final childId = state.uri.queryParameters['childId'];
-          return _noTransitionPage(state, ChapterScreen(childId: childId));
+          final subjectId = state.uri.queryParameters['subjectId'];
+          final chapterId = state.uri.queryParameters['chapterId'];
+          return _noTransitionPage(
+            state,
+            ChapterScreen(
+              childId: childId,
+              subjectId: subjectId,
+              chapterId: chapterId,
+            ),
+          );
         },
       ),
       GoRoute(
@@ -280,13 +307,15 @@ class AppRouter {
           final childId = state.uri.queryParameters['childId'];
           final levelPrefix =
               state.uri.queryParameters['levelPrefix'] ?? 'bm_c1_l1_';
-          
+
           final explicitLevelId = state.uri.queryParameters['levelId'];
-          
+
           // Extract subject and level from prefix (e.g., bm_c1_l1_ -> bm and l1)
           final parts = levelPrefix.split('_');
           final subjectId = parts.isNotEmpty ? parts[0] : 'bm';
-          final levelId = explicitLevelId ?? (parts.length >= 3 && parts[2].isNotEmpty ? parts[2] : 'l1');
+          final levelId =
+              explicitLevelId ??
+              (parts.length >= 3 && parts[2].isNotEmpty ? parts[2] : 'l1');
 
           return _noTransitionPage(
             state,
@@ -310,6 +339,10 @@ class AppRouter {
           final stars = int.tryParse(state.uri.queryParameters['stars'] ?? '');
           final levelId = state.uri.queryParameters['levelId'] ?? 'l1';
           final subjectId = state.uri.queryParameters['subjectId'] ?? 'bm';
+          final isEscalated =
+              state.uri.queryParameters['isEscalated'] == 'true';
+          final isDailyBonus =
+              state.uri.queryParameters['isDailyBonus'] == 'true';
 
           return _noTransitionPage(
             state,
@@ -320,6 +353,8 @@ class AppRouter {
               stars: stars,
               levelId: levelId,
               subjectId: subjectId,
+              isEscalated: isEscalated,
+              isDailyBonus: isDailyBonus,
             ),
           );
         },

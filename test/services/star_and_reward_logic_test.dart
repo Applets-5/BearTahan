@@ -10,7 +10,7 @@ void main() {
   const parentId = 'test_parent';
   const childId = 'test_child';
   const subjectId = 'bm';
-  const levelId = 'level1';
+  const levelId = 'c1_l1';
 
   setUp(() {
     fakeFirestore = FakeFirebaseFirestore();
@@ -29,13 +29,14 @@ void main() {
             .doc(childId)
             .set({'name': 'Bear', 'starBalance': 0});
 
-        // 2. Complete a level with 2 stars
+        // 2. Complete a level with 2 stars (8/10 = 80% = 2 stars)
         await firestoreService.updateLevelProgress(
           parentId,
           childId,
           subjectId,
           levelId,
-          2,
+          8,
+          10,
         );
 
         // Verify Child Balance
@@ -59,8 +60,8 @@ void main() {
 
         expect(subjectDoc.data()?['totalStars'], 2);
         expect(subjectDoc.data()?['completedLevels'], 1);
-        // (1 completed level / 8 total) * 100 = 12%
-        expect(subjectDoc.data()?['progress'], 12);
+        // (1 completed level / 10 total) * 100 = 10%
+        expect(subjectDoc.data()?['progress'], 10);
 
         // Verify Star History (Earn)
         final history = await fakeFirestore
@@ -98,13 +99,14 @@ void main() {
           .doc(childId)
           .set({'starBalance': 10, 'name': 'Bear'});
 
-      // Complete same level with 3 stars (+1 improvement)
+      // Complete same level with 3 stars (+1 improvement) (10/10 = 100% = 3 stars)
       await firestoreService.updateLevelProgress(
         parentId,
         childId,
         subjectId,
         levelId,
-        3,
+        10,
+        10,
       );
 
       final childDoc = await fakeFirestore
@@ -143,8 +145,8 @@ void main() {
       await subjectRef.set({'progress': 25});
 
       // Add two levels with actual data
-      await subjectRef.collection('levels').doc('L1').set({'stars': 3});
-      await subjectRef.collection('levels').doc('L2').set({'stars': 2});
+      await subjectRef.collection('levels').doc('c1_l1').set({'stars': 3});
+      await subjectRef.collection('levels').doc('c1_l2').set({'stars': 2});
 
       // Run Repair
       await firestoreService.syncSubjectAggregation(
@@ -156,7 +158,7 @@ void main() {
       final doc = await subjectRef.get();
       expect(doc.data()?['totalStars'], 5);
       expect(doc.data()?['completedLevels'], 2);
-      expect(doc.data()?['progress'], 25); // (2/8)*100
+      expect(doc.data()?['progress'], 20); // (2/10)*100
     });
   });
 

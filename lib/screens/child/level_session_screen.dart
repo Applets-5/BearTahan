@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,14 +54,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     });
   }
 
-  void _playFeedback(bool isCorrect) async {
-    if (isCorrect) {
-      await _audioPlayer.play(AssetSource('audio/correctAns.mp3'));
-    } else {
-      await _audioPlayer.play(AssetSource('audio/wrongAns.mp3'));
-    }
-  }
-
   @override
   void dispose() {
     _stopSessionTimer();
@@ -94,11 +87,39 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     _stopSessionTimer();
 
     int stars = 0;
+    bool isEscalated = false;
+    bool isDailyBonus = false;
 
     try {
       final parentId = ref.read(parentIdProvider);
       if (widget.childId != null && parentId.isNotEmpty) {
         final firestore = ref.read(firestoreServiceProvider);
+
+        // For summary stages, we need to know if it escalated or got a daily bonus
+        if (widget.levelId.toLowerCase().contains('summary')) {
+          final levelData = await firestore.getLevelProgress(
+            parentId,
+            widget.childId!,
+            widget.subjectId,
+            widget.levelId,
+          );
+          final int currentThreshold = (levelData['summaryThreshold'] ?? 0)
+              .toInt();
+          final DateTime? lastSummaryStarDate =
+              levelData['lastSummaryStarDate'] != null
+                  ? (levelData['lastSummaryStarDate'] as Timestamp).toDate()
+                  : null;
+
+          final result = StarUtils.calculateSummaryResult(
+            score: score,
+            total: totalQuestions,
+            currentThreshold: currentThreshold,
+            lastSummaryStarDate: lastSummaryStarDate,
+          );
+
+          isEscalated = result['newThreshold'] > currentThreshold;
+          isDailyBonus = result['earnedDailyStar'];
+        }
 
         // Update progress and get calculated stars (handles summary thresholds/daily cap)
         stars = await firestore.updateLevelProgress(
@@ -139,8 +160,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     }
 
     // Play appropriate audio
-    final String audioPath =
-        stars > 0 ? 'audio/levelPassed.mp3' : 'audio/levelFailed.mp3';
+    final String audioPath = stars > 0
+        ? 'audio/levelPassed.mp3'
+        : 'audio/levelFailed.mp3';
     final playFuture = _audioPlayer
         .play(AssetSource(audioPath))
         .then((_) => _audioPlayer.onPlayerComplete.first);
@@ -156,6 +178,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         'levelId': widget.levelId,
         'subjectId': widget.subjectId,
         'stars': stars.toString(),
+        'isEscalated': isEscalated.toString(),
+        'isDailyBonus': isDailyBonus.toString(),
       };
       context.go(
         Uri(path: AppRouter.completion, queryParameters: params).toString(),
@@ -195,205 +219,324 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     }
   }
 
+  void _playFeedback(bool isCorrect, String questionId) async {
+    if (isCorrect) {
+      await _audioPlayer.play(AssetSource('audio/correctAns.mp3'));
+    } else {
+      await _audioPlayer.play(AssetSource('audio/wrongAns.mp3'));
+    }
+
+    // Update question stats in background
+    final parentId = ref.read(parentIdProvider);
+    if (widget.childId != null && parentId.isNotEmpty) {
+      ref
+          .read(firestoreServiceProvider)
+          .updateQuestionStats(
+            parentId,
+            widget.childId!,
+            questionId,
+            isCorrect,
+          );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final questionsAsync = ref.watch(questionsProvider(widget.levelPrefix));
+    // If it's a revision stage, we fetch ALL questions for the subject
+    final isRevision = widget.levelId.toLowerCase().contains('revision');
+    final queryPrefix = isRevision
+        ? '${widget.subjectId}_'
+        : widget.levelPrefix;
+    final questionsAsync = ref.watch(questionsProvider(queryPrefix));
 
     return Scaffold(
       body: SafeArea(
         child: questionsAsync.when(
           data: (rawQuestions) {
             if (rawQuestions.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('No questions found for this level.'),
-                    const SizedBox(height: AppSpacing.md),
-                    PrimaryButton(
-                      label: 'Go Back',
-                      onPressed: () {
-                        if (context.canPop()) {
-                          context.pop();
-                        } else {
-                          context.go(
-                            AppRouter.subjectFor(
-                              widget.childId,
-                              subjectId: widget.subjectId,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              );
+              return _buildNoQuestionsPlaceholder(context);
             }
 
-            // Shuffle and pick questions once per session
-            // Reset if rawQuestions changed (important for testing and prefix changes)
+            // If questions are ready, we need to fetch stats for prioritization
+            // (Only for Summary and Revision stages)
+            final isSummary = widget.levelId.toLowerCase().contains('summary');
+            final needsPrioritization = isSummary || isRevision;
+
             if (shuffledQuestions == null ||
                 _lastRawQuestions != rawQuestions) {
               _lastRawQuestions = rawQuestions;
-              final List<Question> temp = List.from(rawQuestions)..shuffle();
-              
-              // Summary levels get 15 questions, regular levels get 10
-              final isSummary = widget.levelId.toLowerCase().contains('summary');
-              final questionLimit = isSummary ? 15 : 10;
-              
-              shuffledQuestions = temp.take(questionLimit).toList();
-            }
 
-            final questions = shuffledQuestions!;
-            final question = questions[currentQuestionIndex];
-            final isLastQuestion = currentQuestionIndex == questions.length - 1;
-            final progress = (currentQuestionIndex + 1) / questions.length;
+              if (needsPrioritization) {
+                return FutureBuilder<Map<String, Map<String, int>>>(
+                  future: ref
+                      .read(firestoreServiceProvider)
+                      .getQuestionStatsForUser(
+                        ref.read(parentIdProvider),
+                        widget.childId ?? '',
+                        rawQuestions.map((q) => q.id).toList(),
+                      ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        shuffledQuestions == null) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-            String getLanguage() {
-              switch (widget.subjectId.toLowerCase()) {
-                case 'bm':
-                  return 'ms-MY';
-                case 'bi':
-                  return 'en-GB';
-                case 'bc':
-                  return 'zh-CN';
-                default:
-                  return 'en-GB';
+                    if (shuffledQuestions == null) {
+                      final stats = snapshot.data ?? {};
+                      shuffledQuestions = _prioritizeQuestions(
+                        rawQuestions,
+                        stats,
+                        15,
+                        isRevision,
+                      );
+                    }
+
+                    return _buildSession(shuffledQuestions!);
+                  },
+                );
+              } else {
+                final List<Question> temp = List.from(rawQuestions)..shuffle();
+                shuffledQuestions = temp.take(10).toList();
               }
             }
 
-            return Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: _handleExit,
-                        icon: const Icon(
-                          Icons.close,
-                          color: AppColors.mutedText,
-                        ),
-                      ),
-                      Expanded(
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: AppSpacing.md,
-                          color: AppColors.subjectBm,
-                          backgroundColor: AppColors.muted,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      const Icon(Icons.star, color: AppColors.star),
-                      Text(
-                        '${currentQuestionIndex + 1}/${questions.length}',
-                        style: AppTextStyles.bodyBold,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      const Icon(Icons.timer, color: AppColors.mutedText),
-                      Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
-                    ],
-                  ),
-                  const Spacer(flex: 1),
-                  if (question.imageUrl != null &&
-                      question.imageUrl!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                      child: Center(
-                        child: Container(
-                          constraints: const BoxConstraints(maxHeight: 160),
-                          decoration: BoxDecoration(
-                            color: AppColors.imagePlaceholder,
-                            borderRadius: AppRadius.r(AppRadius.xl),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: AppRadius.r(AppRadius.xl),
-                            child: Image.network(
-                              question.imageUrl!,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(
-                                    Icons.image,
-                                    color: AppColors.mutedText,
-                                    size: 48,
-                                  ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  _buildQuestionText(question, getLanguage()),
-                  const SizedBox(height: AppSpacing.sm),
-                  _buildQuestionBody(question),
-                  const Spacer(flex: 2),
-                  if (selected != null || _isQuestionComplete(question)) ...[
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOutBack,
-                      builder: (context, value, child) {
-                        return Transform.scale(
-                          scale: value,
-                          child: Opacity(
-                            opacity: value.clamp(0.0, 1.0),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected == question.correctAnswerIndex
-                              ? AppColors.accentLight
-                              : AppColors.destructiveLight,
-                          borderRadius: AppRadius.r(AppRadius.lg),
-                        ),
-                        child: Text(
-                          selected == question.correctAnswerIndex
-                              ? 'Correct! Well done!'
-                              : (question.type?.toLowerCase() == 'rearrange' &&
-                                    question.correctOrder != null)
-                              ? 'Not quite! The correct sentence is "${question.correctOrder!.join(' ')}".'
-                              : question.options[question.correctAnswerIndex].text.isNotEmpty
-                                  ? 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".'
-                                  : 'Not quite! The correct answer is option ${String.fromCharCode(65 + question.correctAnswerIndex)}.',
-                          style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    PrimaryButton(
-                      label: isLastQuestion ? 'Finish' : 'Next',
-                      icon: Icons.arrow_forward_rounded,
-                      onPressed: () {
-                        if (isLastQuestion) {
-                          _completeSession(questions.length);
-                        } else {
-                          setState(() {
-                            currentQuestionIndex++;
-                            selected = null;
-                            _rearrangeOrder = null;
-                            _rearrangeSubmitted = false;
-                            _draggedOptionIndex = null;
-                            _fillBlankSubmitted = false;
-                            _dragDropSpellingSubmitted = false;
-                            _matchingSubmitted = false;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            );
+            return _buildSession(shuffledQuestions!);
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(child: Text('Error: $err')),
         ),
+      ),
+    );
+  }
+
+  List<Question> _prioritizeQuestions(
+    List<Question> pool,
+    Map<String, Map<String, int>> stats,
+    int count,
+    bool isRevision,
+  ) {
+    // Priority Groups:
+    // 1. New (timesSeen == 0)
+    // 2. Wrong (timesWrong > 0)
+    // 3. Correct (timesSeen > 0 && timesWrong == 0)
+
+    final List<Question> selected = [];
+
+    if (isRevision) {
+      // For revision, we must ensure at least 1 question from each chapter if possible.
+      // Group pool by chapterId (assuming IDs like 'bm_c1_l1_q01')
+      final Map<String, List<Question>> chapterGroups = {};
+      for (var q in pool) {
+        final parts = q.id.split('_');
+        final chapterKey = (parts.length >= 2) ? parts[1] : 'unknown';
+        chapterGroups.putIfAbsent(chapterKey, () => []).add(q);
+      }
+
+      // Pick 1 random question from each chapter first
+      for (var chapterKey in chapterGroups.keys) {
+        if (selected.length >= count) break;
+        final group = chapterGroups[chapterKey]!;
+        group.shuffle();
+        selected.add(group.removeAt(0));
+      }
+    }
+
+    // Now fill the rest using normal prioritization
+    final List<Question> remainingPool = pool
+        .where((q) => !selected.contains(q))
+        .toList();
+    final List<Question> newQuestions = [];
+    final List<Question> wrongQuestions = [];
+    final List<Question> correctQuestions = [];
+
+    for (var q in remainingPool) {
+      final s = stats[q.id];
+      if (s == null || (s['timesSeen'] ?? 0) == 0) {
+        newQuestions.add(q);
+      } else if ((s['timesWrong'] ?? 0) > 0) {
+        wrongQuestions.add(q);
+      } else {
+        correctQuestions.add(q);
+      }
+    }
+
+    newQuestions.shuffle();
+    wrongQuestions.shuffle();
+    correctQuestions.shuffle();
+
+    selected.addAll(newQuestions);
+    if (selected.length < count) selected.addAll(wrongQuestions);
+    if (selected.length < count) selected.addAll(correctQuestions);
+
+    return selected.take(count).toList();
+  }
+
+  Widget _buildNoQuestionsPlaceholder(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('No questions found for this level.'),
+          const SizedBox(height: AppSpacing.md),
+          PrimaryButton(
+            label: 'Go Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(
+                  AppRouter.subjectFor(
+                    widget.childId,
+                    subjectId: widget.subjectId,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSession(List<Question> questions) {
+    final question = questions[currentQuestionIndex];
+    final isLastQuestion = currentQuestionIndex == questions.length - 1;
+    final progress = (currentQuestionIndex + 1) / questions.length;
+
+    String getLanguage() {
+      switch (widget.subjectId.toLowerCase()) {
+        case 'bm':
+          return 'ms-MY';
+        case 'bi':
+          return 'en-GB';
+        case 'bc':
+          return 'zh-CN';
+        default:
+          return 'en-GB';
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                onPressed: _handleExit,
+                icon: const Icon(Icons.close, color: AppColors.mutedText),
+              ),
+              Expanded(
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: AppSpacing.md,
+                  color: AppColors.subjectBm,
+                  backgroundColor: AppColors.muted,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              const Icon(Icons.star, color: AppColors.star),
+              Text(
+                '${currentQuestionIndex + 1}/${questions.length}',
+                style: AppTextStyles.bodyBold,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const Icon(Icons.timer, color: AppColors.mutedText),
+              Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
+            ],
+          ),
+          const Spacer(flex: 1),
+          if (question.imageUrl != null && question.imageUrl!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 160),
+                  decoration: BoxDecoration(
+                    color: AppColors.imagePlaceholder,
+                    borderRadius: AppRadius.r(AppRadius.xl),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: AppRadius.r(AppRadius.xl),
+                    child: Image.network(
+                      question.imageUrl!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.image,
+                        color: AppColors.mutedText,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          _buildQuestionText(question, getLanguage()),
+          const SizedBox(height: AppSpacing.sm),
+          _buildQuestionBody(question),
+          const Spacer(flex: 2),
+          if (selected != null || _isQuestionComplete(question)) ...[
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutBack,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: selected == question.correctAnswerIndex
+                      ? AppColors.accentLight
+                      : AppColors.destructiveLight,
+                  borderRadius: AppRadius.r(AppRadius.lg),
+                ),
+                child: Text(
+                  selected == question.correctAnswerIndex
+                      ? 'Correct! Well done!'
+                      : (question.type?.toLowerCase() == 'rearrange' &&
+                            question.correctOrder != null)
+                      ? 'Not quite! The correct sentence is "${question.correctOrder!.join(' ')}".'
+                      : question
+                            .options[question.correctAnswerIndex]
+                            .text
+                            .isNotEmpty
+                      ? 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".'
+                      : 'Not quite! The correct answer is option ${String.fromCharCode(65 + question.correctAnswerIndex)}.',
+                  style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            PrimaryButton(
+              label: isLastQuestion ? 'Finish' : 'Next',
+              icon: Icons.arrow_forward_rounded,
+              onPressed: () {
+                if (isLastQuestion) {
+                  _completeSession(questions.length);
+                } else {
+                  setState(() {
+                    currentQuestionIndex++;
+                    selected = null;
+                    _rearrangeOrder = null;
+                    _rearrangeSubmitted = false;
+                    _draggedOptionIndex = null;
+                    _fillBlankSubmitted = false;
+                    _dragDropSpellingSubmitted = false;
+                    _matchingSubmitted = false;
+                  });
+                }
+              },
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -554,7 +697,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               _dragDropSpellingSubmitted = true;
               selected = isCorrect ? question.correctAnswerIndex : -1;
               if (isCorrect) score++;
-              _playFeedback(isCorrect);
+              _playFeedback(isCorrect, question.id);
             });
           },
         );
@@ -566,7 +709,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               _matchingSubmitted = true;
               selected = isCorrect ? question.correctAnswerIndex : -1;
               if (isCorrect) score++;
-              _playFeedback(isCorrect);
+              _playFeedback(isCorrect, question.id);
             });
           },
         );
@@ -619,10 +762,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         SizedBox(
           height: 200,
           child: ReorderableListView(
-            onReorder: (oldIndex, newIndex) {
+            onReorderItem: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
-                if (newIndex > oldIndex) newIndex -= 1;
                 final int item = _rearrangeOrder!.removeAt(oldIndex);
                 _rearrangeOrder!.insert(newIndex, item);
               });
@@ -663,7 +805,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 _rearrangeSubmitted = true;
                 selected = isCorrect ? question.correctAnswerIndex : -1;
                 if (isCorrect) score++;
-                _playFeedback(isCorrect);
+                _playFeedback(isCorrect, question.id);
               });
             },
           ),
@@ -753,7 +895,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 _fillBlankSubmitted = true;
                 selected = isCorrect ? question.correctAnswerIndex : -1;
                 if (isCorrect) score++;
-                _playFeedback(isCorrect);
+                _playFeedback(isCorrect, question.id);
               });
             },
           ),
@@ -804,10 +946,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 final isCorrect = index == question.correctAnswerIndex;
                 if (isCorrect) {
                   HapticFeedback.mediumImpact();
-                  _playFeedback(true);
+                  _playFeedback(true, question.id);
                 } else {
                   HapticFeedback.vibrate();
-                  _playFeedback(false);
+                  _playFeedback(false, question.id);
                 }
                 setState(() {
                   selected = index;
@@ -863,7 +1005,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 const SizedBox(width: AppSpacing.md),
               ],
               if (option.text.isNotEmpty)
-                Expanded(child: Text(option.text, style: AppTextStyles.bodyBold)),
+                Expanded(
+                  child: Text(option.text, style: AppTextStyles.bodyBold),
+                ),
             ],
           ),
         ),

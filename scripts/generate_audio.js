@@ -32,18 +32,23 @@ async function generateAudio() {
   
   for (const doc of snapshot.docs) {
     const data = doc.data();
+    const lowerId = doc.id.toLowerCase();
     
-    // Check if it's an English question that needs its accent fixed
-    const isEnglish = doc.id.toLowerCase().startsWith('bi_') || doc.id.toLowerCase().startsWith('en_');
-    const needsAccentFix = isEnglish && data.promptAudioUrl; // If it has audio already, it might be the bad Malay one
+    // Check if it's a target subject for force regeneration
+    const isTargetSubject = lowerId.startsWith('math_') || lowerId.startsWith('sci_');
+    
+    // Check if it's an English question
+    const isEnglishSubject = lowerId.startsWith('bi_') || lowerId.startsWith('en_');
+    // User mentioned English audio is already good, so no need to force regenerate
+    const needsAccentFix = false; 
 
-    // Skip if audio already exists, UNLESS it's in the forceIds list OR it's an English question that needs fixing
-    if (data.promptAudioUrl && !forceIds.includes(doc.id) && !needsAccentFix) {
+    // Skip if audio already exists, UNLESS it's in the forceIds list OR it's a target subject OR English fix
+    if (data.promptAudioUrl && !forceIds.includes(doc.id) && !isTargetSubject && !needsAccentFix) {
       console.log(`- Skipping ${doc.id} (already has audio)`);
       continue;
     }
 
-    if (forceIds.includes(doc.id) || needsAccentFix) {
+    if (forceIds.includes(doc.id) || isTargetSubject || needsAccentFix) {
       console.log(`🔄 Force regenerating audio for ${doc.id}...`);
     }
 
@@ -54,24 +59,36 @@ async function generateAudio() {
       continue;
     }
 
-    // Detect Language based on document ID prefix
-    const lowerId = doc.id.toLowerCase();
+    // Detect Language
     let langCode = 'ms-MY';
     let voiceName = 'ms-MY-Wavenet-A'; 
 
-    if (lowerId.startsWith('en_') || lowerId.startsWith('bi_')) {
+    // Character-based detection for Mandarin (priority)
+    const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+    
+    if (hasChinese) {
+      langCode = 'cmn-CN';
+      voiceName = 'cmn-CN-Wavenet-A';
+    } else if (isEnglishSubject || ((lowerId.startsWith('math_') || lowerId.startsWith('sci_')) && !hasChinese)) {
       langCode = 'en-GB';
-      voiceName = 'en-GB-Neural2-A'; // Upgraded from Wavenet to Neural2 for a much more natural, less robotic voice
+      voiceName = 'en-GB-Neural2-A';
     } else if (lowerId.startsWith('zh_') || lowerId.startsWith('bc_')) {
       langCode = 'cmn-CN';
       voiceName = 'cmn-CN-Wavenet-A';
     }
 
-    // Clean text (replace ___ with "tempat kosong" for the generator)
-    const cleanText = text.replace(
-      /_{2,}/g,
-      langCode.startsWith('ms') ? "tempat kosong" : "blank"
-    );
+    // Determine blank placeholder based on language
+    let blankPlaceholder = "blank";
+    if (langCode.startsWith('ms')) {
+      blankPlaceholder = "tempat kosong";
+    } else if (langCode.startsWith('cmn')) {
+      blankPlaceholder = "空格"; 
+    }
+
+    // Clean text: replace both ___ and （ ）
+    const cleanText = text
+      .replace(/_{2,}/g, blankPlaceholder)
+      .replace(/[\(\（]\s*[\)\）]/g, blankPlaceholder);
 
     console.log(`🎵 Generating audio for [${doc.id}]: "${cleanText}"`);
 

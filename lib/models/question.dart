@@ -59,7 +59,7 @@ class Question {
 
   factory Question.fromFirestore(String id, Map<String, dynamic> data) {
     debugPrint('DEBUG: Parsing question document: $id');
-    
+
     String extractText(dynamic value) {
       if (value == null) return '';
       if (value is String) return value;

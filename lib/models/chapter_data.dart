@@ -3,11 +3,7 @@ class ChapterData {
   final String name;
   final List<String> levelIds;
 
-  ChapterData({
-    required this.id,
-    required this.name,
-    required this.levelIds,
-  });
+  ChapterData({required this.id, required this.name, required this.levelIds});
 
   factory ChapterData.fromFirestore(String id, Map<String, dynamic> data) {
     return ChapterData(

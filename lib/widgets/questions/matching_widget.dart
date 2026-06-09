@@ -41,7 +41,7 @@ class _MatchingWidgetState extends State<MatchingWidget> {
 
   void _handleLeftTap(QuestionOption option) {
     if (_matchedOptions.contains(option) || _isWrongFlash) return;
-    
+
     setState(() {
       if (_selectedLeft == option) {
         _selectedLeft = null;
@@ -153,18 +153,18 @@ class _MatchingWidgetState extends State<MatchingWidget> {
     final Color borderColor = isMatched
         ? AppColors.accent
         : isWrong
-            ? AppColors.destructive
-            : isSelected
-                ? AppColors.primary
-                : AppColors.border;
+        ? AppColors.destructive
+        : isSelected
+        ? AppColors.primary
+        : AppColors.border;
 
     final Color bgColor = isMatched
         ? AppColors.accentLight
         : isWrong
-            ? AppColors.destructiveLight
-            : isSelected
-                ? AppColors.primaryLight
-                : AppColors.card;
+        ? AppColors.destructiveLight
+        : isSelected
+        ? AppColors.primaryLight
+        : AppColors.card;
 
     return GestureDetector(
       onTap: onTap,
@@ -192,19 +192,23 @@ class _MatchingWidgetState extends State<MatchingWidget> {
                       ),
                     )
                   : imageUrl != null
-                      ? Image.network(
-                          imageUrl,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.image_not_supported),
-                        )
-                      : const SizedBox.shrink(),
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.image_not_supported),
+                    )
+                  : const SizedBox.shrink(),
             ),
             if (isMatched)
               const Positioned(
                 right: 0,
                 top: 0,
-                child: Icon(Icons.check_circle, color: AppColors.accent, size: 20),
+                child: Icon(
+                  Icons.check_circle,
+                  color: AppColors.accent,
+                  size: 20,
+                ),
               ),
           ],
         ),

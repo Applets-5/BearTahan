@@ -33,13 +33,13 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget> {
   void _initGame() {
     // Parse prompt: e.g., "d _ _ m _ n _" or "d__m_n_"
     final prompt = widget.question.text;
-    
+
     if (prompt.contains(' ')) {
       _promptParts = prompt.split(' ').where((s) => s.isNotEmpty).toList();
     } else {
       _promptParts = prompt.split('');
     }
-    
+
     _blankIndices = [];
     for (int i = 0; i < _promptParts.length; i++) {
       if (_promptParts[i] == '_') {
@@ -63,16 +63,17 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget> {
     // if (data['correctOrder'] is List) {
     //   correctOrder = (data['correctOrder'] as List).map((e) => e.toString()).toList();
     // }
-    
+
     final filledOrder = _filledOptions.map((e) => e?.text ?? '').toList();
-    
+
     bool isCorrect = true;
     if (widget.question.correctOrder != null) {
       if (filledOrder.length != widget.question.correctOrder!.length) {
         isCorrect = false;
       } else {
         for (int i = 0; i < filledOrder.length; i++) {
-          if (filledOrder[i].toLowerCase() != widget.question.correctOrder![i].toLowerCase()) {
+          if (filledOrder[i].toLowerCase() !=
+              widget.question.correctOrder![i].toLowerCase()) {
             isCorrect = false;
             break;
           }
@@ -114,7 +115,7 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget> {
       if (_filledOptions[blankIndex] != null) {
         _availableOptions.add(_filledOptions[blankIndex]!);
       }
-      
+
       _filledOptions[blankIndex] = option;
       _availableOptions.remove(option);
     });
@@ -155,7 +156,7 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget> {
           ),
           const SizedBox(height: AppSpacing.lg),
         ],
-        
+
         // Prompt Row
         Wrap(
           alignment: WrapAlignment.center,
@@ -171,9 +172,9 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget> {
             }
           }),
         ),
-        
+
         const SizedBox(height: AppSpacing.xxl),
-        
+
         // Options Tray
         const Text(
           'Drag letters to fill the blanks!',
@@ -211,14 +212,16 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget> {
       ),
       child: Text(
         letter,
-        style: AppTextStyles.title.copyWith(color: AppColors.foreground.withValues(alpha: 0.5)),
+        style: AppTextStyles.title.copyWith(
+          color: AppColors.foreground.withValues(alpha: 0.5),
+        ),
       ),
     );
   }
 
   Widget _buildDropSlot(int blankIndex) {
     final filledOption = _filledOptions[blankIndex];
-    
+
     return DragTarget<QuestionOption>(
       onWillAcceptWithDetails: (details) => !_isSubmitted,
       onAcceptWithDetails: (details) => _onDrop(blankIndex, details.data),
@@ -233,9 +236,11 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget> {
               color: _isWrong ? AppColors.destructiveLight : AppColors.card,
               borderRadius: AppRadius.r(AppRadius.sm),
               border: Border.all(
-                color: _isWrong 
-                  ? AppColors.destructive 
-                  : (candidateData.isNotEmpty ? AppColors.primary : AppColors.border),
+                color: _isWrong
+                    ? AppColors.destructive
+                    : (candidateData.isNotEmpty
+                          ? AppColors.primary
+                          : AppColors.border),
                 width: 2,
               ),
               boxShadow: AppShadows.card,

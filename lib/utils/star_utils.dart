@@ -40,7 +40,11 @@ class StarUtils {
     required DateTime? lastSummaryStarDate,
   }) {
     if (total == 0) {
-      return {'stars': 0, 'newThreshold': currentThreshold, 'earnedDailyStar': false};
+      return {
+        'stars': 0,
+        'newThreshold': currentThreshold,
+        'earnedDailyStar': false,
+      };
     }
 
     double percentage = score / total;
@@ -78,7 +82,8 @@ class StarUtils {
       stars = 3; // Keep 3 stars as best
       if (percentage >= 1.0) {
         final now = DateTime.now();
-        final bool isNewDay = lastSummaryStarDate == null ||
+        final bool isNewDay =
+            lastSummaryStarDate == null ||
             lastSummaryStarDate.year != now.year ||
             lastSummaryStarDate.month != now.month ||
             lastSummaryStarDate.day != now.day;

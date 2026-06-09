@@ -8,6 +8,7 @@ import '../models/reward.dart';
 import '../models/notification.dart';
 import '../models/star_transaction.dart';
 import '../utils/streak_utils.dart';
+import '../utils/star_utils.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db;
@@ -326,28 +327,69 @@ class FirestoreService {
       // Fallback for English as per Samy's requirement if DB is empty
       if (subjectId == 'bi') {
         return [
-          ChapterData(id: 'c0', name: 'Chapter 0', levelIds: ['c0_l1', 'c0_l2', 'c0_l3', 'c0_summary']),
-          ChapterData(id: 'c1', name: 'Chapter 1', levelIds: ['c1_l1', 'c1_l2', 'c1_l3', 'c1_l4', 'c1_l5', 'c1_l6', 'c1_summary']),
-          ChapterData(id: 'c2', name: 'Chapter 2', levelIds: ['c2_l1', 'c2_l2', 'c2_l3', 'c2_l4', 'c2_l5', 'c2_l6', 'c2_summary']),
+          ChapterData(
+            id: 'c0',
+            name: 'Chapter 0',
+            levelIds: ['c0_l1', 'c0_l2', 'c0_l3', 'c0_summary'],
+          ),
+          ChapterData(
+            id: 'c1',
+            name: 'Chapter 1',
+            levelIds: [
+              'c1_l1',
+              'c1_l2',
+              'c1_l3',
+              'c1_l4',
+              'c1_l5',
+              'c1_l6',
+              'c1_summary',
+            ],
+          ),
+          ChapterData(
+            id: 'c2',
+            name: 'Chapter 2',
+            levelIds: [
+              'c2_l1',
+              'c2_l2',
+              'c2_l3',
+              'c2_l4',
+              'c2_l5',
+              'c2_l6',
+              'c2_summary',
+            ],
+          ),
         ];
       }
       // Default fallback for other subjects (Chapters 1 and 2, 4 levels each + summary)
       return [
-        ChapterData(id: 'c1', name: 'Chapter 1', levelIds: ['c1_l1', 'c1_l2', 'c1_l3', 'c1_l4', 'c1_l5', 'c1_summary']),
-        ChapterData(id: 'c2', name: 'Chapter 2', levelIds: ['c2_l6', 'c2_l7', 'c2_l8', 'c2_summary']),
+        ChapterData(
+          id: 'c1',
+          name: 'Chapter 1',
+          levelIds: ['c1_l1', 'c1_l2', 'c1_l3', 'c1_l4', 'c1_l5', 'c1_summary'],
+        ),
+        ChapterData(
+          id: 'c2',
+          name: 'Chapter 2',
+          levelIds: ['c2_l6', 'c2_l7', 'c2_l8', 'c2_summary'],
+        ),
       ];
     }
 
     return snapshot.docs.map((doc) {
       final data = doc.data();
       final levelIds = List<String>.from(data['levelIds'] ?? []);
-      
+
       // Automatically inject the chapter summary as the final boss if not explicitly listed
-      if (levelIds.isNotEmpty && !levelIds.last.toLowerCase().contains('summary')) {
+      if (levelIds.isNotEmpty &&
+          !levelIds.last.toLowerCase().contains('summary')) {
         levelIds.add('${doc.id}_summary');
       }
 
-      return ChapterData(id: doc.id, name: data['name'] ?? '', levelIds: levelIds);
+      return ChapterData(
+        id: doc.id,
+        name: data['name'] ?? '',
+        levelIds: levelIds,
+      );
     }).toList();
   }
 
@@ -503,6 +545,25 @@ class FirestoreService {
     });
   }
 
+  Future<Map<String, dynamic>> getLevelProgress(
+    String parentId,
+    String childId,
+    String subjectId,
+    String levelId,
+  ) async {
+    final doc = await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('subjectProgress')
+        .doc(subjectId)
+        .collection('levels')
+        .doc(levelId)
+        .get();
+    return doc.data() ?? {};
+  }
+
   Future<int> updateLevelProgress(
     String parentId,
     String childId,
@@ -531,10 +592,14 @@ class FirestoreService {
 
     try {
       final chapters = await getSubjectChapters(subjectId);
-      final Set<String> validLevelIds = chapters.expand((c) => c.levelIds).toSet();
+      final Set<String> validLevelIds = chapters
+          .expand((c) => c.levelIds)
+          .toSet();
       final int totalLevels = validLevelIds.length;
       final bool isValidLevel = validLevelIds.contains(levelId);
-      final bool isSummary = levelId.toLowerCase().contains('summary');
+      final bool isSummaryOrRevision =
+          levelId.toLowerCase().contains('summary') ||
+          levelId.toLowerCase().contains('revision');
       bool shouldForceSync = false;
 
       await _db.runTransaction((transaction) async {
@@ -544,7 +609,7 @@ class FirestoreService {
 
         final levelData = levelSnapshot.data() ?? {};
         final int previousBestStars = (levelData['stars'] ?? 0).toInt();
-        
+
         final childData = childSnapshot.data() ?? {};
         final String balanceField = childData.containsKey('stars')
             ? 'stars'
@@ -587,9 +652,11 @@ class FirestoreService {
         int totalStarsToAward = 0;
         final levelUpdates = <String, dynamic>{};
 
-        if (isSummary) {
-          final int currentThreshold = (levelData['summaryThreshold'] ?? 0).toInt();
-          final DateTime? lastSummaryStarDate = levelData['lastSummaryStarDate'] != null
+        if (isSummaryOrRevision) {
+          final int currentThreshold = (levelData['summaryThreshold'] ?? 0)
+              .toInt();
+          final DateTime? lastSummaryStarDate =
+              levelData['lastSummaryStarDate'] != null
               ? (levelData['lastSummaryStarDate'] as Timestamp).toDate()
               : null;
 
@@ -609,7 +676,7 @@ class FirestoreService {
             totalStarsToAward += 1;
             levelUpdates['lastSummaryStarDate'] = FieldValue.serverTimestamp();
           }
-          
+
           starsToReturn = calculatedStars + (earnedDailyStar ? 1 : 0);
         } else {
           calculatedStars = StarUtils.calculateStars(
@@ -633,7 +700,10 @@ class FirestoreService {
             }
 
             final int progressPercentage = totalLevels > 0
-                ? ((currentCompletedLevels / totalLevels) * 100).toInt().clamp(0, 100)
+                ? ((currentCompletedLevels / totalLevels) * 100).toInt().clamp(
+                    0,
+                    100,
+                  )
                 : 0;
 
             transaction.set(subjectDocRef, {
@@ -654,12 +724,15 @@ class FirestoreService {
 
           // Record earn transaction
           final transactionDocRef = childDocRef.collection('starHistory').doc();
+          final String bonusText =
+              totalStarsToAward > (calculatedStars - previousBestStars)
+              ? ' (Daily Bonus!)'
+              : '';
           transaction.set(transactionDocRef, {
             'type': 'earn',
             'amount': totalStarsToAward,
             'description':
-                'Learned ${_getSubjectName(subjectId)} (${levelId.toUpperCase()})' + 
-                (totalStarsToAward > (calculatedStars - previousBestStars) ? ' (Daily Bonus!)' : ''),
+                'Learned ${_getSubjectName(subjectId)} (${levelId.toUpperCase()})$bonusText',
             'timestamp': FieldValue.serverTimestamp(),
             'subjectId': subjectId,
             'levelId': levelId,
@@ -692,6 +765,61 @@ class FirestoreService {
     }
   }
 
+  Future<void> updateQuestionStats(
+    String parentId,
+    String childId,
+    String questionId,
+    bool isCorrect,
+  ) async {
+    final docRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('questionStats')
+        .doc(questionId);
+
+    await docRef.set({
+      'timesSeen': FieldValue.increment(1),
+      'timesWrong': isCorrect
+          ? FieldValue.increment(0)
+          : FieldValue.increment(1),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<Map<String, Map<String, int>>> getQuestionStatsForUser(
+    String parentId,
+    String childId,
+    List<String> questionIds,
+  ) async {
+    if (questionIds.isEmpty) return {};
+
+    // Firestore whereIn limit is 30, but we can just get the whole subcollection
+    // for this subject if needed, or do multiple queries.
+    // For now, let's get the whole subcollection since it's child-specific and
+    // likely won't be massive for a single subject session.
+    final snapshot = await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('questionStats')
+        .get();
+
+    final Map<String, Map<String, int>> stats = {};
+    for (var doc in snapshot.docs) {
+      if (questionIds.contains(doc.id)) {
+        final data = doc.data();
+        stats[doc.id] = {
+          'timesSeen': (data['timesSeen'] ?? 0).toInt(),
+          'timesWrong': (data['timesWrong'] ?? 0).toInt(),
+        };
+      }
+    }
+    return stats;
+  }
+
   /// Performs a full scan of the levels subcollection and updates the
   /// subject aggregation document. This is used to bootstrap legacy data.
   Future<void> syncSubjectAggregation(
@@ -709,7 +837,9 @@ class FirestoreService {
 
     // Progress is based on total levels from chapters
     final chapters = await getSubjectChapters(subjectId);
-    final Set<String> validLevelIds = chapters.expand((c) => c.levelIds).toSet();
+    final Set<String> validLevelIds = chapters
+        .expand((c) => c.levelIds)
+        .toSet();
     final int totalLevels = validLevelIds.length;
 
     // Get all levels for this subject to calculate true totals
@@ -719,7 +849,9 @@ class FirestoreService {
     int completedLevels = 0;
 
     for (var doc in levelsSnapshot.docs) {
-      if (!validLevelIds.contains(doc.id)) continue; // Filter out ghost/legacy levels
+      if (!validLevelIds.contains(doc.id)) {
+        continue; // Filter out ghost/legacy levels
+      }
 
       // Get the actual stars (0-3) earned for this specific level
       final starsEarned = (doc.data()['stars'] ?? 0) as num;
@@ -729,6 +861,9 @@ class FirestoreService {
       }
     }
 
+    final bool allChaptersComplete =
+        totalLevels > 0 && completedLevels >= totalLevels;
+
     final int progressPercentage = totalLevels > 0
         ? ((completedLevels / totalLevels) * 100).toInt().clamp(0, 100)
         : 0;
@@ -737,11 +872,12 @@ class FirestoreService {
       'progress': progressPercentage,
       'completedLevels': completedLevels,
       'totalStars': totalStarsCount,
+      'allChaptersComplete': allChaptersComplete,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
     debugPrint(
-      'DEBUG: Subject $subjectId repaired. Total Stars: $totalStarsCount, Completed: $completedLevels',
+      'DEBUG: Subject $subjectId repaired. Total Stars: $totalStarsCount, Completed: $completedLevels, AllComplete: $allChaptersComplete',
     );
   }
 

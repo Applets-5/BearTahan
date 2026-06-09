@@ -10,6 +10,7 @@ class Subject {
   final int progress;
   final int completedLevels;
   final int totalStars;
+  final bool allChaptersComplete;
 
   Subject({
     required this.id,
@@ -20,6 +21,7 @@ class Subject {
     required this.progress,
     this.completedLevels = 0,
     this.totalStars = 0,
+    this.allChaptersComplete = false,
   });
 
   factory Subject.fromFirestore(String id, Map<String, dynamic> data) {
@@ -32,6 +34,7 @@ class Subject {
       progress: (data['progress'] ?? 0).toInt(),
       completedLevels: (data['completedLevels'] ?? 0).toInt(),
       totalStars: (data['totalStars'] ?? 0).toInt(),
+      allChaptersComplete: data['allChaptersComplete'] ?? false,
     );
   }
 

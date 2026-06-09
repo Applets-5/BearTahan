@@ -96,7 +96,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final parentId = ref.read(parentIdProvider);
       if (parentId.isNotEmpty) {
         debugPrint('DEBUG: Triggering subject progress repair for $childId');
-        ref.read(firestoreServiceProvider).repairSubjectProgress(parentId, childId);
+        ref
+            .read(firestoreServiceProvider)
+            .repairSubjectProgress(parentId, childId);
       }
     });
   }
@@ -153,11 +155,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                     final total = totals[id] ?? 8;
                     final calculatedProgress = total > 0
-                        ? (dbS.completedLevels / total * 100).toInt().clamp(0, 100)
+                        ? (dbS.completedLevels / total * 100).toInt().clamp(
+                            0,
+                            100,
+                          )
                         : 0;
                     totalProgress += calculatedProgress;
                   }
-                  final avgProgress = (totalProgress / HomeScreen.subjectsList.length).round();
+                  final avgProgress =
+                      (totalProgress / HomeScreen.subjectsList.length).round();
 
                   return SliverToBoxAdapter(
                     child: Padding(
@@ -173,9 +179,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   );
                 },
-                loading: () => const SliverToBoxAdapter(
-                  child: SizedBox.shrink(),
-                ),
+                loading: () =>
+                    const SliverToBoxAdapter(child: SizedBox.shrink()),
                 error: (err, _) =>
                     const SliverToBoxAdapter(child: SizedBox.shrink()),
               );
@@ -215,8 +220,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         final total = totals[subjectId] ?? 8;
                         final calculatedProgress = total > 0
                             ? (dbSubject.completedLevels / total * 100)
-                                .toInt()
-                                .clamp(0, 100)
+                                  .toInt()
+                                  .clamp(0, 100)
                             : 0;
 
                         return SubjectCard(

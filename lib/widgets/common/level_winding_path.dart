@@ -422,7 +422,7 @@ class LevelWindingPath extends StatelessWidget {
           for (int i = 0; i < chapter.levelIds.length; i++) {
             final levelId = chapter.levelIds[i];
             final stars = starMap[levelId] ?? 0;
-            
+
             bool isUnlocked;
             if (chapters.first == chapter && i == 0) {
               isUnlocked = true;
@@ -437,7 +437,8 @@ class LevelWindingPath extends StatelessWidget {
                   prevLevelId = prevChapter.levelIds.last;
                 }
               }
-              isUnlocked = prevLevelId != null && (starMap[prevLevelId] ?? 0) > 0;
+              isUnlocked =
+                  prevLevelId != null && (starMap[prevLevelId] ?? 0) > 0;
             }
 
             bool isCompleted = stars > 0;
@@ -445,7 +446,9 @@ class LevelWindingPath extends StatelessWidget {
             bool isBoss = i == chapter.levelIds.length - 1;
 
             double x;
-            int pattern = absoluteLevelIndex % 4; // Keep absolute index for the zig-zag visual pattern
+            int pattern =
+                absoluteLevelIndex %
+                4; // Keep absolute index for the zig-zag visual pattern
             if (pattern == 0) {
               x = centerX;
             } else if (pattern == 1) {
@@ -464,7 +467,9 @@ class LevelWindingPath extends StatelessWidget {
                 left: x - (isBoss ? 60 : 45),
                 top: y - (isBoss ? 60 : 45),
                 child: LevelNode(
-                  label: levelId.toLowerCase().contains('summary') ? 'Summary' : 'Level $chapterLevelIndex',
+                  label: levelId.toLowerCase().contains('summary')
+                      ? 'Summary'
+                      : 'Level $chapterLevelIndex',
                   stars: stars,
                   isUnlocked: isUnlocked,
                   isCompleted: isCompleted,
