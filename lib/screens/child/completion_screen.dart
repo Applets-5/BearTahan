@@ -171,7 +171,10 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.md),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: AppRadius.r(AppRadius.lg),
@@ -192,9 +195,9 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 ),
                 child: Text(
                   passed
-                      ? widget.isDailyBonus 
-                          ? 'You earned a Daily Bonus Star! Amazing!' 
-                          : '+$earnedStars stars added to your wallet!'
+                      ? widget.isDailyBonus
+                            ? 'You earned a Daily Bonus Star! Amazing!'
+                            : '+$earnedStars stars added to your wallet!'
                       : 'You need at least 50% to earn a star. Don\'t give up!',
                   style: AppTextStyles.bodyBold,
                   textAlign: TextAlign.center,

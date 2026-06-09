@@ -55,7 +55,11 @@ class AppRouter {
     return Uri(path: subject, queryParameters: params).toString();
   }
 
-  static String chapterFor(String? childId, {String? subjectId, String? chapterId}) {
+  static String chapterFor(
+    String? childId, {
+    String? subjectId,
+    String? chapterId,
+  }) {
     final params = <String, String>{};
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
     if (subjectId != null && subjectId.isNotEmpty) {

@@ -976,11 +976,15 @@ class FirestoreService {
         }
 
         if (totalStarsToAward > 0) {
-          childUpdates['availableStars'] = currentAvailableStars + totalStarsToAward;
-          childUpdates['lifetimeStarsEarned'] = currentLifetimeStars + totalStarsToAward;
+          childUpdates['availableStars'] =
+              currentAvailableStars + totalStarsToAward;
+          childUpdates['lifetimeStarsEarned'] =
+              currentLifetimeStars + totalStarsToAward;
 
           // Record earn transaction
-          final transactionDocRef = childDocRef.collection('starTransactions').doc();
+          final transactionDocRef = childDocRef
+              .collection('starTransactions')
+              .doc();
           final String bonusText =
               totalStarsToAward > (calculatedStars - previousBestStars)
               ? ' (Daily Bonus!)'

@@ -41,12 +41,12 @@ class _ChapterScreenState extends ConsumerState<ChapterScreen> {
     // We can't directly watch summaryThreshold from levelStarsProvider as it only returns a Map<String, int> of stars.
     // However, FirestoreService.updateLevelProgress saves summaryThreshold in the same level doc.
     // For now, let's use a workaround or fetch it from a more specific provider if available.
-    // Actually, let's create a specific provider for level progress details if needed, 
+    // Actually, let's create a specific provider for level progress details if needed,
     // but looking at existing providers, levelStarsProvider is the closest.
-    
-    // Let's assume for now we might need a more detailed fetch. 
+
+    // Let's assume for now we might need a more detailed fetch.
     // Looking at data_providers.dart might help.
-    
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -64,20 +64,23 @@ class _ChapterScreenState extends ConsumerState<ChapterScreen> {
               // We'll need to fetch the raw level data to get 'summaryThreshold'.
               // For simplicity in this step, I'll use a FutureBuilder or a new provider.
               return FutureBuilder<Map<String, dynamic>>(
-                future: ref.read(firestoreServiceProvider).getLevelProgress(
-                  ref.read(parentIdProvider),
-                  effectiveChildId,
-                  effectiveSubjectId,
-                  levelId,
-                ),
+                future: ref
+                    .read(firestoreServiceProvider)
+                    .getLevelProgress(
+                      ref.read(parentIdProvider),
+                      effectiveChildId,
+                      effectiveSubjectId,
+                      levelId,
+                    ),
                 builder: (context, snapshot) {
                   final data = snapshot.data ?? {};
                   final threshold = (data['summaryThreshold'] ?? 0) as int;
-                  
+
                   String goalText = "Goal: 80% to earn a star";
                   if (threshold == 1) goalText = "Goal: 90% to earn a star";
                   if (threshold == 2) goalText = "Goal: 100% to earn a star";
-                  if (threshold >= 3) goalText = "Goal: 100% for a Daily Bonus!";
+                  if (threshold >= 3)
+                    goalText = "Goal: 100% for a Daily Bonus!";
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,7 +140,10 @@ class _ChapterScreenState extends ConsumerState<ChapterScreen> {
                         icon: Icons.volume_up,
                         label: 'Listening and pronunciation',
                       ),
-                      const _TopicRow(icon: Icons.spellcheck, label: 'Word spelling'),
+                      const _TopicRow(
+                        icon: Icons.spellcheck,
+                        label: 'Word spelling',
+                      ),
                       const _TopicRow(
                         icon: Icons.check_circle,
                         label: 'Multiple choice recall',
@@ -149,7 +155,8 @@ class _ChapterScreenState extends ConsumerState<ChapterScreen> {
                         onPressed: () => context.push(
                           AppRouter.levelSessionFor(
                             widget.childId,
-                            levelPrefix: '${effectiveSubjectId}_${effectiveChapterId}_',
+                            levelPrefix:
+                                '${effectiveSubjectId}_${effectiveChapterId}_',
                             subjectId: effectiveSubjectId,
                             levelId: levelId,
                           ),
@@ -157,7 +164,7 @@ class _ChapterScreenState extends ConsumerState<ChapterScreen> {
                       ),
                     ],
                   );
-                }
+                },
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),

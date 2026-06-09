@@ -200,6 +200,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     await _correctStrokePool?.dispose();
     await _wrongStrokePool?.dispose();
   }
+
   @override
   void dispose() {
     _stopSessionTimer();
@@ -255,8 +256,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               .toInt();
           final DateTime? lastSummaryStarDate =
               levelData['lastSummaryStarDate'] != null
-                  ? (levelData['lastSummaryStarDate'] as Timestamp).toDate()
-                  : null;
+              ? (levelData['lastSummaryStarDate'] as Timestamp).toDate()
+              : null;
 
           final result = StarUtils.calculateSummaryResult(
             score: score,
@@ -319,7 +320,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final String audioPath = stars > 0
         ? 'audio/levelPassed.mp3'
         : 'audio/levelFailed.mp3';
-    
+
     final playFuture = _playSound(() async {
       await _feedbackAudioContextReady;
       final completed = _audioPlayer.onPlayerComplete.first;
@@ -380,8 +381,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       }
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
