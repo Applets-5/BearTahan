@@ -19,6 +19,8 @@ import '../screens/parent/goal_setting_screen.dart';
 import '../screens/parent/parent_notifications_screen.dart';
 import '../screens/parent/parent_settings_screen.dart';
 import '../screens/parent/reward_management_screen.dart';
+import '../screens/parent/parent_profile_detail_screen.dart';
+import '../screens/parent/change_password_screen.dart';
 import '../screens/shared/no_internet_screen.dart';
 import '../screens/shared/tutorial_screen.dart';
 import '../theme/app_theme.dart';
@@ -103,6 +105,8 @@ class AppRouter {
   static const parentGoals = '/parent-goals';
   static const parentNotifications = '/parent-notifications';
   static const parentSettings = '/parent-settings';
+  static const parentProfileDetail = '/parent-profile-detail';
+  static const changePassword = '/change-password';
   static const noInternet = '/no-internet';
   static const tutorial = '/tutorial';
   static const comingSoon = '/coming-soon';
@@ -241,6 +245,11 @@ class AppRouter {
             pageBuilder: (context, state) =>
                 _noTransitionPage(state, const ParentSettingsScreen()),
           ),
+          GoRoute(
+            path: parentProfileDetail,
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const ParentProfileDetailScreen()),
+          ),
         ],
       ),
       GoRoute(
@@ -325,6 +334,11 @@ class AppRouter {
             ),
           );
         },
+      ),
+      GoRoute(
+        path: changePassword,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const ChangePasswordScreen()),
       ),
       GoRoute(
         path: memory,

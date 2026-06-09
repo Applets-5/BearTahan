@@ -53,6 +53,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
         await _parentAccountService.createOrUpdateParentDocument(
           user,
           name: _nameController.text.trim(),
+          extraData: {'passwordLength': _passwordController.text.trim().length},
         );
 
         if (mounted) {

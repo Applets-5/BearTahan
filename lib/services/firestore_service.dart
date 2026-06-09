@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
@@ -13,9 +14,11 @@ import '../utils/quest_utils.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
 
-  FirestoreService({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  FirestoreService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
 
   Stream<List<Reward>> streamRewards(String parentId) {
     return _db
@@ -498,6 +501,38 @@ class FirestoreService {
         );
   }
 
+  Future<void> addChild(String parentId, Map<String, dynamic> data) async {
+    await _db.collection('parents').doc(parentId).collection('children').add({
+      ...data,
+      'availableStars': 0,
+      'lifetimeStarsEarned': 0,
+      'activeOutfitID': 'scholar_bear',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateChild(
+    String parentId,
+    String childId,
+    Map<String, dynamic> data,
+  ) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .update(data);
+  }
+
+  Future<void> deleteChild(String parentId, String childId) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .delete();
+  }
+
   Future<void> addReward(String parentId, Reward reward) async {
     await _db
         .collection('parents')
@@ -589,6 +624,43 @@ class FirestoreService {
         .collection('parents')
         .doc(parentId)
         .set(settings, SetOptions(merge: true));
+  }
+
+  Future<void> updatePassword(String parentId, String newPassword) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await user.updatePassword(newPassword);
+      // Also update password length in Firestore for UI display
+      await _db.collection('parents').doc(parentId).update({
+        'passwordLength': newPassword.length,
+      });
+    } else {
+      throw Exception('No user logged in');
+    }
+  }
+
+  Future<void> reauthenticate(String password) async {
+    final user = _auth.currentUser;
+    if (user != null && user.email != null) {
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+      await user.reauthenticateWithCredential(credential);
+    } else {
+      throw Exception('No user logged in or email missing');
+    }
+  }
+
+  Future<void> deleteParentAccount(String parentId) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No user logged in');
+
+    // Delete Firestore data
+    await _db.collection('parents').doc(parentId).delete();
+
+    // Delete Auth User
+    await user.delete();
   }
 
   Future<void> updateDailyGoal(
