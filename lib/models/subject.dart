@@ -65,6 +65,7 @@ class Subject {
         return AppColors.subjectMandarin;
       case 'math':
         return AppColors.subjectMath;
+      case 'sci':
       case 'science':
         return AppColors.subjectScience;
       default:

@@ -24,7 +24,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     {'id': 'bm', 'name': 'Bahasa Melayu', 'color': AppColors.subjectBm},
     {'id': 'bi', 'name': 'English', 'color': AppColors.subjectEnglish},
     {'id': 'math', 'name': 'Mathematics', 'color': AppColors.subjectMath},
-    {'id': 'science', 'name': 'Science', 'color': AppColors.subjectScience},
+    {'id': 'sci', 'name': 'Science', 'color': AppColors.subjectScience},
     {'id': 'bc', 'name': 'Mandarin', 'color': AppColors.subjectMandarin},
   ];
 

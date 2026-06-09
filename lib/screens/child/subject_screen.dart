@@ -74,9 +74,12 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
         data: (starMap) {
           return chaptersAsync.when(
             data: (chapters) {
-              // Calculate progress based on dynamic chapters
-              int totalPossibleLevels = chapters.fold(0, (sum, c) => sum + c.levelIds.length);
-              int completedCount = starMap.values.where((s) => s > 0).length;
+              final Set<String> validLevelIds = chapters.expand((c) => c.levelIds).toSet();
+              // Calculate progress based on dynamic chapters and filter out ghost levels
+              int totalPossibleLevels = validLevelIds.length;
+              int completedCount = starMap.entries
+                  .where((e) => validLevelIds.contains(e.key) && e.value > 0)
+                  .length;
               double progress = totalPossibleLevels > 0 ? completedCount / totalPossibleLevels : 0;
 
               // Trigger auto-scroll once
@@ -158,7 +161,7 @@ class _SubjectHeader extends StatelessWidget {
         return 'Mandarin';
       case 'math':
         return 'Mathematics';
-      case 'science':
+      case 'sci':
         return 'Science';
       default:
         return 'Subject';
@@ -175,7 +178,7 @@ class _SubjectHeader extends StatelessWidget {
         return AppColors.subjectMandarin;
       case 'math':
         return AppColors.subjectMath;
-      case 'science':
+      case 'sci':
         return AppColors.subjectScience;
       default:
         return AppColors.primary;

@@ -93,25 +93,22 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   Future<void> _completeSession(int totalQuestions) async {
     _stopSessionTimer();
 
-    // Calculate stars based on score
-    final stars = StarUtils.calculateStars(
-      score: score,
-      total: totalQuestions,
-      levelId: widget.levelId,
-    );
-
-    // Play appropriate audio
-    final String audioPath = stars > 0
-        ? 'audio/levelPassed.mp3'
-        : 'audio/levelFailed.mp3';
-    final playFuture = _audioPlayer
-        .play(AssetSource(audioPath))
-        .then((_) => _audioPlayer.onPlayerComplete.first);
+    int stars = 0;
 
     try {
       final parentId = ref.read(parentIdProvider);
       if (widget.childId != null && parentId.isNotEmpty) {
         final firestore = ref.read(firestoreServiceProvider);
+
+        // Update progress and get calculated stars (handles summary thresholds/daily cap)
+        stars = await firestore.updateLevelProgress(
+          parentId,
+          widget.childId!,
+          widget.subjectId,
+          widget.levelId,
+          score,
+          totalQuestions,
+        );
 
         // Record detailed attempt including timer data
         await firestore.recordAttempt(
@@ -124,19 +121,29 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           stars: stars,
           timeInSeconds: _elapsedSeconds,
         );
-
-        // Update progress
-        await firestore.updateLevelProgress(
-          parentId,
-          widget.childId!,
-          widget.subjectId,
-          widget.levelId,
-          stars,
+      } else {
+        // Fallback for offline/guest mode
+        stars = StarUtils.calculateStars(
+          score: score,
+          total: totalQuestions,
+          levelId: widget.levelId,
         );
       }
     } catch (e) {
       debugPrint('Error saving attempt: $e');
+      stars = StarUtils.calculateStars(
+        score: score,
+        total: totalQuestions,
+        levelId: widget.levelId,
+      );
     }
+
+    // Play appropriate audio
+    final String audioPath =
+        stars > 0 ? 'audio/levelPassed.mp3' : 'audio/levelFailed.mp3';
+    final playFuture = _audioPlayer
+        .play(AssetSource(audioPath))
+        .then((_) => _audioPlayer.onPlayerComplete.first);
 
     // Wait for the audio to finish before navigating
     await playFuture;
