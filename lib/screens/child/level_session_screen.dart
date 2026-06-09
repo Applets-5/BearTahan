@@ -644,6 +644,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 child: Text(
                   selected == question.correctAnswerIndex
                       ? 'Correct! Well done!'
+                      : question.type?.toLowerCase() == 'stroke_trace'
+                      ? 'Not quite. Watch the stroke order and try again later.'
                       : (question.type?.toLowerCase() == 'rearrange' &&
                             question.correctOrder != null)
                       ? 'Not quite! The correct sentence is "${question.correctOrder!.join(' ')}".'
@@ -674,6 +676,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     _fillBlankSubmitted = false;
                     _dragDropSpellingSubmitted = false;
                     _matchingSubmitted = false;
+                    _strokeTraceSubmitted = false;
                   });
                 }
               },
