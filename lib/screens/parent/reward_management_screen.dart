@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../models/reward.dart';
+import '../../models/reward_claim.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/parent/reward_card.dart';
@@ -18,6 +20,7 @@ class _RewardManagementScreenState
     extends ConsumerState<RewardManagementScreen> {
   bool showForm = false;
   Reward? editingReward;
+  final Set<String> _processingClaimIds = {};
 
   void _onEdit(Reward reward) {
     setState(() {
@@ -26,14 +29,17 @@ class _RewardManagementScreenState
     });
   }
 
-  void _onApprove(Reward reward) async {
+  void _onApprove(RewardClaim claim) async {
     final parentId = ref.read(parentIdProvider);
+    setState(() => _processingClaimIds.add(claim.id));
     try {
-      await ref.read(firestoreServiceProvider).approveReward(parentId, reward);
+      await ref
+          .read(firestoreServiceProvider)
+          .approveRewardClaim(parentId, claim);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Reward "${reward.title}" approved!'),
+            content: Text('Reward "${claim.rewardName}" approved!'),
             backgroundColor: AppColors.accent,
           ),
         );
@@ -44,17 +50,21 @@ class _RewardManagementScreenState
           context,
         ).showSnackBar(SnackBar(content: Text('Error approving reward: $e')));
       }
+    } finally {
+      if (mounted) {
+        setState(() => _processingClaimIds.remove(claim.id));
+      }
     }
   }
 
-  void _onDecline(Reward reward) async {
+  void _onDecline(RewardClaim claim) async {
     final parentId = ref.read(parentIdProvider);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Decline Request'),
-        content: Text(
-          'Are you sure you want to decline this request? Stars will be refunded to the child.',
+        content: const Text(
+          'Are you sure you want to decline this request? Stars will remain unchanged.',
         ),
         actions: [
           TextButton(
@@ -70,14 +80,15 @@ class _RewardManagementScreenState
     );
 
     if (confirmed == true) {
+      setState(() => _processingClaimIds.add(claim.id));
       try {
         await ref
             .read(firestoreServiceProvider)
-            .declineReward(parentId, reward);
+            .rejectRewardClaim(parentId, claim);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Request declined and stars refunded.'),
+              content: Text('Request declined. Stars were not deducted.'),
             ),
           );
         }
@@ -86,6 +97,10 @@ class _RewardManagementScreenState
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('Error declining reward: $e')));
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _processingClaimIds.remove(claim.id));
         }
       }
     }
@@ -132,19 +147,32 @@ class _RewardManagementScreenState
   @override
   Widget build(BuildContext context) {
     final rewardsAsync = ref.watch(rewardsProvider);
+    final parentId = ref.watch(parentIdProvider);
+    final selectedChildId = ref.watch(childIdProvider);
+    final claimsAsync = selectedChildId == null
+        ? const AsyncValue<List<RewardClaim>>.data([])
+        : ref.watch(
+            rewardClaimsProvider((
+              parentId: parentId,
+              childId: selectedChildId,
+            )),
+          );
 
     return SafeArea(
       child: rewardsAsync.when(
         data: (rewards) {
-          final pendingClaims = rewards
-              .where((r) => r.status == 'pending')
-              .toList();
           final availableRewards = rewards
               .where((r) => r.status == 'available')
               .toList();
           final redeemedRewards = rewards
               .where((r) => r.status == 'redeemed')
               .toList();
+          final pendingClaims =
+              claimsAsync.value?.where((claim) => claim.isPending).toList() ??
+              [];
+          final resolvedClaims =
+              claimsAsync.value?.where((claim) => !claim.isPending).toList() ??
+              [];
 
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -184,29 +212,65 @@ class _RewardManagementScreenState
                     });
                   },
                 ),
-              if (pendingClaims.isNotEmpty) ...[
-                Text(
-                  'Pending claims (${pendingClaims.length})',
-                  style: AppTextStyles.tiny,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                ...pendingClaims.map(
-                  (r) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: RewardCard(
-                      title: r.title,
-                      description: r.description,
-                      cost: r.cost,
-                      status: r.status,
-                      primaryLabel: 'Approve',
-                      onPrimary: () => _onApprove(r),
-                      secondaryLabel: 'Decline',
-                      onSecondary: () => _onDecline(r),
-                      onEdit: () => _onEdit(r),
-                      onDelete: () => _onDelete(r),
-                    ),
+              if (selectedChildId == null) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: Text(
+                    'Select a child on the dashboard to manage reward claims.',
+                    style: AppTextStyles.small,
                   ),
                 ),
+              ] else if (claimsAsync.isLoading) ...[
+                const Padding(
+                  padding: EdgeInsets.all(AppSpacing.lg),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Text(
+                      'Pending claims (${pendingClaims.length})',
+                      style: AppTextStyles.tiny,
+                    ),
+                    if (_processingClaimIds.isNotEmpty) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      const SizedBox(
+                        height: 14,
+                        width: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (pendingClaims.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: AppSpacing.lg),
+                    child: Text(
+                      'No pending reward claims.',
+                      style: AppTextStyles.small,
+                    ),
+                  )
+                else
+                  ...pendingClaims.map((claim) {
+                    final isProcessing = _processingClaimIds.contains(claim.id);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: RewardCard(
+                        title: claim.rewardName,
+                        description:
+                            '${claim.childName} claimed this reward on ${DateFormat('dd MMM yyyy, hh:mm a').format(claim.claimedAt)}.',
+                        cost: claim.starCost,
+                        status: claim.status,
+                        primaryLabel: isProcessing ? 'Approving...' : 'Approve',
+                        primaryEnabled: !isProcessing,
+                        onPrimary: () => _onApprove(claim),
+                        secondaryLabel: isProcessing ? 'Working...' : 'Decline',
+                        secondaryEnabled: !isProcessing,
+                        onSecondary: () => _onDecline(claim),
+                      ),
+                    );
+                  }),
                 const SizedBox(height: AppSpacing.lg),
               ],
               Text('Available rewards', style: AppTextStyles.tiny),
@@ -251,11 +315,102 @@ class _RewardManagementScreenState
                   ),
                 ),
               ],
+              const SizedBox(height: AppSpacing.lg),
+              const Text('Claim history', style: AppTextStyles.tiny),
+              const SizedBox(height: AppSpacing.sm),
+              if (selectedChildId == null)
+                const SizedBox.shrink()
+              else if (claimsAsync.isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(AppSpacing.lg),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (resolvedClaims.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: Text(
+                    'No completed reward claims yet.',
+                    style: AppTextStyles.small,
+                  ),
+                )
+              else
+                ...resolvedClaims.map(
+                  (claim) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: _ClaimHistoryTile(claim: claim),
+                  ),
+                ),
             ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Error: $e')),
+      ),
+    );
+  }
+}
+
+class _ClaimHistoryTile extends StatelessWidget {
+  const _ClaimHistoryTile({required this.claim});
+
+  final RewardClaim claim;
+
+  Color _statusColor() {
+    switch (claim.status) {
+      case 'approved':
+        return AppColors.accent;
+      case 'rejected':
+        return AppColors.destructive;
+      case 'expired':
+        return AppColors.mutedText;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  IconData _statusIcon() {
+    switch (claim.status) {
+      case 'approved':
+        return Icons.check_circle;
+      case 'rejected':
+        return Icons.cancel;
+      case 'expired':
+        return Icons.schedule;
+      default:
+        return Icons.info;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedAt = claim.resolvedAt ?? claim.claimedAt;
+    final color = _statusColor();
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: AppRadius.r(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(_statusIcon(), color: color),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(claim.rewardName, style: AppTextStyles.bodyBold),
+                Text(
+                  '${claim.childName} - ${claim.starCost} stars - ${DateFormat('dd MMM yyyy, hh:mm a').format(resolvedAt)}',
+                  style: AppTextStyles.tiny,
+                ),
+              ],
+            ),
+          ),
+          Text(claim.status, style: AppTextStyles.tiny.copyWith(color: color)),
+        ],
       ),
     );
   }

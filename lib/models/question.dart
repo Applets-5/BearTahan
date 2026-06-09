@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 class QuestionOption {
@@ -18,6 +20,8 @@ class Question {
   final String? type;
   final List<String>? correctOrder;
   final String? correctBlank;
+  final String? characterUnicode;
+  final String? strokeOrderDataJson;
 
   Question({
     required this.id,
@@ -30,6 +34,8 @@ class Question {
     this.type,
     this.correctOrder,
     this.correctBlank,
+    this.characterUnicode,
+    this.strokeOrderDataJson,
   }) : options = options.map((e) {
          if (e is QuestionOption) return e;
          if (e == null) return QuestionOption(text: '');
@@ -137,6 +143,20 @@ class Question {
     // correctBlank for fillblank
     String? correctBlank = data['correctBlank']?.toString();
 
+    String? strokeOrderDataJson;
+    final rawStrokeOrderData = data['strokeOrderData'];
+    if (rawStrokeOrderData is String && rawStrokeOrderData.isNotEmpty) {
+      strokeOrderDataJson = rawStrokeOrderData;
+    } else if (rawStrokeOrderData is Map || rawStrokeOrderData is List) {
+      strokeOrderDataJson = jsonEncode(rawStrokeOrderData);
+    } else if (data['strokes'] is List && data['medians'] is List) {
+      strokeOrderDataJson = jsonEncode({
+        'strokes': data['strokes'],
+        'medians': data['medians'],
+        if (data['radStrokes'] is List) 'radStrokes': data['radStrokes'],
+      });
+    }
+
     dynamic rawIndex =
         data['correctanswerid'] ??
         data['correctAnswerId'] ??
@@ -185,6 +205,8 @@ class Question {
       type: type,
       correctOrder: correctOrder,
       correctBlank: correctBlank,
+      characterUnicode: data['characterUnicode']?.toString(),
+      strokeOrderDataJson: strokeOrderDataJson,
     );
   }
 }

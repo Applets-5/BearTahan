@@ -49,6 +49,17 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
+      await childRef.collection('questProgress').doc('scholar_bear').set({
+        'outfitID': 'scholar_bear',
+        'outfitName': 'Scholar Bear',
+        'conditionType': 'starter',
+        'currentValue': 0,
+        'targetValue': 0,
+        'isUnlocked': true,
+        'unlockedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
       if (mounted) {
         context.go(AppRouter.mascotSelectionFor(childRef.id));
       }

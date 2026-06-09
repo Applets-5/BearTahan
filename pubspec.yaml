@@ -36,6 +36,7 @@ dependencies:
   # Utilities
   intl: ^0.20.2               
   firebase_ui_oauth_google: ^2.0.1
+  stroke_order_animator: ^3.3.1
 
 dev_dependencies:
   flutter_test:
@@ -52,3 +53,4 @@ flutter:
     - assets/images/google.webp
     - assets/images/
     - assets/audio/
+    - assets/hanzi/

@@ -11,8 +11,10 @@ class RewardCard extends StatelessWidget {
     this.status = 'available',
     this.onPrimary,
     this.primaryLabel,
+    this.primaryEnabled = true,
     this.onSecondary,
     this.secondaryLabel,
+    this.secondaryEnabled = true,
     this.onEdit,
     this.onDelete,
     this.currentStars,
@@ -25,8 +27,10 @@ class RewardCard extends StatelessWidget {
   final String status;
   final VoidCallback? onPrimary;
   final String? primaryLabel;
+  final bool primaryEnabled;
   final VoidCallback? onSecondary;
   final String? secondaryLabel;
+  final bool secondaryEnabled;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final int? currentStars;
@@ -167,6 +171,19 @@ class RewardCard extends StatelessWidget {
             style: AppTextStyles.small.copyWith(color: subtitleColor),
           ),
           const SizedBox(height: AppSpacing.md),
+          if (currentStars == null) ...[
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.star, size: 16, color: goldenYellow),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  '$cost stars required',
+                  style: AppTextStyles.bodyBold.copyWith(color: titleColor),
+                ),
+              ],
+            ),
+          ],
           if (currentStars != null && !redeemed) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -212,7 +229,9 @@ class RewardCard extends StatelessWidget {
                 if (onPrimary != null && primaryLabel != null)
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: hasEnough || !available ? onPrimary : null,
+                      onPressed: primaryEnabled && (hasEnough || !available)
+                          ? onPrimary
+                          : null,
                       icon: buttonIcon,
                       label: Text(finalPrimaryLabel),
                       style: FilledButton.styleFrom(
@@ -233,7 +252,7 @@ class RewardCard extends StatelessWidget {
                 if (onSecondary != null && secondaryLabel != null)
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: onSecondary,
+                      onPressed: secondaryEnabled ? onSecondary : null,
                       style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),

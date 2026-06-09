@@ -1,6 +1,9 @@
 const admin = require("firebase-admin");
 const {setGlobalOptions} = require("firebase-functions/v2");
-const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
+const {
+  onDocumentCreated,
+  onDocumentUpdated,
+} = require("firebase-functions/v2/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 
@@ -124,6 +127,54 @@ exports.sendGoalCompleteNotification = onDocumentUpdated(
     },
 );
 
+exports.sendRewardClaimedNotification = onDocumentCreated(
+    "parents/{parentId}/children/{childId}/rewardClaims/{claimId}",
+    async (event) => {
+      const claim = event.data.data() || {};
+      const parentId = event.params.parentId;
+      const childId = event.params.childId;
+
+      if (claim.status !== "pending") {
+        return;
+      }
+
+      const parentData = await getParentData(parentId);
+      if (parentData.rewardClaims === false) {
+        logger.info("Reward claim notification disabled", {
+          parentId,
+          childId,
+        });
+        return;
+      }
+
+      const rewardName = claim.rewardName || "a reward";
+      const childName = claim.childName || "Your child";
+      const starCost = Number(claim.starCost || 0);
+      const payload = {
+        type: "reward_claimed",
+        rewardName,
+        starCost: starCost.toString(),
+        childName,
+        childId,
+      };
+
+      await sendToParent(
+          parentId,
+          payload,
+          {
+            title: "Reward claimed",
+            body: `${childName} wants to claim ${rewardName}.`,
+          },
+      );
+
+      logger.info("Reward claim notification sent", {
+        parentId,
+        childId,
+        rewardName,
+      });
+    },
+);
+
 exports.sendStreakRiskNotifications = onSchedule(
     {
       schedule: "0 20 * * *",
@@ -210,6 +261,40 @@ exports.sendStreakRiskNotifications = onSchedule(
       logger.info("Streak risk job completed", {
         checkedChildren,
         sentCount,
+      });
+    },
+);
+
+exports.expireRewardClaims = onSchedule(
+    {
+      schedule: "0 0 * * *",
+      timeZone: "Asia/Kuala_Lumpur",
+    },
+    async () => {
+      const now = admin.firestore.Timestamp.now();
+      const claimsSnapshot = await db
+          .collectionGroup("rewardClaims")
+          .where("status", "==", "pending")
+          .where("expiresAt", "<=", now)
+          .get();
+
+      if (claimsSnapshot.empty) {
+        logger.info("No expired reward claims found");
+        return;
+      }
+
+      const batch = db.batch();
+      claimsSnapshot.docs.forEach((doc) => {
+        batch.update(doc.ref, {
+          status: "expired",
+          resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+
+      await batch.commit();
+
+      logger.info("Expired reward claims", {
+        expiredCount: claimsSnapshot.size,
       });
     },
 );

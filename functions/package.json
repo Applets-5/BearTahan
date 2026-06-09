@@ -6,13 +6,21 @@
     "shell": "firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "seed:mandarin:inspect": "node scripts/seed_mandarin_tracing.js --inspect",
+    "seed:mandarin:dry-run": "node scripts/seed_mandarin_tracing.js --dry-run",
+    "seed:mandarin:apply": "node scripts/seed_mandarin_tracing.js --apply",
+    "assets:hanzi:dry-run": "node ../tool/download_hanzi_assets.js --dry-run",
+    "assets:hanzi:apply": "node ../tool/download_hanzi_assets.js --apply",
+    "audio:mandarin-tracing:dry-run": "node scripts/generate_mandarin_tracing_audio.js --dry-run",
+    "audio:mandarin-tracing:apply": "node scripts/generate_mandarin_tracing_audio.js --apply"
   },
   "engines": {
     "node": "20"
   },
   "main": "index.js",
   "dependencies": {
+    "@google-cloud/text-to-speech": "^6.3.0",
     "firebase-admin": "^13.6.0",
     "firebase-functions": "^7.0.0"
   },

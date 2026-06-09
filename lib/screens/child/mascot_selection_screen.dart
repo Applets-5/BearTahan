@@ -181,25 +181,53 @@ class _MascotSelectionScreenState extends State<MascotSelectionScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xl),
 
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: outfits.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: AppSpacing.md,
-                          crossAxisSpacing: AppSpacing.md,
-                          childAspectRatio: 0.9,
-                        ),
-                    itemBuilder: (context, index) {
-                      final outfit = outfits[index];
-                      final isSelected = selectedOutfitId == outfit.id;
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseAuth.instance.currentUser == null
+                        ? null
+                        : FirebaseFirestore.instance
+                              .collection('parents')
+                              .doc(FirebaseAuth.instance.currentUser!.uid)
+                              .collection('children')
+                              .doc(widget.childId)
+                              .collection('questProgress')
+                              .snapshots(),
+                    builder: (context, snapshot) {
+                      final unlockedIds = <String>{'scholar_bear'};
+                      for (final doc in snapshot.data?.docs ?? []) {
+                        if (doc.data()['isUnlocked'] == true) {
+                          unlockedIds.add(doc.id);
+                        }
+                      }
 
-                      return _MascotOutfitCard(
-                        outfit: outfit,
-                        isSelected: isSelected,
-                        onTap: () => selectOutfit(outfit),
+                      final availableOutfits = outfits
+                          .map(
+                            (outfit) => outfit.copyWith(
+                              unlocked: unlockedIds.contains(outfit.id),
+                            ),
+                          )
+                          .toList();
+
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: availableOutfits.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              mainAxisSpacing: AppSpacing.md,
+                              crossAxisSpacing: AppSpacing.md,
+                              childAspectRatio: 0.9,
+                            ),
+                        itemBuilder: (context, index) {
+                          final outfit = availableOutfits[index];
+                          final isSelected = selectedOutfitId == outfit.id;
+
+                          return _MascotOutfitCard(
+                            outfit: outfit,
+                            isSelected: isSelected,
+                            onTap: () => selectOutfit(outfit),
+                          );
+                        },
                       );
                     },
                   ),
@@ -232,6 +260,15 @@ class _MascotOutfit {
   final String name;
   final String imagePath;
   final bool unlocked;
+
+  _MascotOutfit copyWith({bool? unlocked}) {
+    return _MascotOutfit(
+      id: id,
+      name: name,
+      imagePath: imagePath,
+      unlocked: unlocked ?? this.unlocked,
+    );
+  }
 }
 
 class _MascotOutfitCard extends StatelessWidget {

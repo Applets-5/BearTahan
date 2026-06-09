@@ -5,10 +5,13 @@ import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
 import '../models/reward.dart';
+import '../models/reward_claim.dart';
 import '../models/notification.dart';
+import '../models/outfit_quest.dart';
 import '../models/star_transaction.dart';
 import '../utils/streak_utils.dart';
 import '../utils/star_utils.dart';
+import '../utils/quest_utils.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db;
@@ -35,57 +38,59 @@ class FirestoreService {
     Reward reward,
     String childName,
   ) async {
-    final rewardDocRef = _db
-        .collection('parents')
-        .doc(parentId)
-        .collection('rewards')
-        .doc(reward.id);
     final childDocRef = _db
         .collection('parents')
         .doc(parentId)
         .collection('children')
         .doc(childId);
+    final claimColRef = childDocRef.collection('rewardClaims');
     final notificationColRef = _db
         .collection('parents')
         .doc(parentId)
         .collection('notifications');
 
+    final existingPendingClaim = await claimColRef
+        .where('rewardId', isEqualTo: reward.id)
+        .where('status', isEqualTo: 'pending')
+        .limit(1)
+        .get();
+
+    if (existingPendingClaim.docs.isNotEmpty) {
+      throw Exception('Reward claim already pending');
+    }
+
+    final claimDocRef = claimColRef.doc();
+
     await _db.runTransaction((transaction) async {
       final childSnapshot = await transaction.get(childDocRef);
       final childData = childSnapshot.data() ?? {};
 
-      // Unified star balance field detection
-      final String balanceField = childData.containsKey('stars')
-          ? 'stars'
-          : 'starBalance';
-      final int currentBalance = (childData[balanceField] ?? 0).toInt();
+      final int currentBalance =
+          (childData['availableStars'] ??
+                  childData['starBalance'] ??
+                  childData['stars'] ??
+                  0)
+              .toInt();
 
       if (currentBalance < reward.cost) {
         throw Exception('Insufficient stars');
       }
 
-      // Update reward status to pending and record who claimed it
-      transaction.update(rewardDocRef, {
-        'status': 'pending',
-        'claimedByChildId': childId,
-      });
-
-      // Deduct stars
-      transaction.update(childDocRef, {
-        balanceField: currentBalance - reward.cost,
-      });
-
-      // Record spend transaction
-      final transactionDocRef = childDocRef.collection('starHistory').doc();
-      transaction.set(transactionDocRef, {
-        'type': 'spend',
-        'amount': -reward.cost,
-        'description': 'Redeemed ${reward.title}',
-        'timestamp': FieldValue.serverTimestamp(),
+      transaction.set(claimDocRef, {
+        'parentId': parentId,
+        'childId': childId,
+        'childName': childName,
         'rewardId': reward.id,
+        'rewardName': reward.title,
+        'rewardDescription': reward.description,
+        'starCost': reward.cost,
+        'status': 'pending',
+        'claimedAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(
+          DateTime.now().add(const Duration(days: 7)),
+        ),
       });
 
-      // Create notification for parent
       final notification = ParentNotification(
         id: '',
         title: '$childName wants to redeem ${reward.title}',
@@ -94,71 +99,113 @@ class FirestoreService {
         childId: childId,
         childName: childName,
       );
-      transaction.set(notificationColRef.doc(), notification.toFirestore());
+      transaction.set(notificationColRef.doc(), {
+        ...notification.toFirestore(),
+        'payload': {
+          'type': 'reward_claimed',
+          'rewardName': reward.title,
+          'starCost': reward.cost,
+          'childName': childName,
+          'childId': childId,
+        },
+      });
     });
   }
 
-  Future<void> approveReward(String parentId, Reward reward) async {
-    if (reward.claimedByChildId == null) return;
-
-    final rewardDocRef = _db
-        .collection('parents')
-        .doc(parentId)
-        .collection('rewards')
-        .doc(reward.id);
-
-    await rewardDocRef.update({
-      'status': 'redeemed',
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  Future<void> declineReward(String parentId, Reward reward) async {
-    final childId = reward.claimedByChildId;
-    if (childId == null) return;
-
-    final rewardDocRef = _db
-        .collection('parents')
-        .doc(parentId)
-        .collection('rewards')
-        .doc(reward.id);
+  Future<void> approveRewardClaim(String parentId, RewardClaim claim) async {
     final childDocRef = _db
         .collection('parents')
         .doc(parentId)
         .collection('children')
-        .doc(childId);
+        .doc(claim.childId);
+    final claimDocRef = childDocRef.collection('rewardClaims').doc(claim.id);
 
     await _db.runTransaction((transaction) async {
       final childSnapshot = await transaction.get(childDocRef);
+      final claimSnapshot = await transaction.get(claimDocRef);
       final childData = childSnapshot.data() ?? {};
+      final claimData = claimSnapshot.data() ?? {};
 
-      // Unified star balance field detection
-      final String balanceField = childData.containsKey('stars')
-          ? 'stars'
-          : 'starBalance';
-      final int currentBalance = (childData[balanceField] ?? 0).toInt();
+      if (claimData['status'] != 'pending') {
+        throw Exception('Reward claim is no longer pending');
+      }
 
-      // Reset reward to available
-      transaction.update(rewardDocRef, {
-        'status': 'available',
-        'claimedByChildId': FieldValue.delete(),
-      });
+      final availableStars =
+          (childData['availableStars'] ??
+                  childData['starBalance'] ??
+                  childData['stars'] ??
+                  0)
+              .toInt();
+      final starCost = (claimData['starCost'] ?? claim.starCost).toInt();
+      final lifetimeStarsEarned =
+          (childData['lifetimeStarsEarned'] ??
+                  childData['starBalance'] ??
+                  childData['stars'] ??
+                  availableStars)
+              .toInt();
 
-      // Refund stars
+      if (availableStars < starCost) {
+        throw Exception('Insufficient available stars');
+      }
+
       transaction.update(childDocRef, {
-        balanceField: currentBalance + reward.cost,
+        'availableStars': availableStars - starCost,
+        'lifetimeStarsEarned': lifetimeStarsEarned,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Record refund transaction
-      final transactionDocRef = childDocRef.collection('starHistory').doc();
+      final transactionDocRef = childDocRef
+          .collection('starTransactions')
+          .doc();
       transaction.set(transactionDocRef, {
-        'type': 'earn',
-        'amount': reward.cost,
-        'description': 'Refund: ${reward.title} (Declined)',
+        'type': 'spend',
+        'source': 'reward_redemption',
+        'sourceID': claim.rewardId,
+        'amount': starCost,
+        'description': '${claim.rewardName} redeemed',
         'timestamp': FieldValue.serverTimestamp(),
-        'rewardId': reward.id,
+        'rewardId': claim.rewardId,
+      });
+
+      transaction.update(claimDocRef, {
+        'status': 'approved',
+        'resolvedAt': FieldValue.serverTimestamp(),
       });
     });
+  }
+
+  Future<void> rejectRewardClaim(String parentId, RewardClaim claim) async {
+    final claimDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(claim.childId)
+        .collection('rewardClaims')
+        .doc(claim.id);
+
+    await claimDocRef.update({
+      'status': 'rejected',
+      'resolvedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Stream<List<RewardClaim>> streamRewardClaims(
+    String parentId,
+    String childId,
+  ) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('rewardClaims')
+        .orderBy('claimedAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => RewardClaim.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
   }
 
   Stream<List<StarTransaction>> streamStarTransactions(
@@ -170,7 +217,7 @@ class FirestoreService {
         .doc(parentId)
         .collection('children')
         .doc(childId)
-        .collection('starHistory')
+        .collection('starTransactions')
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map(
@@ -195,6 +242,178 @@ class FirestoreService {
       default:
         return id.toUpperCase();
     }
+  }
+
+  CollectionReference<Map<String, dynamic>> get _outfitQuestsRef =>
+      _db.collection('outfitQuests');
+
+  DocumentReference<Map<String, dynamic>> _childDocRef(
+    String parentId,
+    String childId,
+  ) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+  }
+
+  Future<void> seedDefaultOutfitQuests({bool overwrite = false}) async {
+    final batch = _db.batch();
+    var writeCount = 0;
+
+    for (final quest in OutfitQuest.defaults) {
+      final docRef = _outfitQuestsRef.doc(quest.id);
+      final snapshot = await docRef.get();
+      if (overwrite || !snapshot.exists) {
+        batch.set(docRef, quest.toFirestore(), SetOptions(merge: true));
+        writeCount++;
+      }
+    }
+
+    if (writeCount > 0) {
+      await batch.commit();
+    }
+  }
+
+  Stream<List<OutfitQuest>> streamOutfitQuests() {
+    return _outfitQuestsRef.orderBy('displayOrder').snapshots().map((snapshot) {
+      if (snapshot.docs.isEmpty) {
+        return OutfitQuest.defaults;
+      }
+
+      return snapshot.docs
+          .map((doc) => OutfitQuest.fromFirestore(doc.id, doc.data()))
+          .toList();
+    });
+  }
+
+  Stream<Map<String, OutfitQuestProgress>> streamQuestProgress(
+    String parentId,
+    String childId,
+  ) {
+    return _childDocRef(
+      parentId,
+      childId,
+    ).collection('questProgress').snapshots().map((snapshot) {
+      return {
+        for (final doc in snapshot.docs)
+          doc.id: OutfitQuestProgress.fromFirestore(doc.id, doc.data()),
+      };
+    });
+  }
+
+  Future<void> setActiveOutfit(
+    String parentId,
+    String childId,
+    String outfitId,
+  ) async {
+    final progressDoc = await _childDocRef(
+      parentId,
+      childId,
+    ).collection('questProgress').doc(outfitId).get();
+
+    final isScholarBear = outfitId == 'scholar_bear';
+    final isUnlocked =
+        isScholarBear || progressDoc.data()?['isUnlocked'] == true;
+
+    if (!isUnlocked) {
+      throw Exception('This outfit is still locked.');
+    }
+
+    await _childDocRef(parentId, childId).set({
+      'activeOutfitID': outfitId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<List<String>> evaluateAndUpdateQuestProgress(
+    String parentId,
+    String childId,
+  ) async {
+    final childDocRef = _childDocRef(parentId, childId);
+
+    final questSnapshot = await _outfitQuestsRef.orderBy('displayOrder').get();
+    final quests = questSnapshot.docs.isEmpty
+        ? OutfitQuest.defaults
+        : questSnapshot.docs
+              .map((doc) => OutfitQuest.fromFirestore(doc.id, doc.data()))
+              .toList();
+
+    final childSnapshot = await childDocRef.get();
+    final childData = childSnapshot.data() ?? {};
+    final lifetimeStarsEarned =
+        (childData['lifetimeStarsEarned'] ??
+                childData['availableStars'] ??
+                childData['starBalance'] ??
+                childData['stars'] ??
+                0)
+            .toInt();
+
+    final subjectProgressSnapshot = await childDocRef
+        .collection('subjectProgress')
+        .get();
+    final subjectProgress = {
+      for (final doc in subjectProgressSnapshot.docs) doc.id: doc.data(),
+    };
+
+    final attemptsSnapshot = await childDocRef.collection('attempts').get();
+    final attempts = attemptsSnapshot.docs.map((doc) => doc.data()).toList();
+
+    final existingProgressSnapshot = await childDocRef
+        .collection('questProgress')
+        .get();
+    final existingProgress = {
+      for (final doc in existingProgressSnapshot.docs) doc.id: doc.data(),
+    };
+
+    final batch = _db.batch();
+    final newlyUnlocked = <String>[];
+
+    for (final quest in quests) {
+      final currentValue = QuestUtils.calculateQuestCurrentValue(
+        quest: quest,
+        lifetimeStarsEarned: lifetimeStarsEarned,
+        subjectProgress: subjectProgress,
+        attempts: attempts,
+      );
+
+      final existingData = existingProgress[quest.id] ?? {};
+      final wasUnlocked = existingData['isUnlocked'] == true;
+      final shouldUnlock = QuestUtils.isQuestUnlocked(
+        quest: quest,
+        currentValue: currentValue,
+        wasUnlocked: wasUnlocked,
+      );
+      final isNewUnlock = QuestUtils.isNewUnlock(
+        quest: quest,
+        currentValue: currentValue,
+        wasUnlocked: wasUnlocked,
+      );
+
+      if (isNewUnlock) {
+        newlyUnlocked.add(quest.id);
+      }
+
+      batch.set(
+        childDocRef.collection('questProgress').doc(quest.id),
+        {
+          'outfitID': quest.id,
+          'outfitName': quest.name,
+          'conditionType': quest.conditionType,
+          if (quest.subjectId != null) 'subjectId': quest.subjectId,
+          'currentValue': currentValue,
+          'targetValue': quest.target,
+          'isUnlocked': shouldUnlock,
+          'updatedAt': FieldValue.serverTimestamp(),
+          if (isNewUnlock) 'unlockedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    }
+
+    await batch.commit();
+    return newlyUnlocked;
   }
 
   String _todayKey([DateTime? now]) {
@@ -232,6 +451,41 @@ class FirestoreService {
         .update({'isRead': true});
   }
 
+  Future<void> flagWrongAnswer(
+    String parentId,
+    String childId, {
+    required String questionId,
+    required String subjectId,
+    required String levelId,
+    String? questionText,
+  }) async {
+    final wrongAnswerRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank')
+        .doc(questionId);
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(wrongAnswerRef);
+      final data = snapshot.data() ?? {};
+      final reviewCount = (data['reviewCount'] ?? 0).toInt();
+      final now = Timestamp.now();
+
+      transaction.set(wrongAnswerRef, {
+        'questionId': questionId,
+        'subjectId': subjectId,
+        'levelId': levelId,
+        if (questionText != null && questionText.isNotEmpty)
+          'questionText': questionText,
+        'reviewCount': reviewCount + 1,
+        'lastWrongAt': now,
+        'addedAt': data['addedAt'] ?? now,
+      }, SetOptions(merge: true));
+    });
+  }
+
   Stream<List<UserProfile>> streamChildren(String parentId) {
     return _db
         .collection('parents')
@@ -241,8 +495,6 @@ class FirestoreService {
         .map(
           (snapshot) => snapshot.docs.map((doc) {
             final data = doc.data();
-            // Normalize: always map 'stars' -> 'starBalance' for the model
-            data['starBalance'] = (data['stars'] ?? data['starBalance'] ?? 0);
             return UserProfile.fromFirestore(doc.id, data);
           }).toList(),
         );
@@ -283,8 +535,6 @@ class FirestoreService {
         .snapshots()
         .map((doc) {
           final data = doc.data() ?? {};
-          // Normalize: always map 'stars' -> 'starBalance' for the model
-          data['starBalance'] = (data['stars'] ?? data['starBalance'] ?? 0);
           return UserProfile.fromFirestore(doc.id, data);
         });
   }
@@ -611,10 +861,14 @@ class FirestoreService {
         final int previousBestStars = (levelData['stars'] ?? 0).toInt();
 
         final childData = childSnapshot.data() ?? {};
-        final String balanceField = childData.containsKey('stars')
-            ? 'stars'
-            : 'starBalance';
-        final int currentBalance = (childData[balanceField] ?? 0).toInt();
+        final int currentAvailableStars =
+            (childData['availableStars'] ??
+                    childData['starBalance'] ??
+                    childData['stars'] ??
+                    0)
+                .toInt();
+        final int currentLifetimeStars =
+            (childData['lifetimeStarsEarned'] ?? currentAvailableStars).toInt();
 
         final subjectData = subjectSnapshot.data() ?? {};
 
@@ -622,7 +876,9 @@ class FirestoreService {
         if (!subjectData.containsKey('totalStars') ||
             !subjectData.containsKey('completedLevels') ||
             (subjectData['completedLevels'] ?? 0) > totalLevels ||
-            (subjectData['totalStars'] ?? 0) > (totalLevels * 3)) {
+            (subjectData['completedLevels'] ?? 0) < 0 ||
+            (subjectData['totalStars'] ?? 0) > (totalLevels * 3) ||
+            (subjectData['totalStars'] ?? 0) < 0) {
           shouldForceSync = true;
         }
 
@@ -720,16 +976,19 @@ class FirestoreService {
         }
 
         if (totalStarsToAward > 0) {
-          childUpdates[balanceField] = currentBalance + totalStarsToAward;
+          childUpdates['availableStars'] = currentAvailableStars + totalStarsToAward;
+          childUpdates['lifetimeStarsEarned'] = currentLifetimeStars + totalStarsToAward;
 
           // Record earn transaction
-          final transactionDocRef = childDocRef.collection('starHistory').doc();
+          final transactionDocRef = childDocRef.collection('starTransactions').doc();
           final String bonusText =
               totalStarsToAward > (calculatedStars - previousBestStars)
               ? ' (Daily Bonus!)'
               : '';
           transaction.set(transactionDocRef, {
             'type': 'earn',
+            'source': 'level_completion',
+            'sourceID': '$subjectId:$levelId',
             'amount': totalStarsToAward,
             'description':
                 'Learned ${_getSubjectName(subjectId)} (${levelId.toUpperCase()})$bonusText',

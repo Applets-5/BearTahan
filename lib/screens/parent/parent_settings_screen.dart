@@ -240,6 +240,17 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                   backgroundColor: AppColors.destructive,
                 ),
               ),
+              const SizedBox(height: AppSpacing.md),
+              const _SettingsCard(
+                title: 'Credits',
+                icon: Icons.info_outline,
+                children: [
+                  Text(
+                    'Chinese character data: Make Me A Hanzi (ARPHIC Public License).',
+                    style: AppTextStyles.small,
+                  ),
+                ],
+              ),
             ],
           );
         },

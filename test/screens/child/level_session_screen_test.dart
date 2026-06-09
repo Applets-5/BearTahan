@@ -14,6 +14,9 @@ void main() {
           'test_prefix',
         ).overrideWith((ref) => Future.value(questions)),
         parentIdProvider.overrideWithValue('test_parent_id'),
+        parentSettingsProvider.overrideWith(
+          (ref) => Stream.value({'soundEffects': true}),
+        ),
       ],
       child: MaterialApp(
         home: LevelSessionScreen(
@@ -187,6 +190,35 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(AudioPromptPlayer), findsOneWidget);
+    });
+
+    testWidgets('should render stroke tracing question type', (tester) async {
+      final questions = [
+        Question(
+          id: 'q_stroke',
+          text: 'Trace this character',
+          type: 'stroke_trace',
+          options: const [],
+          correctAnswerIndex: 0,
+          characterUnicode: '人',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questions, key: const ValueKey('stroke_trace')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.textContaining('Trace 人'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('stroke_progress_markers')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('attempt_progress_markers')),
+        findsOneWidget,
+      );
     });
 
     testWidgets(

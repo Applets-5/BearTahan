@@ -50,7 +50,6 @@ class AppRadius {
 }
 
 class AppTextStyles {
-  static const font = 'Nunito';
   static const title = TextStyle(
     fontSize: 22,
     fontWeight: FontWeight.w900,
@@ -128,7 +127,6 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      fontFamily: AppTextStyles.font,
       scaffoldBackgroundColor: AppColors.background,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,

@@ -43,7 +43,8 @@ class DailyGoal {
 class UserProfile {
   final String uid;
   final String name;
-  final int starBalance;
+  final int lifetimeStarsEarned;
+  final int availableStars;
   final String activeMascotOutfit;
   final String? parentId;
 
@@ -54,7 +55,8 @@ class UserProfile {
   UserProfile({
     required this.uid,
     required this.name,
-    required this.starBalance,
+    required this.lifetimeStarsEarned,
+    required this.availableStars,
     required this.activeMascotOutfit,
     this.parentId,
     this.streakCount = 0,
@@ -62,13 +64,23 @@ class UserProfile {
     this.dailyGoal,
   });
 
+  int get starBalance => availableStars;
+
   factory UserProfile.fromFirestore(String uid, Map<String, dynamic> data) {
     final dailyGoalData = data['dailyGoal'];
+    final availableStars =
+        (data['availableStars'] ?? data['starBalance'] ?? data['stars'] ?? 0)
+            .toInt();
     return UserProfile(
       uid: uid,
       name: data['name'] ?? 'Student',
-      starBalance: (data['starBalance'] ?? 0).toInt(),
-      activeMascotOutfit: data['activeMascotOutfit'] ?? 'default',
+      lifetimeStarsEarned: (data['lifetimeStarsEarned'] ?? availableStars)
+          .toInt(),
+      availableStars: availableStars,
+      activeMascotOutfit:
+          data['activeOutfitID'] ??
+          data['activeMascotOutfit'] ??
+          'scholar_bear',
       parentId: data['parentId'],
       streakCount: (data['streakCount'] ?? 0).toInt(),
       lastActivityDate: data['lastActivityDate'] != null

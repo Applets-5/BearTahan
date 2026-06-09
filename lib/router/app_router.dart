@@ -96,6 +96,7 @@ class AppRouter {
     String? subjectId,
     bool? isEscalated,
     bool? isDailyBonus,
+    List<String>? unlockedOutfits,
   }) {
     final params = <String, String>{};
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
@@ -106,6 +107,9 @@ class AppRouter {
     if (subjectId != null) params['subjectId'] = subjectId;
     if (isEscalated != null) params['isEscalated'] = isEscalated.toString();
     if (isDailyBonus != null) params['isDailyBonus'] = isDailyBonus.toString();
+    if (unlockedOutfits != null && unlockedOutfits.isNotEmpty) {
+      params['unlockedOutfits'] = unlockedOutfits.join(',');
+    }
     return Uri(path: completion, queryParameters: params).toString();
   }
 
@@ -212,8 +216,10 @@ class AppRouter {
           ),
           GoRoute(
             path: quests,
-            pageBuilder: (context, state) =>
-                _noTransitionPage(state, const QuestsScreen()),
+            pageBuilder: (context, state) {
+              final childId = state.uri.queryParameters['childId'];
+              return _noTransitionPage(state, QuestsScreen(childId: childId));
+            },
           ),
           GoRoute(
             path: rewards,
@@ -343,6 +349,12 @@ class AppRouter {
               state.uri.queryParameters['isEscalated'] == 'true';
           final isDailyBonus =
               state.uri.queryParameters['isDailyBonus'] == 'true';
+          final unlockedOutfits =
+              state.uri.queryParameters['unlockedOutfits']
+                  ?.split(',')
+                  .where((id) => id.isNotEmpty)
+                  .toList() ??
+              const <String>[];
 
           return _noTransitionPage(
             state,
@@ -355,6 +367,7 @@ class AppRouter {
               subjectId: subjectId,
               isEscalated: isEscalated,
               isDailyBonus: isDailyBonus,
+              unlockedOutfits: unlockedOutfits,
             ),
           );
         },

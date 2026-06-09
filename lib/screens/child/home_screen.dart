@@ -372,7 +372,20 @@ class _Header extends ConsumerWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           userProfileAsync.when(
-            data: (profile) => StarBalanceChip(count: profile.starBalance),
+            data: (profile) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                StarBalanceChip(
+                  count: profile.lifetimeStarsEarned,
+                  label: 'Total',
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                StarBalanceChip(
+                  count: profile.availableStars,
+                  label: 'Available',
+                ),
+              ],
+            ),
             loading: () => const StarBalanceChip(count: 0),
             error: (_, _) => const StarBalanceChip(count: 0),
           ),

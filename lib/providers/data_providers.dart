@@ -6,7 +6,9 @@ import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
 import '../models/reward.dart';
+import '../models/reward_claim.dart';
 import '../models/notification.dart';
+import '../models/outfit_quest.dart';
 import '../models/star_transaction.dart';
 import '../services/firestore_service.dart';
 import '../services/security_service.dart';
@@ -49,6 +51,23 @@ final notificationsProvider = StreamProvider<List<ParentNotification>>((ref) {
   if (parentId.isEmpty) return const Stream.empty();
   return ref.watch(firestoreServiceProvider).streamNotifications(parentId);
 });
+
+final outfitQuestsProvider = StreamProvider<List<OutfitQuest>>((ref) {
+  return ref.watch(firestoreServiceProvider).streamOutfitQuests();
+});
+
+final questProgressProvider =
+    StreamProvider.family<
+      Map<String, OutfitQuestProgress>,
+      ({String parentId, String childId})
+    >((ref, arg) {
+      if (arg.parentId.isEmpty || arg.childId.isEmpty) {
+        return const Stream.empty();
+      }
+      return ref
+          .watch(firestoreServiceProvider)
+          .streamQuestProgress(arg.parentId, arg.childId);
+    });
 
 // In Riverpod 3.0, StateProvider is removed. Use NotifierProvider instead.
 class ChildIdNotifier extends Notifier<String?> {
@@ -145,3 +164,16 @@ final allSubjectsTotalLevelsProvider = FutureProvider<Map<String, int>>((
   }
   return results;
 });
+
+final rewardClaimsProvider =
+    StreamProvider.family<
+      List<RewardClaim>,
+      ({String parentId, String childId})
+    >((ref, arg) {
+      if (arg.parentId.isEmpty || arg.childId.isEmpty) {
+        return const Stream.empty();
+      }
+      return ref
+          .watch(firestoreServiceProvider)
+          .streamRewardClaims(arg.parentId, arg.childId);
+    });
