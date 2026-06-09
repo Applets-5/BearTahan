@@ -19,9 +19,9 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final List<Map<String, dynamic>> _defaultSubjects = [
     {'id': 'bm', 'name': 'Bahasa Melayu', 'color': AppColors.subjectBm},
-    {'id': 'en', 'name': 'English', 'color': AppColors.subjectEnglish},
+    {'id': 'bi', 'name': 'English', 'color': AppColors.subjectEnglish},
     {'id': 'math', 'name': 'Mathematics', 'color': AppColors.subjectMath},
-    {'id': 'science', 'name': 'Science', 'color': AppColors.subjectScience},
+    {'id': 'sci', 'name': 'Science', 'color': AppColors.subjectScience},
     {'id': 'bc', 'name': 'Mandarin', 'color': AppColors.subjectMandarin},
   ];
 

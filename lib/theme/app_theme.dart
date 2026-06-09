@@ -98,6 +98,16 @@ class AppTextStyles {
     fontWeight: FontWeight.w900,
     color: Colors.white,
   );
+  static const whiteBodyBold = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w800,
+    color: Colors.white,
+  );
+  static const whiteBody = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: Colors.white,
+  );
   static const whiteSmall = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w700,

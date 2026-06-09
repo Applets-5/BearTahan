@@ -52,8 +52,9 @@ void main() {
         any(),
         any(),
         any(),
+        any(),
       ),
-    ).thenAnswer((_) async => {});
+    ).thenAnswer((_) async => 0);
 
     when(
       () => mockFirestoreService.evaluateAndUpdateQuestProgress(any(), any()),

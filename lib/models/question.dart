@@ -16,6 +16,7 @@ class Question {
   final int correctAnswerIndex;
   final String? imageUrl;
   final String? promptAudioUrl;
+  final String? promptAudioText;
   final String? type;
   final List<String>? correctOrder;
   final String? correctBlank;
@@ -29,6 +30,7 @@ class Question {
     required this.correctAnswerIndex,
     this.imageUrl,
     this.promptAudioUrl,
+    this.promptAudioText,
     this.type,
     this.correctOrder,
     this.correctBlank,
@@ -36,21 +38,47 @@ class Question {
     this.strokeOrderDataJson,
   }) : options = options.map((e) {
          if (e is QuestionOption) return e;
+         if (e == null) return QuestionOption(text: '');
+         if (e is Map) {
+           // Handle map-style option
+           String optText = '';
+           final contentKeys = ['text', 'label', 'value', 'word', 'name'];
+           for (var key in contentKeys) {
+             if (e.containsKey(key)) {
+               optText = e[key]?.toString() ?? '';
+               break;
+             }
+           }
+           String? optImg;
+           final imageKeys = ['imageUrl', 'image', 'img', 'url', 'picture'];
+           for (var key in imageKeys) {
+             if (e.containsKey(key)) {
+               optImg = e[key]?.toString();
+               break;
+             }
+           }
+           return QuestionOption(text: optText, imageUrl: optImg);
+         }
+         // Fallback for strings or other types
          return QuestionOption(text: e.toString());
        }).toList();
+
   factory Question.fromFirestore(String id, Map<String, dynamic> data) {
     debugPrint('DEBUG: Parsing question document: $id');
-    debugPrint('DEBUG: Raw data: $data');
 
     String extractText(dynamic value) {
+      if (value == null) return '';
       if (value is String) return value;
       if (value is Map) {
         final contentKeys = ['text', 'label', 'value', 'word', 'name'];
         for (var key in contentKeys) {
-          if (value.containsKey(key)) return value[key].toString();
+          if (value.containsKey(key)) {
+            final val = value[key];
+            return val?.toString() ?? '';
+          }
         }
       }
-      return value?.toString() ?? '';
+      return value.toString();
     }
 
     String? extractImageUrl(dynamic value) {
@@ -90,14 +118,25 @@ class Question {
         data['audio'] ??
         data['voice'];
 
+    String? finalAudioText =
+        data['promptAudioText'] ??
+        data['audioText'] ??
+        data['ttsText'] ??
+        data['spokenText'];
+
     // Map questionType (used in Firestore) to type
     String? type = (data['questionType'] ?? data['type'])?.toString();
 
-    // correctOrder for rearrange
+    // correctOrder for rearrange and dragDropSpelling
     List<String>? correctOrder;
     if (data['correctOrder'] is List) {
       correctOrder = (data['correctOrder'] as List)
           .map((e) => e.toString())
+          .toList();
+    } else if (data['correctOrder'] is String) {
+      correctOrder = (data['correctOrder'] as String)
+          .split(',')
+          .map((e) => e.trim())
           .toList();
     }
 
@@ -162,6 +201,7 @@ class Question {
       correctAnswerIndex: finalIndex,
       imageUrl: finalImageUrl,
       promptAudioUrl: finalAudioUrl,
+      promptAudioText: finalAudioText,
       type: type,
       correctOrder: correctOrder,
       correctBlank: correctBlank,
