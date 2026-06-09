@@ -47,10 +47,16 @@ class UserProfile {
   final int availableStars;
   final String activeMascotOutfit;
   final String? parentId;
-
   final int streakCount;
   final DateTime? lastActivityDate;
   final DailyGoal? dailyGoal;
+  final int? age;
+  final String? grade; // Standard 1, Standard 2, etc.
+  final String? username;
+  final String? email;
+  final String? phoneNumber;
+  final String? avatarPath;
+  final int? passwordLength;
 
   UserProfile({
     required this.uid,
@@ -62,6 +68,13 @@ class UserProfile {
     this.streakCount = 0,
     this.lastActivityDate,
     this.dailyGoal,
+    this.age,
+    this.grade,
+    this.username,
+    this.email,
+    this.phoneNumber,
+    this.avatarPath,
+    this.passwordLength,
   });
 
   int get starBalance => availableStars;
@@ -88,6 +101,15 @@ class UserProfile {
           : null,
       dailyGoal: dailyGoalData is Map
           ? DailyGoal.fromMap(Map<String, dynamic>.from(dailyGoalData))
+          : null,
+      age: data['age'] != null ? (data['age'] as num).toInt() : null,
+      grade: data['grade']?.toString(),
+      username: data['username']?.toString(),
+      email: data['email']?.toString(),
+      phoneNumber: data['phoneNumber']?.toString(),
+      avatarPath: data['avatarPath']?.toString(),
+      passwordLength: data['passwordLength'] != null
+          ? (data['passwordLength'] as num).toInt()
           : null,
     );
   }

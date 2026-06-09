@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/auth/login_screen.dart';
-import '../screens/auth/parent_register_screen.dart';
 import '../screens/child/chapter_screen.dart';
 import '../screens/child/completion_screen.dart';
 import '../screens/child/home_screen.dart';
@@ -19,8 +18,11 @@ import '../screens/parent/goal_setting_screen.dart';
 import '../screens/parent/parent_notifications_screen.dart';
 import '../screens/parent/parent_settings_screen.dart';
 import '../screens/parent/reward_management_screen.dart';
+import '../screens/parent/parent_profile_detail_screen.dart';
+import '../screens/parent/change_password_screen.dart';
 import '../screens/shared/no_internet_screen.dart';
 import '../screens/shared/tutorial_screen.dart';
+import '../screens/shared/splash_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/bottom_nav_bar.dart';
 import '../screens/auth/profile_selection_screen.dart';
@@ -29,6 +31,7 @@ import '../screens/auth/forgot_password_screen.dart';
 import 'go_router_refresh_stream.dart';
 
 class AppRouter {
+  static const splash = '/';
   static const login = '/login';
   static const parentRegister = '/parent-register';
   static const forgotPassword = '/forgot-password';
@@ -133,18 +136,25 @@ class AppRouter {
   static const parentGoals = '/parent-goals';
   static const parentNotifications = '/parent-notifications';
   static const parentSettings = '/parent-settings';
+  static const parentProfileDetail = '/parent-profile-detail';
+  static const changePassword = '/change-password';
   static const noInternet = '/no-internet';
   static const tutorial = '/tutorial';
   static const comingSoon = '/coming-soon';
 
   static final router = GoRouter(
-    initialLocation: login,
+    initialLocation: splash,
     refreshListenable: GoRouterRefreshStream(
       FirebaseAuth.instance.authStateChanges(),
     ),
     // THE AUTH GATE: This intercepts every navigation request
     redirect: (context, state) {
       final isLoggedIn = FirebaseAuth.instance.currentUser != null;
+
+      // Allow the splash screen to show without redirection
+      if (state.uri.path == splash) {
+        return null;
+      }
 
       // Is the user trying to access the login or register page?
       final isAuthRoute =
@@ -167,14 +177,14 @@ class AppRouter {
     },
     routes: [
       GoRoute(
+        path: splash,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const SplashScreen()),
+      ),
+      GoRoute(
         path: login,
         pageBuilder: (context, state) =>
             _noTransitionPage(state, const LoginScreen()),
-      ),
-      GoRoute(
-        path: parentRegister,
-        pageBuilder: (context, state) =>
-            _noTransitionPage(state, const ParentRegisterScreen()),
       ),
       GoRoute(
         path: forgotPassword,
@@ -270,6 +280,11 @@ class AppRouter {
             path: parentSettings,
             pageBuilder: (context, state) =>
                 _noTransitionPage(state, const ParentSettingsScreen()),
+          ),
+          GoRoute(
+            path: parentProfileDetail,
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const ParentProfileDetailScreen()),
           ),
         ],
       ),
@@ -375,6 +390,11 @@ class AppRouter {
             ),
           );
         },
+      ),
+      GoRoute(
+        path: changePassword,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const ChangePasswordScreen()),
       ),
       GoRoute(
         path: memory,

@@ -2,14 +2,23 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bear_tahan/services/firestore_service.dart';
 import 'package:bear_tahan/models/reward.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+class MockFirebaseAuth extends Mock implements FirebaseAuth {}
 
 void main() {
   late FirestoreService firestoreService;
   late FakeFirebaseFirestore fakeFirestore;
+  late MockFirebaseAuth mockAuth;
 
   setUp(() {
     fakeFirestore = FakeFirebaseFirestore();
-    firestoreService = FirestoreService(firestore: fakeFirestore);
+    mockAuth = MockFirebaseAuth();
+    firestoreService = FirestoreService(
+      firestore: fakeFirestore,
+      auth: mockAuth,
+    );
   });
 
   group('FirestoreService Tests', () {
@@ -484,5 +493,77 @@ void main() {
         expect(goal['todayProgress'], 3);
       },
     );
+
+    test('addChild should create a new child document', () async {
+      const parentId = 'p1';
+      final childData = {'name': 'Ali', 'age': 7, 'grade': 'Standard 1'};
+
+      await firestoreService.addChild(parentId, childData);
+
+      final children = await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .get();
+
+      expect(children.docs.length, 1);
+      final data = children.docs.first.data();
+      expect(data['name'], 'Ali');
+      expect(data['age'], 7);
+      expect(data['grade'], 'Standard 1');
+      expect(data['availableStars'], 0);
+      expect(data['activeOutfitID'], 'scholar_bear');
+    });
+
+    test('updateChild should modify existing child document', () async {
+      const parentId = 'p1';
+      const childId = 'c1';
+
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .set({'name': 'Ali', 'age': 7, 'grade': 'Standard 1'});
+
+      await firestoreService.updateChild(parentId, childId, {
+        'name': 'Ali bin Abu',
+        'age': 8,
+      });
+
+      final doc = await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .get();
+
+      expect(doc.data()?['name'], 'Ali bin Abu');
+      expect(doc.data()?['age'], 8);
+      expect(doc.data()?['grade'], 'Standard 1');
+    });
+
+    test('deleteChild should remove child document', () async {
+      const parentId = 'p1';
+      const childId = 'c1';
+
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .set({'name': 'Ali'});
+
+      await firestoreService.deleteChild(parentId, childId);
+
+      final doc = await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .get();
+
+      expect(doc.exists, false);
+    });
   });
 }

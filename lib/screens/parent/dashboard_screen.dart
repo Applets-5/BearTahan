@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/subject.dart';
-import '../../models/user_profile.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
@@ -18,8 +17,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  bool expanded = false;
-
   final List<Map<String, dynamic>> _defaultSubjects = [
     {'id': 'bm', 'name': 'Bahasa Melayu', 'color': AppColors.subjectBm},
     {'id': 'bi', 'name': 'English', 'color': AppColors.subjectEnglish},
@@ -83,21 +80,74 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     onPressed: () => context.go(AppRouter.parentGoals),
                     icon: const Icon(Icons.flag_rounded),
                   ),
-                  TextButton.icon(
-                    onPressed: () => setState(() => expanded = !expanded),
-                    icon: const Icon(Icons.child_care),
-                    label: Text(selectedChild.name),
+                  PopupMenuButton<String>(
+                    onSelected: (id) {
+                      ref.read(childIdProvider.notifier).update(id);
+                    },
+                    offset: const Offset(0, 40),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: AppRadius.r(AppRadius.lg),
+                    ),
+                    itemBuilder: (context) => children.map((child) {
+                      return PopupMenuItem<String>(
+                        value: child.uid,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.face,
+                              size: 20,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(child.name, style: AppTextStyles.bodyBold),
+                                Text(
+                                  'Streak: ${child.streakCount} days',
+                                  style: AppTextStyles.tiny,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: AppRadius.r(AppRadius.xl),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.child_care,
+                            size: 18,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            selectedChild.name,
+                            style: AppTextStyles.bodyBold.copyWith(
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_drop_down,
+                            color: AppColors.primary,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
-              if (expanded)
-                _ChildPicker(
-                  children: children,
-                  onPick: (id) {
-                    ref.read(childIdProvider.notifier).update(id);
-                    setState(() => expanded = false);
-                  },
-                ),
               const SizedBox(height: AppSpacing.md),
               childProfileAsync.when(
                 data: (profile) {
@@ -283,39 +333,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, st) => Center(child: Text('Error loading children: $e')),
-    );
-  }
-}
-
-class _ChildPicker extends StatelessWidget {
-  const _ChildPicker({required this.children, required this.onPick});
-  final List<UserProfile> children;
-  final ValueChanged<String> onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.xl),
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        children: children
-            .map(
-              (child) => ListTile(
-                title: Text(child.name, style: AppTextStyles.bodyBold),
-                subtitle: Text(
-                  'Streak: ${child.streakCount} days',
-                  style: AppTextStyles.small,
-                ),
-                onTap: () => onPick(child.uid),
-              ),
-            )
-            .toList(),
-      ),
     );
   }
 }

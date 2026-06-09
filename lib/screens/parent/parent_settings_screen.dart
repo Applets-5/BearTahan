@@ -140,35 +140,69 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
             children: [
               const Text('Settings', style: AppTextStyles.screenTitle),
               const SizedBox(height: AppSpacing.lg),
+              InkWell(
+                onTap: () => context.push(AppRouter.parentProfileDetail),
+                borderRadius: AppRadius.r(AppRadius.lg),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: AppRadius.r(AppRadius.lg),
+                    boxShadow: AppShadows.card,
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        backgroundColor: AppColors.primaryContainer,
+                        child: Icon(Icons.person, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              settings['name'] ?? 'Parent',
+                              style: AppTextStyles.bodyBold,
+                            ),
+                            const Text(
+                              'Profile & Child Management',
+                              style: AppTextStyles.tiny,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: AppColors.primary),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
               _SettingsCard(
-                title: 'Editing profile',
-                icon: Icons.person,
+                title: 'Notifications',
+                icon: Icons.notifications,
                 children: [
-                  TextField(
-                    decoration: InputDecoration(
-                      hintText: settings['name'] ?? 'Parent',
-                    ),
-                    onChanged: (v) => _updateSetting('name', v),
+                  _NotificationSwitch(
+                    title: 'Sound Effects',
+                    subtitle: 'Play feedback sounds in quizzes',
+                    value: sound,
+                    onChanged: (v) => _updateSetting('soundEffects', v),
+                  ),
+                  const Divider(),
+                  _NotificationSwitch(
+                    title: 'Reward Claims',
+                    subtitle: 'Notify when a child claims rewards',
+                    value: claims,
+                    onChanged: (v) => _updateSetting('rewardClaims', v),
+                  ),
+                  const Divider(),
+                  _NotificationSwitch(
+                    title: 'Daily Goals',
+                    subtitle: 'Notify when daily goal is met',
+                    value: goals,
+                    onChanged: (v) => _updateSetting('dailyGoals', v),
                   ),
                 ],
-              ),
-              _SwitchCard(
-                title: 'Sound Effects',
-                subtitle: 'Play feedback sounds in quizzes',
-                value: sound,
-                onChanged: (v) => _updateSetting('soundEffects', v),
-              ),
-              _SwitchCard(
-                title: 'Reward Claims',
-                subtitle: 'Notify when a child claims rewards',
-                value: claims,
-                onChanged: (v) => _updateSetting('rewardClaims', v),
-              ),
-              _SwitchCard(
-                title: 'Daily Goals',
-                subtitle: 'Notify when daily goal is met',
-                value: goals,
-                onChanged: (v) => _updateSetting('dailyGoals', v),
               ),
               _SwitchCard(
                 title: 'Biometric Login',
@@ -295,6 +329,37 @@ class _SettingsCard extends StatelessWidget {
           ...children,
         ],
       ),
+    );
+  }
+}
+
+class _NotificationSwitch extends StatelessWidget {
+  const _NotificationSwitch({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: AppTextStyles.bodyBold),
+              Text(subtitle, style: AppTextStyles.tiny),
+            ],
+          ),
+        ),
+        Switch(value: value, onChanged: onChanged),
+      ],
     );
   }
 }

@@ -33,8 +33,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('BearTahan'), findsOneWidget);
-    expect(find.text('Log In / Start Learning'), findsOneWidget);
+    expect(find.text('Log In'), findsWidgets); // Found in Tab and Button
+    expect(find.text('Sign Up'), findsOneWidget);
     expect(find.text('Sign in with Google'), findsOneWidget);
     expect(find.text('Forgot Password?'), findsOneWidget);
   });

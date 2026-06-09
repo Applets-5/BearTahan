@@ -6,8 +6,10 @@ class AppColors {
   static const card = Color(0xFFFFFFFF);
   static const primary = Color(0xFF7C3AED);
   static const primaryLight = Color(0x1A7C3AED);
+  static const primaryContainer = Color(0xFFEDE9FE);
   static const secondary = Color(0xFFFFCC33);
   static const secondaryLight = Color(0x33FFCC33);
+  static const secondaryContainer = Color(0xFFFEF9C3);
   static const secondaryText = Color(0xFF523214);
   static const muted = Color(0xFFF0F2F6);
   static const mutedText = Color(0xFF737986);
