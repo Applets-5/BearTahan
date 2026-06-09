@@ -141,12 +141,6 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
                   : screenWidth - (horizontalPadding * 2);
 
               final crossAxisCount = contentWidth >= 760 ? 3 : 2;
-              final cardWidth =
-                  (contentWidth - (AppSpacing.md * (crossAxisCount - 1))) /
-                  crossAxisCount;
-
-              final cardAspectRatio = cardWidth < 170 ? 0.66 : 0.72;
-
               return SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   horizontalPadding,
@@ -173,7 +167,7 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
                                 crossAxisCount: crossAxisCount,
                                 mainAxisSpacing: AppSpacing.md,
                                 crossAxisSpacing: AppSpacing.md,
-                                childAspectRatio: cardAspectRatio,
+                                mainAxisExtent: 296,
                               ),
                           itemCount: quests.length,
                           itemBuilder: (context, index) {
@@ -254,7 +248,14 @@ class _QuestHeader extends StatelessWidget {
           children: [
             const Text('🎯', style: TextStyle(fontSize: 22)),
             const SizedBox(width: AppSpacing.sm),
-            Text('Quests & Outfits', style: AppTextStyles.screenTitle),
+            Expanded(
+              child: Text(
+                'Quests & Outfits',
+                style: AppTextStyles.screenTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -657,21 +658,26 @@ class _QuestProgressSection extends StatelessWidget {
     return Column(
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Progress',
-              style: AppTextStyles.tiny.copyWith(
-                color: AppColors.mutedText,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                'Progress',
+                style: AppTextStyles.tiny.copyWith(
+                  color: AppColors.mutedText,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               '$currentValue / $targetValue',
               style: AppTextStyles.tiny.copyWith(
                 color: AppColors.mutedText,
                 fontWeight: FontWeight.w700,
               ),
+              maxLines: 1,
             ),
           ],
         ),
