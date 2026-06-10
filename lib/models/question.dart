@@ -1,5 +1,4 @@
-import 'dart:convert';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 class QuestionOption {
@@ -23,7 +22,7 @@ class Question {
   final String? characterUnicode;
   final String? strokeOrderDataJson;
 
-  Question({
+  const Question({
     required this.id,
     required this.text,
     required List<dynamic> options,
@@ -93,11 +92,10 @@ class Question {
 
     String text = extractText(
       data['text'] ??
-          data['questionText'] ??
-          data['question'] ??
-          data['prompt'] ??
-          data['q'] ??
-          '',
+      data['questionText'] ??
+      data['question'] ??
+      data['q'] ??
+      '',
     );
 
     dynamic rawImage =
@@ -159,12 +157,12 @@ class Question {
 
     dynamic rawIndex =
         data['correctanswerid'] ??
-        data['correctAnswerId'] ??
         data['correctAnswerIndex'] ??
         data['answerIndex'] ??
         data['correctIndex'] ??
         data['correctAnswer'] ??
-        data['answer'];
+        data['answer'] ??
+        '';
 
     int finalIndex = 0;
     if (rawIndex is num) {
@@ -209,4 +207,46 @@ class Question {
       strokeOrderDataJson: strokeOrderDataJson,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+    'subjectId': subjectId,
+    'chapterId': chapterId,
+    'levelId': levelId,
+    'levelNumber': levelNumber,
+    'difficulty': difficulty,
+    'questionType': questionType.name,
+    'imageMode': imageMode.name,
+    'prompt': prompt,
+    'imageUrl': imageUrl,
+    'correctAnswerId': correctAnswerId,
+    'correctBlank': correctBlank,
+    'correctOrder': correctOrder,
+    'options': options.map((o) => o.toMap()).toList(),
+  };
+}
+
+// ── QuestionOption ─────────────────────────────────────────────────────────
+
+class QuestionOption {
+  final String id;
+  final String text;
+  final String? imageUrl;
+
+  const QuestionOption({
+    required this.id,
+    required this.text,
+    this.imageUrl,
+  });
+
+  factory QuestionOption.fromMap(Map<String, dynamic> map) => QuestionOption(
+    id: map['id'] as String? ?? '',
+    text: map['text'] as String? ?? '',
+    imageUrl: map['imageUrl'] as String?,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'text': text,
+    'imageUrl': imageUrl,
+  };
 }

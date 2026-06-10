@@ -1,0 +1,230 @@
+[
+  {
+    "id": "bm_c1_l1_q01",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 1,
+    "imageMode": "none",
+    "prompt": "Apakah huruf yang tiada dalam vokal?",
+    "imageUrl": null,
+    "options": [
+      { "id": "A", "text": "a", "imageUrl": null },
+      { "id": "B", "text": "v", "imageUrl": null },
+      { "id": "C", "text": "i", "imageUrl": null },
+      { "id": "D", "text": "e", "imageUrl": null }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q02",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 1,
+    "imageMode": "answerImage",
+    "prompt": "Pilih gambar yang betul untuk perkataan 'bola'.",
+    "imageUrl": null,
+    "options": [
+      { "id": "A", "text": "bola",  "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/0e68dc5692a3d5e6c80b9e6dff6aab711964bf8f/questions/bm/c1/l1/bm_c1_l1_q02_a.png" },
+      { "id": "B", "text": "ikan",  "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/0e68dc5692a3d5e6c80b9e6dff6aab711964bf8f/questions/bm/c1/l1/bm_c1_l1_q02_b.png" },
+      { "id": "C", "text": "pokok", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/0e68dc5692a3d5e6c80b9e6dff6aab711964bf8f/questions/bm/c1/l1/bm_c1_l1_q02_c.png" },
+      { "id": "D", "text": "rumah", "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/0e68dc5692a3d5e6c80b9e6dff6aab711964bf8f/questions/bm/c1/l1/bm_c1_l1_q02_d.png" }
+    ],
+    "correctAnswerId": "A",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q03",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 1,
+    "imageMode": "none",
+    "prompt": "Huruf vokal ialah...",
+    "imageUrl": null,
+    "options": [
+      { "id": "A", "text": "a, e, i, o, u", "imageUrl": null },
+      { "id": "B", "text": "b, c, d, f, g", "imageUrl": null },
+      { "id": "C", "text": "m, n, p, r, s", "imageUrl": null },
+      { "id": "D", "text": "k, l, t, w, y", "imageUrl": null }
+    ],
+    "correctAnswerId": "A",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q04",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 1,
+    "imageMode": "none",
+    "prompt": "Berapa banyak huruf dalam perkataan 'ibu'?",
+    "imageUrl": null,
+    "options": [
+      { "id": "A", "text": "2", "imageUrl": null },
+      { "id": "B", "text": "3", "imageUrl": null },
+      { "id": "C", "text": "4", "imageUrl": null },
+      { "id": "D", "text": "5", "imageUrl": null }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q05",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 1,
+    "imageMode": "promptImage",
+    "prompt": "Namakan ahli keluarga ini.",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/0e68dc5692a3d5e6c80b9e6dff6aab711964bf8f/questions/bm/c1/l1/bm_c1_l1_q05.png",
+    "options": [
+      { "id": "A", "text": "bapa",  "imageUrl": null },
+      { "id": "B", "text": "nenek",   "imageUrl": null },
+      { "id": "C", "text": "kakak", "imageUrl": null },
+      { "id": "D", "text": "adik",  "imageUrl": null }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q06",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 2,
+    "imageMode": "none",
+    "prompt": "Susun suku kata ini untuk membentuk perkataan: 'ma' + 'ka' + 'nan'",
+    "imageUrl": null,
+    "options": [
+      { "id": "A", "text": "nakmama", "imageUrl": null },
+      { "id": "B", "text": "makanan", "imageUrl": null },
+      { "id": "C", "text": "kanmaan", "imageUrl": null },
+      { "id": "D", "text": "namaak",  "imageUrl": null }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q07",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 2,
+    "imageMode": "promptImage",
+    "prompt": "Pilih ejaan yang betul untuk gambar ini.",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/0e68dc5692a3d5e6c80b9e6dff6aab711964bf8f/questions/bm/c1/l1/bm_c1_l1_q07.png",
+    "options": [
+      { "id": "A", "text": "rmah",   "imageUrl": null },
+      { "id": "B", "text": "ruumah", "imageUrl": null },
+      { "id": "C", "text": "rumah",  "imageUrl": null },
+      { "id": "D", "text": "rummah", "imageUrl": null }
+    ],
+    "correctAnswerId": "C",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q08",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 2,
+    "imageMode": "none",
+    "prompt": "Ayat yang betul ialah...",
+    "imageUrl": null,
+    "options": [
+      { "id": "A", "text": "Saya nama Ali.", "imageUrl": null },
+      { "id": "B", "text": "Nama saya Ali.", "imageUrl": null },
+      { "id": "C", "text": "Ali nama saya.", "imageUrl": null },
+      { "id": "D", "text": "Saya Ali nama.", "imageUrl": null }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q09",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 2,
+    "imageMode": "promptImage",
+    "prompt": "Lengkapkan suku kata untuk gambar ini:",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/0e68dc5692a3d5e6c80b9e6dff6aab711964bf8f/questions/bm/c1/l1/bm_c1_l1_q09.png",
+    "options": [
+      { "id": "A", "text": "ma + je",   "imageUrl": "null" },
+      { "id": "B", "text": "ma + ju",   "imageUrl": "null" },
+      { "id": "C", "text": "mo + ja",   "imageUrl": "null" },
+      { "id": "D", "text": "me + ja", "imageUrl": "null" }
+    ],
+    "correctAnswerId": "D",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q10",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 2,
+    "imageMode": "promptImage",
+    "prompt": "Lengkapkan ayat: 'Ali ___ buku di atas meja.'",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/0e68dc5692a3d5e6c80b9e6dff6aab711964bf8f/questions/bm/c1/l1/bm_c1_l1_q10.png",
+    "options": [
+      { "id": "A", "text": "makan", "imageUrl": null },
+      { "id": "B", "text": "minum", "imageUrl": null },
+      { "id": "C", "text": "letak", "imageUrl": null },
+      { "id": "D", "text": "tidur", "imageUrl": null }
+    ],
+    "correctAnswerId": "C",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q11",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 3,
+    "imageMode": "promptImage",
+    "prompt": "Baca petikan ini dan jawab soalan: 'Aini suka makan buah. Buah kesukaannya ialah mangga.' Apakah buah kesukaan Aini?",
+    "imageUrl": "https://raw.githubusercontent.com/yapkarying/beartahan-assets/0e68dc5692a3d5e6c80b9e6dff6aab711964bf8f/questions/bm/c1/l1/bm_c1_l1_q11.png",
+    "options": [
+      { "id": "A", "text": "Betik",  "imageUrl": null },
+      { "id": "B", "text": "Mangga", "imageUrl": null },
+      { "id": "C", "text": "Durian", "imageUrl": null },
+      { "id": "D", "text": "Pisang", "imageUrl": null }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  {
+    "id": "bm_c1_l1_q12",
+    "subjectId": "BM",
+    "chapterId": "BM_C1",
+    "levelId": "BM_C1_L1",
+    "levelNumber": 1,
+    "difficulty": 3,
+    "imageMode": "none",
+    "prompt": "Pilih ayat yang menggunakan tanda baca yang betul.",
+    "imageUrl": null,
+    "options": [
+      { "id": "A", "text": "Di mana awak tinggal",  "imageUrl": null },
+      { "id": "B", "text": "Di mana awak tinggal?", "imageUrl": null },
+      { "id": "C", "text": "di mana awak tinggal?", "imageUrl": null },
+      { "id": "D", "text": "Di mana awak tinggal!", "imageUrl": null }
+    ],
+    "correctAnswerId": "B",
+    "createdAt": "2025-01-01T00:00:00Z"
+  }
+]
