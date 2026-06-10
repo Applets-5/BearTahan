@@ -79,6 +79,7 @@ class AppRouter {
     String? levelPrefix,
     String? subjectId,
     String? levelId,
+    bool isMemoryChallenge = false,
   }) {
     final params = <String, String>{};
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
@@ -91,6 +92,7 @@ class AppRouter {
     if (levelId != null && levelId.isNotEmpty) {
       params['levelId'] = levelId;
     }
+    if (isMemoryChallenge) params['isMemoryChallenge'] = 'true';
     return Uri(path: levelSession, queryParameters: params).toString();
   }
 
@@ -99,8 +101,10 @@ class AppRouter {
     int? score,
     int? total,
     int? stars,
+    int? newStars,
     String? levelId,
     String? subjectId,
+    String? levelPrefix,
     bool? isEscalated,
     bool? isDailyBonus,
     List<String>? unlockedOutfits,
@@ -110,8 +114,10 @@ class AppRouter {
     if (score != null) params['score'] = score.toString();
     if (total != null) params['total'] = total.toString();
     if (stars != null) params['stars'] = stars.toString();
+    if (newStars != null) params['newStars'] = newStars.toString();
     if (levelId != null) params['levelId'] = levelId;
     if (subjectId != null) params['subjectId'] = subjectId;
+    if (levelPrefix != null) params['levelPrefix'] = levelPrefix;
     if (isEscalated != null) params['isEscalated'] = isEscalated.toString();
     if (isDailyBonus != null) params['isDailyBonus'] = isDailyBonus.toString();
     if (unlockedOutfits != null && unlockedOutfits.isNotEmpty) {
@@ -342,6 +348,9 @@ class AppRouter {
               explicitLevelId ??
               (parts.length >= 3 && parts[2].isNotEmpty ? parts[2] : 'l1');
 
+          final isMemoryChallenge =
+              state.uri.queryParameters['isMemoryChallenge'] == 'true';
+
           return _noTransitionPage(
             state,
             LevelSessionScreen(
@@ -349,6 +358,7 @@ class AppRouter {
               levelPrefix: levelPrefix,
               subjectId: subjectId,
               levelId: levelId,
+              isMemoryChallenge: isMemoryChallenge,
             ),
           );
         },
@@ -362,8 +372,11 @@ class AppRouter {
           final total =
               int.tryParse(state.uri.queryParameters['total'] ?? '0') ?? 0;
           final stars = int.tryParse(state.uri.queryParameters['stars'] ?? '');
+          final newStars =
+              int.tryParse(state.uri.queryParameters['newStars'] ?? '');
           final levelId = state.uri.queryParameters['levelId'] ?? 'l1';
           final subjectId = state.uri.queryParameters['subjectId'] ?? 'bm';
+          final levelPrefix = state.uri.queryParameters['levelPrefix'];
           final isEscalated =
               state.uri.queryParameters['isEscalated'] == 'true';
           final isDailyBonus =
@@ -398,8 +411,13 @@ class AppRouter {
       ),
       GoRoute(
         path: memory,
-        pageBuilder: (context, state) =>
-            _noTransitionPage(state, const MemoryChallengeScreen()),
+        pageBuilder: (context, state) {
+          final childId = state.uri.queryParameters['childId'];
+          return _noTransitionPage(
+            state,
+            MemoryChallengeScreen(childId: childId),
+          );
+        },
       ),
       GoRoute(
         path: comingSoon,

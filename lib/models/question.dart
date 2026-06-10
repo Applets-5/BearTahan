@@ -22,6 +22,7 @@ class Question {
   final String? correctBlank;
   final String? characterUnicode;
   final String? strokeOrderDataJson;
+  final bool isInjectedReview;
 
   Question({
     required this.id,
@@ -36,6 +37,7 @@ class Question {
     this.correctBlank,
     this.characterUnicode,
     this.strokeOrderDataJson,
+    this.isInjectedReview = false,
   }) : options = options.map((e) {
          if (e is QuestionOption) return e;
          if (e == null) return QuestionOption(text: '');
@@ -62,6 +64,38 @@ class Question {
          // Fallback for strings or other types
          return QuestionOption(text: e.toString());
        }).toList();
+
+  Question copyWith({
+    String? id,
+    String? text,
+    List<QuestionOption>? options,
+    int? correctAnswerIndex,
+    String? imageUrl,
+    String? promptAudioUrl,
+    String? promptAudioText,
+    String? type,
+    List<String>? correctOrder,
+    String? correctBlank,
+    String? characterUnicode,
+    String? strokeOrderDataJson,
+    bool? isInjectedReview,
+  }) {
+    return Question(
+      id: id ?? this.id,
+      text: text ?? this.text,
+      options: options ?? this.options,
+      correctAnswerIndex: correctAnswerIndex ?? this.correctAnswerIndex,
+      imageUrl: imageUrl ?? this.imageUrl,
+      promptAudioUrl: promptAudioUrl ?? this.promptAudioUrl,
+      promptAudioText: promptAudioText ?? this.promptAudioText,
+      type: type ?? this.type,
+      correctOrder: correctOrder ?? this.correctOrder,
+      correctBlank: correctBlank ?? this.correctBlank,
+      characterUnicode: characterUnicode ?? this.characterUnicode,
+      strokeOrderDataJson: strokeOrderDataJson ?? this.strokeOrderDataJson,
+      isInjectedReview: isInjectedReview ?? this.isInjectedReview,
+    );
+  }
 
   factory Question.fromFirestore(String id, Map<String, dynamic> data) {
     debugPrint('DEBUG: Parsing question document: $id');

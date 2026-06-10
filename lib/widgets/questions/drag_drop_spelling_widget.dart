@@ -5,11 +5,13 @@ import '../../theme/app_theme.dart';
 class DragDropSpellingWidget extends StatefulWidget {
   final Question question;
   final Function(bool isCorrect) onCompleted;
+  final VoidCallback? onWrongAttempt;
 
   const DragDropSpellingWidget({
     super.key,
     required this.question,
     required this.onCompleted,
+    this.onWrongAttempt,
   });
 
   @override
@@ -88,6 +90,7 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget> {
       _isSubmitted = true;
       if (!isCorrect) {
         _isWrong = true;
+        widget.onWrongAttempt?.call();
         // Shake effect or similar could be added here
         Future.delayed(const Duration(milliseconds: 1000), () {
           if (mounted) {

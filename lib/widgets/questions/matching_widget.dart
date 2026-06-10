@@ -5,11 +5,13 @@ import '../../theme/app_theme.dart';
 class MatchingWidget extends StatefulWidget {
   final Question question;
   final Function(bool isCorrect) onCompleted;
+  final VoidCallback? onWrongAttempt;
 
   const MatchingWidget({
     super.key,
     required this.question,
     required this.onCompleted,
+    this.onWrongAttempt,
   });
 
   @override
@@ -80,6 +82,7 @@ class _MatchingWidgetState extends State<MatchingWidget> {
         }
       } else {
         // Wrong
+        widget.onWrongAttempt?.call();
         setState(() {
           _isWrongFlash = true;
         });

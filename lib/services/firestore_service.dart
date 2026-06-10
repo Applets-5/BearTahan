@@ -489,6 +489,154 @@ class FirestoreService {
     });
   }
 
+  Stream<int> streamWrongAnswerCount(String parentId, String childId) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  Future<List<Question>> getWrongAnswerQuestions(
+    String parentId,
+    String childId, {
+    int limit = 15,
+  }) async {
+    final snapshot = await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank')
+        .orderBy('lastWrongAt', descending: true)
+        .limit(limit)
+        .get();
+
+    final List<String> questionIds =
+        snapshot.docs.map((doc) => doc.id).toList();
+    if (questionIds.isEmpty) return [];
+
+    // Fetch the actual questions from the global collection
+    final questionsSnapshot = await _db
+        .collection('questions')
+        .where(FieldPath.documentId, whereIn: questionIds)
+        .get();
+
+    return questionsSnapshot.docs
+        .map((doc) => Question.fromFirestore(doc.id, doc.data()))
+        .toList();
+  }
+
+  Future<List<Question>> getInjectionQuestions(
+    String parentId,
+    String childId, {
+    int limit = 2,
+  }) async {
+    final snapshot = await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank')
+        .orderBy('lastWrongAt', descending: false) // Oldest first for spaced repetition
+        .limit(limit)
+        .get();
+
+    final List<String> questionIds =
+        snapshot.docs.map((doc) => doc.id).toList();
+    if (questionIds.isEmpty) return [];
+
+    final questionsSnapshot = await _db
+        .collection('questions')
+        .where(FieldPath.documentId, whereIn: questionIds)
+        .get();
+
+    return questionsSnapshot.docs
+        .map((doc) => Question.fromFirestore(doc.id, doc.data()))
+        .toList();
+  }
+
+  Future<void> removeFromWrongAnswerBank(
+    String parentId,
+    String childId,
+    String questionId,
+  ) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank')
+        .doc(questionId)
+        .delete();
+  }
+
+  Future<void> incrementReviewCounter(
+    String parentId,
+    String childId, {
+    int amount = 1,
+  }) async {
+    final childDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(childDocRef);
+      final data = snapshot.data() ?? {};
+      int currentCounter = (data['reviewQuestionCounter'] ?? 0).toInt();
+      int currentLifetimeStars =
+          (data['lifetimeStarsEarned'] ??
+                  data['availableStars'] ??
+                  data['starBalance'] ??
+                  data['stars'] ??
+                  0)
+              .toInt();
+      int currentAvailableStars =
+          (data['availableStars'] ??
+                  data['starBalance'] ??
+                  data['stars'] ??
+                  0)
+              .toInt();
+
+      int nextCounter = currentCounter + amount;
+      int starsToAward = 0;
+
+      while (nextCounter >= 20) {
+        starsToAward += 1;
+        nextCounter -= 20;
+      }
+
+      final updates = <String, dynamic>{
+        'reviewQuestionCounter': nextCounter,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (starsToAward > 0) {
+        updates['lifetimeStarsEarned'] = currentLifetimeStars + starsToAward;
+        updates['availableStars'] = currentAvailableStars + starsToAward;
+
+        // Record earn transaction
+        final transactionDocRef = childDocRef
+            .collection('starTransactions')
+            .doc();
+        transaction.set(transactionDocRef, {
+          'type': 'earn',
+          'source': 'memory_challenge',
+          'amount': starsToAward,
+          'description': 'Memory Challenge Bonus Star!',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
+
+      transaction.update(childDocRef, updates);
+    });
+  }
+
   Stream<List<UserProfile>> streamChildren(String parentId) {
     return _db
         .collection('parents')
@@ -1038,6 +1186,7 @@ class FirestoreService {
               'progress': progressPercentage,
               'completedLevels': currentCompletedLevels,
               'totalStars': currentTotalStars,
+              'allChaptersComplete': currentCompletedLevels >= totalLevels,
               'updatedAt': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
           }

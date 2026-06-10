@@ -21,6 +21,8 @@ class CompletionScreen extends ConsumerStatefulWidget {
     this.isEscalated = false,
     this.isDailyBonus = false,
     this.unlockedOutfits = const [],
+    this.levelPrefix,
+    this.newStars,
   });
 
   final String? childId;
@@ -28,7 +30,9 @@ class CompletionScreen extends ConsumerStatefulWidget {
   final int total;
   final String levelId;
   final String subjectId;
+  final String? levelPrefix;
   final int? stars;
+  final int? newStars;
   final bool isEscalated;
   final bool isDailyBonus;
   final List<String> unlockedOutfits;
@@ -127,6 +131,8 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
           levelId: widget.levelId,
         );
     final passed = earnedStars > 0;
+    final int actualNewStars = widget.newStars ?? 0;
+    final bool isPracticeOnly = passed && actualNewStars == 0 && !widget.isDailyBonus;
 
     return Scaffold(
       body: SafeArea(
@@ -144,7 +150,11 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                passed ? 'Stage Clear!' : 'Try Again!',
+                passed
+                    ? isPracticeOnly
+                        ? 'Great Practice!'
+                        : 'Stage Clear!'
+                    : 'Try Again!',
                 style: AppTextStyles.title,
                 textAlign: TextAlign.center,
               ),
@@ -152,20 +162,22 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 'You got ${widget.score} out of ${widget.total} correct!',
                 style: AppTextStyles.small,
               ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  widget.isDailyBonus ? 4 : 3,
-                  (index) => Icon(
-                    Icons.star,
-                    size: 40,
-                    color: index < (widget.isDailyBonus ? 4 : earnedStars)
-                        ? AppColors.star
-                        : AppColors.muted,
+              if (!isPracticeOnly) ...[
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    widget.isDailyBonus ? 4 : 3,
+                    (index) => Icon(
+                      Icons.star,
+                      size: 40,
+                      color: index < (widget.isDailyBonus ? 4 : earnedStars)
+                          ? AppColors.star
+                          : AppColors.muted,
+                    ),
                   ),
                 ),
-              ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               if (widget.isEscalated)
                 Padding(
@@ -196,8 +208,10 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 child: Text(
                   passed
                       ? widget.isDailyBonus
-                            ? 'You earned a Daily Bonus Star! Amazing!'
-                            : '+$earnedStars stars added to your wallet!'
+                          ? 'You earned a Daily Bonus Star! Amazing!'
+                          : isPracticeOnly
+                              ? 'Fantastic revision! You\'re getting even better at this level!'
+                              : '+$actualNewStars stars added to your wallet!'
                       : 'You need at least 50% to earn a star. Don\'t give up!',
                   style: AppTextStyles.bodyBold,
                   textAlign: TextAlign.center,
@@ -220,7 +234,11 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                   onPressed: () => context.go(
                     AppRouter.levelSessionFor(
                       widget.childId,
-                      levelPrefix: '${widget.subjectId}_c1_${widget.levelId}_',
+                      levelPrefix:
+                          widget.levelPrefix ??
+                          '${widget.subjectId}_c1_${widget.levelId}_',
+                      levelId: widget.levelId,
+                      subjectId: widget.subjectId,
                     ),
                   ),
                 ),
@@ -233,7 +251,11 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                   onPressed: () => context.go(
                     AppRouter.levelSessionFor(
                       widget.childId,
-                      levelPrefix: '${widget.subjectId}_c1_${widget.levelId}_',
+                      levelPrefix:
+                          widget.levelPrefix ??
+                          '${widget.subjectId}_c1_${widget.levelId}_',
+                      levelId: widget.levelId,
+                      subjectId: widget.subjectId,
                     ),
                   ),
                 ),

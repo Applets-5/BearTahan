@@ -48,6 +48,7 @@ class UserProfile {
   final String activeMascotOutfit;
   final String? parentId;
   final int streakCount;
+  final int reviewQuestionCounter;
   final DateTime? lastActivityDate;
   final DailyGoal? dailyGoal;
   final int? age;
@@ -66,6 +67,7 @@ class UserProfile {
     required this.activeMascotOutfit,
     this.parentId,
     this.streakCount = 0,
+    this.reviewQuestionCounter = 0,
     this.lastActivityDate,
     this.dailyGoal,
     this.age,
@@ -96,6 +98,7 @@ class UserProfile {
           'scholar_bear',
       parentId: data['parentId'],
       streakCount: (data['streakCount'] ?? 0).toInt(),
+      reviewQuestionCounter: (data['reviewQuestionCounter'] ?? 0).toInt(),
       lastActivityDate: data['lastActivityDate'] != null
           ? (data['lastActivityDate'] as Timestamp).toDate()
           : null,

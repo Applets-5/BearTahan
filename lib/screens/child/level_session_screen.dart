@@ -27,6 +27,7 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
     this.subjectId = 'bm',
     this.levelId = 'l1',
     this.showFeedbackMascot = true,
+    this.isMemoryChallenge = false,
   });
 
   final String? childId;
@@ -34,6 +35,7 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
   final String subjectId;
   final String levelId;
   final bool showFeedbackMascot;
+  final bool isMemoryChallenge;
 
   @override
   ConsumerState<LevelSessionScreen> createState() => _LevelSessionScreenState();
@@ -235,6 +237,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     _stopSessionTimer();
 
     int stars = 0;
+    int newStarsEarned = 0;
     bool isEscalated = false;
     bool isDailyBonus = false;
     final newlyUnlockedOutfits = <String>[];
@@ -244,14 +247,17 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       if (widget.childId != null && parentId.isNotEmpty) {
         final firestore = ref.read(firestoreServiceProvider);
 
-        // For summary stages, we need to know if it escalated or got a daily bonus
-        if (widget.levelId.toLowerCase().contains('summary')) {
-          final levelData = await firestore.getLevelProgress(
-            parentId,
-            widget.childId!,
-            widget.subjectId,
-            widget.levelId,
-          );
+        // Fetch current level progress to calculate star difference and summary logic
+        final levelData = await firestore.getLevelProgress(
+          parentId,
+          widget.childId!,
+          widget.subjectId,
+          widget.levelId,
+        );
+
+        // For summary/revision stages, we need to know if it escalated or got a daily bonus
+        if (widget.levelId.toLowerCase().contains('summary') ||
+            widget.levelId.toLowerCase().contains('revision')) {
           final int currentThreshold = (levelData['summaryThreshold'] ?? 0)
               .toInt();
           final DateTime? lastSummaryStarDate =
@@ -270,6 +276,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           isDailyBonus = result['earnedDailyStar'];
         }
 
+        final int previousBestStars = (levelData['stars'] ?? 0).toInt();
+
         // Update progress and get calculated stars (handles summary thresholds/daily cap)
         stars = await firestore.updateLevelProgress(
           parentId,
@@ -279,6 +287,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           score,
           totalQuestions,
         );
+
+        newStarsEarned = (stars - previousBestStars).clamp(0, 3);
 
         // Record detailed attempt including timer data
         await firestore.recordAttempt(
@@ -292,13 +302,52 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           timeInSeconds: _elapsedSeconds,
         );
 
-        // Evaluate and update quest progress for outfit unlocks
+        // newlyUnlockedOutfits.addAll(...)
         newlyUnlockedOutfits.addAll(
           await firestore.evaluateAndUpdateQuestProgress(
             parentId,
             widget.childId!,
           ),
         );
+
+        if (shuffledQuestions != null) {
+          if (widget.isMemoryChallenge) {
+            // Memory Challenge: Increment counter and remove all questions from bank
+            await firestore.incrementReviewCounter(
+              parentId,
+              widget.childId!,
+              amount: shuffledQuestions!.length,
+            );
+
+            for (final question in shuffledQuestions!) {
+              await firestore.removeFromWrongAnswerBank(
+                parentId,
+                widget.childId!,
+                question.id,
+              );
+            }
+          } else {
+            // Regular Session: Handle only injected review questions
+            final injectedQuestions =
+                shuffledQuestions!.where((q) => q.isInjectedReview).toList();
+
+            if (injectedQuestions.isNotEmpty) {
+              await firestore.incrementReviewCounter(
+                parentId,
+                widget.childId!,
+                amount: injectedQuestions.length,
+              );
+
+              for (final question in injectedQuestions) {
+                await firestore.removeFromWrongAnswerBank(
+                  parentId,
+                  widget.childId!,
+                  question.id,
+                );
+              }
+            }
+          }
+        }
       } else {
         // Fallback for offline/guest mode
         stars = StarUtils.calculateStars(
@@ -338,7 +387,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         'total': totalQuestions.toString(),
         'levelId': widget.levelId,
         'subjectId': widget.subjectId,
+        'levelPrefix': widget.levelPrefix,
         'stars': stars.toString(),
+        'newStars': newStarsEarned.toString(),
         'isEscalated': isEscalated.toString(),
         'isDailyBonus': isDailyBonus.toString(),
         if (newlyUnlockedOutfits.isNotEmpty)
@@ -386,10 +437,18 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   Widget build(BuildContext context) {
     // If it's a revision stage, we fetch ALL questions for the subject
     final isRevision = widget.levelId.toLowerCase().contains('revision');
-    final queryPrefix = isRevision
-        ? '${widget.subjectId}_'
-        : widget.levelPrefix;
-    final questionsAsync = ref.watch(questionsProvider(queryPrefix));
+    final queryPrefix = isRevision ? '${widget.subjectId}_' : widget.levelPrefix;
+
+    final parentId = ref.watch(parentIdProvider);
+    final questionsAsync = widget.isMemoryChallenge
+        ? ref.watch(
+          wrongAnswerQuestionsProvider((
+            parentId: parentId,
+            childId: widget.childId ?? '',
+          )),
+        )
+        : ref.watch(questionsProvider(queryPrefix));
+
     ref.watch(parentSettingsProvider);
 
     return Scaffold(
@@ -438,8 +497,52 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                   },
                 );
               } else {
-                final List<Question> temp = List.from(rawQuestions)..shuffle();
-                shuffledQuestions = temp.take(10).toList();
+                // Regular level: Inject up to 2 review questions
+                return FutureBuilder<List<Question>>(
+                  future: ref
+                      .read(firestoreServiceProvider)
+                      .getInjectionQuestions(
+                        ref.read(parentIdProvider),
+                        widget.childId ?? '',
+                        limit: 2,
+                      ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        shuffledQuestions == null) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (shuffledQuestions == null) {
+                      final List<Question> pool = List.from(rawQuestions);
+                      final List<Question> injection = snapshot.data ?? [];
+
+                      // Mark injection questions
+                      final markedInjection =
+                          injection
+                              .map((q) => q.copyWith(isInjectedReview: true))
+                              .toList();
+
+                      // Prevent duplicates: remove injected questions from the native pool
+                      final injectionIds = injection.map((q) => q.id).toSet();
+                      pool.removeWhere((q) => injectionIds.contains(q.id));
+
+                      // Regular level logic: 10 total questions
+                      // If we have 2 injection questions, we take 8 normal ones
+                      final int normalCount = (10 - injection.length).clamp(
+                        0,
+                        10,
+                      );
+                      pool.shuffle();
+
+                      shuffledQuestions = [
+                        ...pool.take(normalCount),
+                        ...markedInjection,
+                      ]..shuffle();
+                    }
+
+                    return _buildSession(shuffledQuestions!);
+                  },
+                );
               }
             }
 
@@ -546,8 +649,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final isLastQuestion = currentQuestionIndex == questions.length - 1;
     final progress = (currentQuestionIndex + 1) / questions.length;
 
-    String getLanguage() {
-      switch (widget.subjectId.toLowerCase()) {
+    String getLanguage(Question q) {
+      final subj = (widget.isMemoryChallenge || q.isInjectedReview)
+          ? q.id.split('_').first.toLowerCase()
+          : widget.subjectId.toLowerCase();
+      switch (subj) {
         case 'bm':
           return 'ms-MY';
         case 'bi':
@@ -614,7 +720,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 ),
               ),
             ),
-          _buildQuestionText(question, getLanguage()),
+          _buildQuestionText(question, getLanguage(question)),
           const SizedBox(height: AppSpacing.sm),
           _buildQuestionBody(question),
           const Spacer(flex: 2),
@@ -839,6 +945,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       case 'dragdropspelling':
         return DragDropSpellingWidget(
           question: question,
+          onWrongAttempt: () => _onWrongAnswer(question),
           onCompleted: (isCorrect) {
             setState(() {
               _dragDropSpellingSubmitted = true;
@@ -851,6 +958,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       case 'matching':
         return MatchingWidget(
           question: question,
+          onWrongAttempt: () => _onWrongAnswer(question),
           onCompleted: (isCorrect) {
             setState(() {
               _matchingSubmitted = true;
@@ -956,7 +1064,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               setState(() {
                 _rearrangeSubmitted = true;
                 selected = isCorrect ? question.correctAnswerIndex : -1;
-                if (isCorrect) score++;
+                if (isCorrect) {
+                  score++;
+                } else {
+                  _onWrongAnswer(question);
+                }
                 _playQuestionFeedback(question, isCorrect);
               });
             },
@@ -1047,7 +1159,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               setState(() {
                 _fillBlankSubmitted = true;
                 selected = isCorrect ? question.correctAnswerIndex : -1;
-                if (isCorrect) score++;
+                if (isCorrect) {
+                  score++;
+                } else {
+                  _onWrongAnswer(question);
+                }
                 _playQuestionFeedback(question, isCorrect);
               });
             },
@@ -1117,6 +1233,28 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     );
   }
 
+  void _onWrongAnswer(Question question) {
+    if (widget.isMemoryChallenge) return;
+
+    final parentId = ref.read(parentIdProvider);
+    final childId = widget.childId;
+    if (parentId.isEmpty || childId == null || childId.isEmpty) return;
+
+    ref
+        .read(firestoreServiceProvider)
+        .flagWrongAnswer(
+          parentId,
+          childId,
+          questionId: question.id,
+          subjectId: widget.subjectId,
+          levelId: widget.levelId,
+          questionText: question.text,
+        )
+        .catchError((error) {
+          debugPrint('Error flagging wrong answer: $error');
+        });
+  }
+
   Widget _option(int index, Question question) {
     final option = question.options[index];
     final picked = selected == index;
@@ -1142,6 +1280,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 } else {
                   HapticFeedback.vibrate();
                   _playQuestionFeedback(question, false);
+                  _onWrongAnswer(question);
                 }
                 setState(() {
                   selected = index;

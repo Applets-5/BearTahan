@@ -177,3 +177,29 @@ final rewardClaimsProvider =
           .watch(firestoreServiceProvider)
           .streamRewardClaims(arg.parentId, arg.childId);
     });
+
+final wrongAnswerCountProvider =
+    StreamProvider.family<int, ({String parentId, String childId})>((
+      ref,
+      arg,
+    ) {
+      if (arg.parentId.isEmpty || arg.childId.isEmpty) {
+        return Stream.value(0);
+      }
+      return ref
+          .watch(firestoreServiceProvider)
+          .streamWrongAnswerCount(arg.parentId, arg.childId);
+    });
+
+final wrongAnswerQuestionsProvider =
+    FutureProvider.family<List<Question>, ({String parentId, String childId})>((
+      ref,
+      arg,
+    ) async {
+      if (arg.parentId.isEmpty || arg.childId.isEmpty) {
+        return [];
+      }
+      return ref
+          .watch(firestoreServiceProvider)
+          .getWrongAnswerQuestions(arg.parentId, arg.childId);
+    });

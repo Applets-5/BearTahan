@@ -133,6 +133,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           SliverToBoxAdapter(child: _DailyGoalCard(childId: effectiveChildId)),
+          SliverToBoxAdapter(
+            child: _MemoryChallengeBanner(childId: effectiveChildId),
+          ),
           subjectProgressAsync.when(
             data: (progressList) {
               return totalLevelsAsync.when(
@@ -391,6 +394,113 @@ class _Header extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MemoryChallengeBanner extends ConsumerWidget {
+  const _MemoryChallengeBanner({required this.childId});
+
+  final String childId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final parentId = ref.watch(parentIdProvider);
+    final wrongAnswerCountAsync = ref.watch(
+      wrongAnswerCountProvider((parentId: parentId, childId: childId)),
+    );
+    final profileAsync = ref.watch(userProfileProvider(childId));
+
+    return wrongAnswerCountAsync.maybeWhen(
+      data: (count) {
+        if (count == 0) return const SizedBox.shrink();
+
+        return profileAsync.maybeWhen(
+          data: (profile) {
+            final progress =
+                (profile.reviewQuestionCounter / 20).clamp(0.0, 1.0);
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: InkWell(
+                onTap: () => context.go(
+                  Uri(
+                    path: AppRouter.memory,
+                    queryParameters: {'childId': childId},
+                  ).toString(),
+                ),
+                borderRadius: AppRadius.r(AppRadius.lg),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.accent, AppColors.primary],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: AppRadius.r(AppRadius.lg),
+                    boxShadow: AppShadows.card,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.psychology_rounded,
+                        color: Colors.white,
+                        size: 48,
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Bear's Memory Challenge",
+                              style: AppTextStyles.whiteBodyBold,
+                            ),
+                            Text(
+                              'Review $count wrong answers to earn stars!',
+                              style: AppTextStyles.whiteSmall,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            ClipRRect(
+                              borderRadius: AppRadius.r(AppRadius.xl),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                minHeight: 8,
+                                backgroundColor: Colors.white24,
+                                color: AppColors.star,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${profile.reviewQuestionCounter}/20 to next star',
+                              style: AppTextStyles.whiteSmall.copyWith(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+          orElse: () => const SizedBox.shrink(),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }
