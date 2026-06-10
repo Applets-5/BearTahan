@@ -6,8 +6,10 @@ class AppColors {
   static const card = Color(0xFFFFFFFF);
   static const primary = Color(0xFF7C3AED);
   static const primaryLight = Color(0x1A7C3AED);
+  static const primaryContainer = Color(0xFFEDE9FE);
   static const secondary = Color(0xFFFFCC33);
   static const secondaryLight = Color(0x33FFCC33);
+  static const secondaryContainer = Color(0xFFFEF9C3);
   static const secondaryText = Color(0xFF523214);
   static const muted = Color(0xFFF0F2F6);
   static const mutedText = Color(0xFF737986);
@@ -50,7 +52,6 @@ class AppRadius {
 }
 
 class AppTextStyles {
-  static const font = 'Nunito';
   static const title = TextStyle(
     fontSize: 22,
     fontWeight: FontWeight.w900,
@@ -97,6 +98,16 @@ class AppTextStyles {
     fontWeight: FontWeight.w900,
     color: Colors.white,
   );
+  static const whiteBodyBold = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w800,
+    color: Colors.white,
+  );
+  static const whiteBody = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: Colors.white,
+  );
   static const whiteSmall = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w700,
@@ -118,7 +129,6 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      fontFamily: AppTextStyles.font,
       scaffoldBackgroundColor: AppColors.background,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,

@@ -8,13 +8,18 @@ class ParentAccountService {
 
   FirebaseFirestore get _db => _firestore ?? FirebaseFirestore.instance;
 
-  Future<void> createOrUpdateParentDocument(User user, {String? name}) async {
+  Future<void> createOrUpdateParentDocument(
+    User user, {
+    String? name,
+    Map<String, dynamic>? extraData,
+  }) async {
     await _db.collection('parents').doc(user.uid).set({
       'uid': user.uid,
       'name': name ?? user.displayName ?? 'Parent',
       'email': user.email,
       'role': 'parent',
       'createdAt': FieldValue.serverTimestamp(),
+      if (extraData != null) ...extraData,
     }, SetOptions(merge: true));
   }
 

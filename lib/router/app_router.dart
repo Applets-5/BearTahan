@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/auth/login_screen.dart';
-import '../screens/auth/parent_register_screen.dart';
 import '../screens/child/chapter_screen.dart';
 import '../screens/child/completion_screen.dart';
 import '../screens/child/home_screen.dart';
@@ -19,8 +18,11 @@ import '../screens/parent/goal_setting_screen.dart';
 import '../screens/parent/parent_notifications_screen.dart';
 import '../screens/parent/parent_settings_screen.dart';
 import '../screens/parent/reward_management_screen.dart';
+import '../screens/parent/parent_profile_detail_screen.dart';
+import '../screens/parent/change_password_screen.dart';
 import '../screens/shared/no_internet_screen.dart';
 import '../screens/shared/tutorial_screen.dart';
+import '../screens/shared/splash_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/bottom_nav_bar.dart';
 import '../screens/auth/profile_selection_screen.dart';
@@ -29,6 +31,7 @@ import '../screens/auth/forgot_password_screen.dart';
 import 'go_router_refresh_stream.dart';
 
 class AppRouter {
+  static const splash = '/';
   static const login = '/login';
   static const parentRegister = '/parent-register';
   static const forgotPassword = '/forgot-password';
@@ -55,12 +58,27 @@ class AppRouter {
     return Uri(path: subject, queryParameters: params).toString();
   }
 
-  static String chapterFor(String? childId) => withChildId(chapter, childId);
+  static String chapterFor(
+    String? childId, {
+    String? subjectId,
+    String? chapterId,
+  }) {
+    final params = <String, String>{};
+    if (childId != null && childId.isNotEmpty) params['childId'] = childId;
+    if (subjectId != null && subjectId.isNotEmpty) {
+      params['subjectId'] = subjectId;
+    }
+    if (chapterId != null && chapterId.isNotEmpty) {
+      params['chapterId'] = chapterId;
+    }
+    return Uri(path: chapter, queryParameters: params).toString();
+  }
 
   static String levelSessionFor(
     String? childId, {
     String? levelPrefix,
     String? subjectId,
+    String? levelId,
   }) {
     final params = <String, String>{};
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
@@ -70,6 +88,9 @@ class AppRouter {
     if (subjectId != null && subjectId.isNotEmpty) {
       params['subjectId'] = subjectId;
     }
+    if (levelId != null && levelId.isNotEmpty) {
+      params['levelId'] = levelId;
+    }
     return Uri(path: levelSession, queryParameters: params).toString();
   }
 
@@ -78,12 +99,24 @@ class AppRouter {
     int? score,
     int? total,
     int? stars,
+    String? levelId,
+    String? subjectId,
+    bool? isEscalated,
+    bool? isDailyBonus,
+    List<String>? unlockedOutfits,
   }) {
     final params = <String, String>{};
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
     if (score != null) params['score'] = score.toString();
     if (total != null) params['total'] = total.toString();
     if (stars != null) params['stars'] = stars.toString();
+    if (levelId != null) params['levelId'] = levelId;
+    if (subjectId != null) params['subjectId'] = subjectId;
+    if (isEscalated != null) params['isEscalated'] = isEscalated.toString();
+    if (isDailyBonus != null) params['isDailyBonus'] = isDailyBonus.toString();
+    if (unlockedOutfits != null && unlockedOutfits.isNotEmpty) {
+      params['unlockedOutfits'] = unlockedOutfits.join(',');
+    }
     return Uri(path: completion, queryParameters: params).toString();
   }
 
@@ -103,18 +136,25 @@ class AppRouter {
   static const parentGoals = '/parent-goals';
   static const parentNotifications = '/parent-notifications';
   static const parentSettings = '/parent-settings';
+  static const parentProfileDetail = '/parent-profile-detail';
+  static const changePassword = '/change-password';
   static const noInternet = '/no-internet';
   static const tutorial = '/tutorial';
   static const comingSoon = '/coming-soon';
 
   static final router = GoRouter(
-    initialLocation: login,
+    initialLocation: splash,
     refreshListenable: GoRouterRefreshStream(
       FirebaseAuth.instance.authStateChanges(),
     ),
     // THE AUTH GATE: This intercepts every navigation request
     redirect: (context, state) {
       final isLoggedIn = FirebaseAuth.instance.currentUser != null;
+
+      // Allow the splash screen to show without redirection
+      if (state.uri.path == splash) {
+        return null;
+      }
 
       // Is the user trying to access the login or register page?
       final isAuthRoute =
@@ -137,14 +177,14 @@ class AppRouter {
     },
     routes: [
       GoRoute(
+        path: splash,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const SplashScreen()),
+      ),
+      GoRoute(
         path: login,
         pageBuilder: (context, state) =>
             _noTransitionPage(state, const LoginScreen()),
-      ),
-      GoRoute(
-        path: parentRegister,
-        pageBuilder: (context, state) =>
-            _noTransitionPage(state, const ParentRegisterScreen()),
       ),
       GoRoute(
         path: forgotPassword,
@@ -190,8 +230,10 @@ class AppRouter {
           ),
           GoRoute(
             path: quests,
-            pageBuilder: (context, state) =>
-                _noTransitionPage(state, const QuestsScreen()),
+            pageBuilder: (context, state) {
+              final childId = state.uri.queryParameters['childId'];
+              return _noTransitionPage(state, QuestsScreen(childId: childId));
+            },
           ),
           GoRoute(
             path: rewards,
@@ -239,6 +281,11 @@ class AppRouter {
             pageBuilder: (context, state) =>
                 _noTransitionPage(state, const ParentSettingsScreen()),
           ),
+          GoRoute(
+            path: parentProfileDetail,
+            pageBuilder: (context, state) =>
+                _noTransitionPage(state, const ParentProfileDetailScreen()),
+          ),
         ],
       ),
       GoRoute(
@@ -267,7 +314,16 @@ class AppRouter {
         path: chapter,
         pageBuilder: (context, state) {
           final childId = state.uri.queryParameters['childId'];
-          return _noTransitionPage(state, ChapterScreen(childId: childId));
+          final subjectId = state.uri.queryParameters['subjectId'];
+          final chapterId = state.uri.queryParameters['chapterId'];
+          return _noTransitionPage(
+            state,
+            ChapterScreen(
+              childId: childId,
+              subjectId: subjectId,
+              chapterId: chapterId,
+            ),
+          );
         },
       ),
       GoRoute(
@@ -276,10 +332,15 @@ class AppRouter {
           final childId = state.uri.queryParameters['childId'];
           final levelPrefix =
               state.uri.queryParameters['levelPrefix'] ?? 'bm_c1_l1_';
+
+          final explicitLevelId = state.uri.queryParameters['levelId'];
+
           // Extract subject and level from prefix (e.g., bm_c1_l1_ -> bm and l1)
           final parts = levelPrefix.split('_');
           final subjectId = parts.isNotEmpty ? parts[0] : 'bm';
-          final levelId = parts.length >= 3 ? parts[2] : 'l1';
+          final levelId =
+              explicitLevelId ??
+              (parts.length >= 3 && parts[2].isNotEmpty ? parts[2] : 'l1');
 
           return _noTransitionPage(
             state,
@@ -303,6 +364,16 @@ class AppRouter {
           final stars = int.tryParse(state.uri.queryParameters['stars'] ?? '');
           final levelId = state.uri.queryParameters['levelId'] ?? 'l1';
           final subjectId = state.uri.queryParameters['subjectId'] ?? 'bm';
+          final isEscalated =
+              state.uri.queryParameters['isEscalated'] == 'true';
+          final isDailyBonus =
+              state.uri.queryParameters['isDailyBonus'] == 'true';
+          final unlockedOutfits =
+              state.uri.queryParameters['unlockedOutfits']
+                  ?.split(',')
+                  .where((id) => id.isNotEmpty)
+                  .toList() ??
+              const <String>[];
 
           return _noTransitionPage(
             state,
@@ -313,9 +384,17 @@ class AppRouter {
               stars: stars,
               levelId: levelId,
               subjectId: subjectId,
+              isEscalated: isEscalated,
+              isDailyBonus: isDailyBonus,
+              unlockedOutfits: unlockedOutfits,
             ),
           );
         },
+      ),
+      GoRoute(
+        path: changePassword,
+        pageBuilder: (context, state) =>
+            _noTransitionPage(state, const ChangePasswordScreen()),
       ),
       GoRoute(
         path: memory,

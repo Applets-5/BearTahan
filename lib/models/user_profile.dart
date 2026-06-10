@@ -43,32 +43,57 @@ class DailyGoal {
 class UserProfile {
   final String uid;
   final String name;
-  final int starBalance;
+  final int lifetimeStarsEarned;
+  final int availableStars;
   final String activeMascotOutfit;
   final String? parentId;
-
   final int streakCount;
   final DateTime? lastActivityDate;
   final DailyGoal? dailyGoal;
+  final int? age;
+  final String? grade; // Standard 1, Standard 2, etc.
+  final String? username;
+  final String? email;
+  final String? phoneNumber;
+  final String? avatarPath;
+  final int? passwordLength;
 
   UserProfile({
     required this.uid,
     required this.name,
-    required this.starBalance,
+    required this.lifetimeStarsEarned,
+    required this.availableStars,
     required this.activeMascotOutfit,
     this.parentId,
     this.streakCount = 0,
     this.lastActivityDate,
     this.dailyGoal,
+    this.age,
+    this.grade,
+    this.username,
+    this.email,
+    this.phoneNumber,
+    this.avatarPath,
+    this.passwordLength,
   });
+
+  int get starBalance => availableStars;
 
   factory UserProfile.fromFirestore(String uid, Map<String, dynamic> data) {
     final dailyGoalData = data['dailyGoal'];
+    final availableStars =
+        (data['availableStars'] ?? data['starBalance'] ?? data['stars'] ?? 0)
+            .toInt();
     return UserProfile(
       uid: uid,
       name: data['name'] ?? 'Student',
-      starBalance: (data['starBalance'] ?? 0).toInt(),
-      activeMascotOutfit: data['activeMascotOutfit'] ?? 'default',
+      lifetimeStarsEarned: (data['lifetimeStarsEarned'] ?? availableStars)
+          .toInt(),
+      availableStars: availableStars,
+      activeMascotOutfit:
+          data['activeOutfitID'] ??
+          data['activeMascotOutfit'] ??
+          'scholar_bear',
       parentId: data['parentId'],
       streakCount: (data['streakCount'] ?? 0).toInt(),
       lastActivityDate: data['lastActivityDate'] != null
@@ -76,6 +101,15 @@ class UserProfile {
           : null,
       dailyGoal: dailyGoalData is Map
           ? DailyGoal.fromMap(Map<String, dynamic>.from(dailyGoalData))
+          : null,
+      age: data['age'] != null ? (data['age'] as num).toInt() : null,
+      grade: data['grade']?.toString(),
+      username: data['username']?.toString(),
+      email: data['email']?.toString(),
+      phoneNumber: data['phoneNumber']?.toString(),
+      avatarPath: data['avatarPath']?.toString(),
+      passwordLength: data['passwordLength'] != null
+          ? (data['passwordLength'] as num).toInt()
           : null,
     );
   }

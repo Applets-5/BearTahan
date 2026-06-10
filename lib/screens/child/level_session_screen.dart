@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,9 +10,14 @@ import '../../models/question.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/audio_contexts.dart';
+import '../../utils/sound_effects.dart';
 import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
 import '../../widgets/common/audio_prompt_player.dart';
+import '../../widgets/questions/drag_drop_spelling_widget.dart';
+import '../../widgets/questions/matching_widget.dart';
+import '../../widgets/child/stroke_trace_question.dart';
 
 class LevelSessionScreen extends ConsumerStatefulWidget {
   const LevelSessionScreen({
@@ -20,12 +26,14 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
     this.levelPrefix = 'bm_c1_l1_',
     this.subjectId = 'bm',
     this.levelId = 'l1',
+    this.showFeedbackMascot = true,
   });
 
   final String? childId;
   final String levelPrefix;
   final String subjectId;
   final String levelId;
+  final bool showFeedbackMascot;
 
   @override
   ConsumerState<LevelSessionScreen> createState() => _LevelSessionScreenState();
@@ -42,27 +50,162 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   List<Question>? shuffledQuestions;
   List<Question>? _lastRawQuestions;
   final AudioPlayer _audioPlayer = AudioPlayer();
+  late final Future<void> _feedbackAudioContextReady;
+  AudioPool? _correctAnswerPool;
+  AudioPool? _wrongAnswerPool;
+  AudioPool? _correctStrokePool;
+  AudioPool? _wrongStrokePool;
+  StopFunction? _stopCorrectAnswer;
+  StopFunction? _stopWrongAnswer;
+  StopFunction? _stopCorrectStroke;
+  StopFunction? _stopWrongStroke;
 
   @override
   void initState() {
     super.initState();
+    _feedbackAudioContextReady = _audioPlayer.setAudioContext(
+      soundEffectAudioContext(),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startSessionTimer();
     });
+    unawaited(_initializeSoundEffectAudio());
   }
 
-  void _playFeedback(bool isCorrect) async {
-    if (isCorrect) {
-      await _audioPlayer.play(AssetSource('audio/correctAns.mp3'));
-    } else {
-      await _audioPlayer.play(AssetSource('audio/wrongAns.mp3'));
+  bool get _soundEffectsEnabled {
+    return soundEffectsEnabled(ref.read(parentSettingsProvider).value);
+  }
+
+  Future<void> _initializeSoundEffectAudio() async {
+    try {
+      final context = soundEffectAudioContext();
+      final pools = await Future.wait([
+        AudioPool.create(
+          source: AssetSource('audio/correctAns.mp3'),
+          minPlayers: 1,
+          maxPlayers: 1,
+          playerMode: PlayerMode.lowLatency,
+          audioContext: context,
+        ),
+        AudioPool.create(
+          source: AssetSource('audio/wrongAns.mp3'),
+          minPlayers: 1,
+          maxPlayers: 1,
+          playerMode: PlayerMode.lowLatency,
+          audioContext: context,
+        ),
+        AudioPool.create(
+          source: AssetSource('audio/stroke_correct.wav'),
+          minPlayers: 1,
+          maxPlayers: 1,
+          playerMode: PlayerMode.lowLatency,
+          audioContext: context,
+        ),
+        AudioPool.create(
+          source: AssetSource('audio/stroke_wrong.wav'),
+          minPlayers: 1,
+          maxPlayers: 1,
+          playerMode: PlayerMode.lowLatency,
+          audioContext: context,
+        ),
+      ]);
+
+      if (!mounted) {
+        await Future.wait(pools.map((pool) => pool.dispose()));
+        return;
+      }
+
+      _correctAnswerPool = pools[0];
+      _wrongAnswerPool = pools[1];
+      _correctStrokePool = pools[2];
+      _wrongStrokePool = pools[3];
+    } catch (error) {
+      debugPrint('Unable to initialize sound effects: $error');
     }
+  }
+
+  Future<void> _playSound(Future<void> Function() play) async {
+    if (!_soundEffectsEnabled) return;
+    try {
+      await play();
+    } catch (error) {
+      debugPrint('Unable to play sound effect: $error');
+    }
+  }
+
+  Future<void> _playQuestionFeedback(
+    Question question,
+    bool isCorrect, {
+    bool allowStrokeTrace = false,
+  }) {
+    if (!shouldPlayQuestionFeedback(
+      question.type,
+      allowStrokeTrace: allowStrokeTrace,
+    )) {
+      return Future.value();
+    }
+
+    return _playSound(() {
+      return _playAnswerFeedback(isCorrect);
+    });
+  }
+
+  Future<void> _playAnswerFeedback(bool isCorrect) async {
+    final pool = isCorrect ? _correctAnswerPool : _wrongAnswerPool;
+    if (pool == null) return;
+
+    if (isCorrect) {
+      await _stopCorrectAnswer?.call();
+      _stopCorrectAnswer = await pool.start(volume: 0.70);
+    } else {
+      await _stopWrongAnswer?.call();
+      _stopWrongAnswer = await pool.start(volume: 0.70);
+    }
+  }
+
+  Future<void> _playTracingCompletionFeedback(
+    Question question,
+    bool isCorrect,
+  ) async {
+    await Future<void>.delayed(Duration(milliseconds: isCorrect ? 120 : 160));
+    if (!mounted) return;
+    await _playQuestionFeedback(question, isCorrect, allowStrokeTrace: true);
+  }
+
+  Future<void> _playStrokeCorrect(int strokeIndex) {
+    return _playSound(() async {
+      final pool = _correctStrokePool;
+      if (pool == null) return;
+      await _stopCorrectStroke?.call();
+      _stopCorrectStroke = await pool.start(volume: 1.0);
+    });
+  }
+
+  Future<void> _playStrokeWrong() {
+    return _playSound(() async {
+      final pool = _wrongStrokePool;
+      if (pool == null) return;
+      await _stopWrongStroke?.call();
+      _stopWrongStroke = await pool.start(volume: 1.0);
+    });
+  }
+
+  Future<void> _disposeSoundEffectAudio() async {
+    await _stopCorrectAnswer?.call();
+    await _stopWrongAnswer?.call();
+    await _stopCorrectStroke?.call();
+    await _stopWrongStroke?.call();
+    await _correctAnswerPool?.dispose();
+    await _wrongAnswerPool?.dispose();
+    await _correctStrokePool?.dispose();
+    await _wrongStrokePool?.dispose();
   }
 
   @override
   void dispose() {
     _stopSessionTimer();
-    _audioPlayer.dispose();
+    unawaited(_disposeSoundEffectAudio());
+    unawaited(_audioPlayer.dispose());
     super.dispose();
   }
 
@@ -91,25 +234,51 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   Future<void> _completeSession(int totalQuestions) async {
     _stopSessionTimer();
 
-    // Calculate stars based on score
-    final stars = StarUtils.calculateStars(
-      score: score,
-      total: totalQuestions,
-      levelId: widget.levelId,
-    );
-
-    // Play appropriate audio
-    final String audioPath = stars > 0
-        ? 'audio/levelPassed.mp3'
-        : 'audio/levelFailed.mp3';
-    final playFuture = _audioPlayer
-        .play(AssetSource(audioPath))
-        .then((_) => _audioPlayer.onPlayerComplete.first);
+    int stars = 0;
+    bool isEscalated = false;
+    bool isDailyBonus = false;
+    final newlyUnlockedOutfits = <String>[];
 
     try {
       final parentId = ref.read(parentIdProvider);
       if (widget.childId != null && parentId.isNotEmpty) {
         final firestore = ref.read(firestoreServiceProvider);
+
+        // For summary stages, we need to know if it escalated or got a daily bonus
+        if (widget.levelId.toLowerCase().contains('summary')) {
+          final levelData = await firestore.getLevelProgress(
+            parentId,
+            widget.childId!,
+            widget.subjectId,
+            widget.levelId,
+          );
+          final int currentThreshold = (levelData['summaryThreshold'] ?? 0)
+              .toInt();
+          final DateTime? lastSummaryStarDate =
+              levelData['lastSummaryStarDate'] != null
+              ? (levelData['lastSummaryStarDate'] as Timestamp).toDate()
+              : null;
+
+          final result = StarUtils.calculateSummaryResult(
+            score: score,
+            total: totalQuestions,
+            currentThreshold: currentThreshold,
+            lastSummaryStarDate: lastSummaryStarDate,
+          );
+
+          isEscalated = result['newThreshold'] > currentThreshold;
+          isDailyBonus = result['earnedDailyStar'];
+        }
+
+        // Update progress and get calculated stars (handles summary thresholds/daily cap)
+        stars = await firestore.updateLevelProgress(
+          parentId,
+          widget.childId!,
+          widget.subjectId,
+          widget.levelId,
+          score,
+          totalQuestions,
+        );
 
         // Record detailed attempt including timer data
         await firestore.recordAttempt(
@@ -123,18 +292,41 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           timeInSeconds: _elapsedSeconds,
         );
 
-        // Update progress
-        await firestore.updateLevelProgress(
-          parentId,
-          widget.childId!,
-          widget.subjectId,
-          widget.levelId,
-          stars,
+        // Evaluate and update quest progress for outfit unlocks
+        newlyUnlockedOutfits.addAll(
+          await firestore.evaluateAndUpdateQuestProgress(
+            parentId,
+            widget.childId!,
+          ),
+        );
+      } else {
+        // Fallback for offline/guest mode
+        stars = StarUtils.calculateStars(
+          score: score,
+          total: totalQuestions,
+          levelId: widget.levelId,
         );
       }
     } catch (e) {
       debugPrint('Error saving attempt: $e');
+      stars = StarUtils.calculateStars(
+        score: score,
+        total: totalQuestions,
+        levelId: widget.levelId,
+      );
     }
+
+    // Play appropriate audio
+    final String audioPath = stars > 0
+        ? 'audio/levelPassed.mp3'
+        : 'audio/levelFailed.mp3';
+
+    final playFuture = _playSound(() async {
+      await _feedbackAudioContextReady;
+      final completed = _audioPlayer.onPlayerComplete.first;
+      await _audioPlayer.play(AssetSource(audioPath), volume: 0.60);
+      await completed;
+    });
 
     // Wait for the audio to finish before navigating
     await playFuture;
@@ -147,6 +339,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         'levelId': widget.levelId,
         'subjectId': widget.subjectId,
         'stars': stars.toString(),
+        'isEscalated': isEscalated.toString(),
+        'isDailyBonus': isDailyBonus.toString(),
+        if (newlyUnlockedOutfits.isNotEmpty)
+          'unlockedOutfits': newlyUnlockedOutfits.join(','),
       };
       context.go(
         Uri(path: AppRouter.completion, queryParameters: params).toString(),
@@ -188,190 +384,66 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final questionsAsync = ref.watch(questionsProvider(widget.levelPrefix));
+    // If it's a revision stage, we fetch ALL questions for the subject
+    final isRevision = widget.levelId.toLowerCase().contains('revision');
+    final queryPrefix = isRevision
+        ? '${widget.subjectId}_'
+        : widget.levelPrefix;
+    final questionsAsync = ref.watch(questionsProvider(queryPrefix));
+    ref.watch(parentSettingsProvider);
 
     return Scaffold(
       body: SafeArea(
         child: questionsAsync.when(
           data: (rawQuestions) {
             if (rawQuestions.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('No questions found for this level.'),
-                    const SizedBox(height: AppSpacing.md),
-                    PrimaryButton(
-                      label: 'Go Back',
-                      onPressed: () {
-                        if (context.canPop()) {
-                          context.pop();
-                        } else {
-                          context.go(
-                            AppRouter.subjectFor(
-                              widget.childId,
-                              subjectId: widget.subjectId,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              );
+              return _buildNoQuestionsPlaceholder(context);
             }
 
-            // Shuffle and pick 10 questions once per session
-            // Reset if rawQuestions changed (important for testing and prefix changes)
+            // If questions are ready, we need to fetch stats for prioritization
+            // (Only for Summary and Revision stages)
+            final isSummary = widget.levelId.toLowerCase().contains('summary');
+            final needsPrioritization = isSummary || isRevision;
+
             if (shuffledQuestions == null ||
                 _lastRawQuestions != rawQuestions) {
               _lastRawQuestions = rawQuestions;
-              final List<Question> temp = List.from(rawQuestions)..shuffle();
-              shuffledQuestions = temp.take(10).toList();
-            }
 
-            final questions = shuffledQuestions!;
-            final question = questions[currentQuestionIndex];
-            final isLastQuestion = currentQuestionIndex == questions.length - 1;
-            final progress = (currentQuestionIndex + 1) / questions.length;
+              if (needsPrioritization) {
+                return FutureBuilder<Map<String, Map<String, int>>>(
+                  future: ref
+                      .read(firestoreServiceProvider)
+                      .getQuestionStatsForUser(
+                        ref.read(parentIdProvider),
+                        widget.childId ?? '',
+                        rawQuestions.map((q) => q.id).toList(),
+                      ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        shuffledQuestions == null) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-            String getLanguage() {
-              switch (widget.subjectId.toLowerCase()) {
-                case 'bm':
-                  return 'ms-MY';
-                case 'english':
-                  return 'en-GB';
-                case 'mandarin':
-                  return 'zh-CN';
-                default:
-                  return 'en-GB';
+                    if (shuffledQuestions == null) {
+                      final stats = snapshot.data ?? {};
+                      shuffledQuestions = _prioritizeQuestions(
+                        rawQuestions,
+                        stats,
+                        15,
+                        isRevision,
+                      );
+                    }
+
+                    return _buildSession(shuffledQuestions!);
+                  },
+                );
+              } else {
+                final List<Question> temp = List.from(rawQuestions)..shuffle();
+                shuffledQuestions = temp.take(10).toList();
               }
             }
 
-            return Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: _handleExit,
-                        icon: const Icon(
-                          Icons.close,
-                          color: AppColors.mutedText,
-                        ),
-                      ),
-                      Expanded(
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: AppSpacing.md,
-                          color: AppColors.subjectBm,
-                          backgroundColor: AppColors.muted,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      const Icon(Icons.star, color: AppColors.star),
-                      Text(
-                        '${currentQuestionIndex + 1}/${questions.length}',
-                        style: AppTextStyles.bodyBold,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      const Icon(Icons.timer, color: AppColors.mutedText),
-                      Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
-                    ],
-                  ),
-                  const Spacer(flex: 1),
-                  if (question.imageUrl != null &&
-                      question.imageUrl!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                      child: Center(
-                        child: Container(
-                          constraints: const BoxConstraints(maxHeight: 160),
-                          decoration: BoxDecoration(
-                            color: AppColors.imagePlaceholder,
-                            borderRadius: AppRadius.r(AppRadius.xl),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: AppRadius.r(AppRadius.xl),
-                            child: Image.network(
-                              question.imageUrl!,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(
-                                    Icons.image,
-                                    color: AppColors.mutedText,
-                                    size: 48,
-                                  ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  _buildQuestionText(question, getLanguage()),
-                  const SizedBox(height: AppSpacing.sm),
-                  _buildQuestionBody(question),
-                  const Spacer(flex: 2),
-                  if (selected != null || _isQuestionComplete(question)) ...[
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOutBack,
-                      builder: (context, value, child) {
-                        return Transform.scale(
-                          scale: value,
-                          child: Opacity(
-                            opacity: value.clamp(0.0, 1.0),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected == question.correctAnswerIndex
-                              ? AppColors.accentLight
-                              : AppColors.destructiveLight,
-                          borderRadius: AppRadius.r(AppRadius.lg),
-                        ),
-                        child: Text(
-                          selected == question.correctAnswerIndex
-                              ? 'Correct! Well done!'
-                              : (question.type?.toLowerCase() == 'rearrange' &&
-                                    question.correctOrder != null)
-                              ? 'Not quite! The correct sentence is "${question.correctOrder!.join('')}".'
-                              : 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".',
-                          style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    PrimaryButton(
-                      label: isLastQuestion ? 'Finish' : 'Next',
-                      icon: Icons.arrow_forward_rounded,
-                      onPressed: () {
-                        if (isLastQuestion) {
-                          _completeSession(questions.length);
-                        } else {
-                          setState(() {
-                            currentQuestionIndex++;
-                            selected = null;
-                            _rearrangeOrder = null;
-                            _rearrangeSubmitted = false;
-                            _draggedOptionIndex = null;
-                            _fillBlankSubmitted = false;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            );
+            return _buildSession(shuffledQuestions!);
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(child: Text('Error: $err')),
@@ -380,9 +452,244 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     );
   }
 
+  List<Question> _prioritizeQuestions(
+    List<Question> pool,
+    Map<String, Map<String, int>> stats,
+    int count,
+    bool isRevision,
+  ) {
+    // Priority Groups:
+    // 1. New (timesSeen == 0)
+    // 2. Wrong (timesWrong > 0)
+    // 3. Correct (timesSeen > 0 && timesWrong == 0)
+
+    final List<Question> selected = [];
+
+    if (isRevision) {
+      // For revision, we must ensure at least 1 question from each chapter if possible.
+      // Group pool by chapterId (assuming IDs like 'bm_c1_l1_q01')
+      final Map<String, List<Question>> chapterGroups = {};
+      for (var q in pool) {
+        final parts = q.id.split('_');
+        final chapterKey = (parts.length >= 2) ? parts[1] : 'unknown';
+        chapterGroups.putIfAbsent(chapterKey, () => []).add(q);
+      }
+
+      // Pick 1 random question from each chapter first
+      for (var chapterKey in chapterGroups.keys) {
+        if (selected.length >= count) break;
+        final group = chapterGroups[chapterKey]!;
+        group.shuffle();
+        selected.add(group.removeAt(0));
+      }
+    }
+
+    // Now fill the rest using normal prioritization
+    final List<Question> remainingPool = pool
+        .where((q) => !selected.contains(q))
+        .toList();
+    final List<Question> newQuestions = [];
+    final List<Question> wrongQuestions = [];
+    final List<Question> correctQuestions = [];
+
+    for (var q in remainingPool) {
+      final s = stats[q.id];
+      if (s == null || (s['timesSeen'] ?? 0) == 0) {
+        newQuestions.add(q);
+      } else if ((s['timesWrong'] ?? 0) > 0) {
+        wrongQuestions.add(q);
+      } else {
+        correctQuestions.add(q);
+      }
+    }
+
+    newQuestions.shuffle();
+    wrongQuestions.shuffle();
+    correctQuestions.shuffle();
+
+    selected.addAll(newQuestions);
+    if (selected.length < count) selected.addAll(wrongQuestions);
+    if (selected.length < count) selected.addAll(correctQuestions);
+
+    return selected.take(count).toList();
+  }
+
+  Widget _buildNoQuestionsPlaceholder(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('No questions found for this level.'),
+          const SizedBox(height: AppSpacing.md),
+          PrimaryButton(
+            label: 'Go Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(
+                  AppRouter.subjectFor(
+                    widget.childId,
+                    subjectId: widget.subjectId,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSession(List<Question> questions) {
+    final question = questions[currentQuestionIndex];
+    final isLastQuestion = currentQuestionIndex == questions.length - 1;
+    final progress = (currentQuestionIndex + 1) / questions.length;
+
+    String getLanguage() {
+      switch (widget.subjectId.toLowerCase()) {
+        case 'bm':
+          return 'ms-MY';
+        case 'bi':
+          return 'en-GB';
+        case 'bc':
+          return 'zh-CN';
+        default:
+          return 'en-GB';
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                onPressed: _handleExit,
+                icon: const Icon(Icons.close, color: AppColors.mutedText),
+              ),
+              Expanded(
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: AppSpacing.md,
+                  color: AppColors.subjectBm,
+                  backgroundColor: AppColors.muted,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              const Icon(Icons.star, color: AppColors.star),
+              Text(
+                '${currentQuestionIndex + 1}/${questions.length}',
+                style: AppTextStyles.bodyBold,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const Icon(Icons.timer, color: AppColors.mutedText),
+              Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
+            ],
+          ),
+          const Spacer(flex: 1),
+          if (question.imageUrl != null && question.imageUrl!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 160),
+                  decoration: BoxDecoration(
+                    color: AppColors.imagePlaceholder,
+                    borderRadius: AppRadius.r(AppRadius.xl),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: AppRadius.r(AppRadius.xl),
+                    child: Image.network(
+                      question.imageUrl!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.image,
+                        color: AppColors.mutedText,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          _buildQuestionText(question, getLanguage()),
+          const SizedBox(height: AppSpacing.sm),
+          _buildQuestionBody(question),
+          const Spacer(flex: 2),
+          if (selected != null || _isQuestionComplete(question)) ...[
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutBack,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: selected == question.correctAnswerIndex
+                      ? AppColors.accentLight
+                      : AppColors.destructiveLight,
+                  borderRadius: AppRadius.r(AppRadius.lg),
+                ),
+                child: Text(
+                  selected == question.correctAnswerIndex
+                      ? 'Correct! Well done!'
+                      : question.type?.toLowerCase() == 'stroke_trace'
+                      ? 'Not quite. Watch the stroke order and try again later.'
+                      : (question.type?.toLowerCase() == 'rearrange' &&
+                            question.correctOrder != null)
+                      ? 'Not quite! The correct sentence is "${question.correctOrder!.join(' ')}".'
+                      : question
+                            .options[question.correctAnswerIndex]
+                            .text
+                            .isNotEmpty
+                      ? 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".'
+                      : 'Not quite! The correct answer is option ${String.fromCharCode(65 + question.correctAnswerIndex)}.',
+                  style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            PrimaryButton(
+              label: isLastQuestion ? 'Finish' : 'Next',
+              icon: Icons.arrow_forward_rounded,
+              onPressed: () {
+                if (isLastQuestion) {
+                  _completeSession(questions.length);
+                } else {
+                  setState(() {
+                    currentQuestionIndex++;
+                    selected = null;
+                    _rearrangeOrder = null;
+                    _rearrangeSubmitted = false;
+                    _draggedOptionIndex = null;
+                    _fillBlankSubmitted = false;
+                    _dragDropSpellingSubmitted = false;
+                    _matchingSubmitted = false;
+                    _strokeTraceSubmitted = false;
+                  });
+                }
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildQuestionText(Question question, String language) {
     final type = question.type?.toLowerCase() ?? 'mcq';
-    if (type == 'fillblank') {
+    if (type == 'fillblank' || type == 'fillblanklistening') {
       return _buildFillBlankSentence(question, language);
     }
 
@@ -403,7 +710,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 child: AudioPromptPlayer(
                   key: ValueKey('audio_${question.id}'),
                   url: question.promptAudioUrl,
-                  textToSpeak: question.text,
+                  textToSpeak: question.promptAudioText ?? question.text,
                   language: language,
                   autoPlay: true,
                   isSmall: true,
@@ -497,7 +804,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             child: AudioPromptPlayer(
               key: ValueKey('audio_${question.id}'),
               url: question.promptAudioUrl,
-              textToSpeak: question.text,
+              textToSpeak: question.promptAudioText ?? question.text,
               language: language,
               autoPlay: true,
               isSmall: true,
@@ -511,7 +818,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   bool _isQuestionComplete(Question question) {
     final type = question.type?.toLowerCase() ?? 'mcq';
     if (type == 'rearrange') return _rearrangeSubmitted;
-    if (type == 'fillblank') return _fillBlankSubmitted;
+    if (type == 'fillblank' || type == 'fillblanklistening') {
+      return _fillBlankSubmitted;
+    }
+    if (type == 'dragdropspelling') return _dragDropSpellingSubmitted;
+    if (type == 'matching') return _matchingSubmitted;
+    if (type == 'stroke_trace') return _strokeTraceSubmitted;
     return selected != null;
   }
 
@@ -522,7 +834,34 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       case 'rearrange':
         return _buildRearrangeQuestion(question);
       case 'fillblank':
+      case 'fillblanklistening':
         return _buildFillBlankQuestion(question);
+      case 'dragdropspelling':
+        return DragDropSpellingWidget(
+          question: question,
+          onCompleted: (isCorrect) {
+            setState(() {
+              _dragDropSpellingSubmitted = true;
+              selected = isCorrect ? question.correctAnswerIndex : -1;
+              if (isCorrect) score++;
+              _playQuestionFeedback(question, isCorrect);
+            });
+          },
+        );
+      case 'matching':
+        return MatchingWidget(
+          question: question,
+          onCompleted: (isCorrect) {
+            setState(() {
+              _matchingSubmitted = true;
+              selected = isCorrect ? question.correctAnswerIndex : -1;
+              if (isCorrect) score++;
+              _playQuestionFeedback(question, isCorrect);
+            });
+          },
+        );
+      case 'stroke_trace':
+        return _buildStrokeTraceQuestion(question);
       case 'mcq':
       default:
         return Column(
@@ -575,7 +914,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             onReorder: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
-                if (newIndex > oldIndex) newIndex -= 1;
+                if (oldIndex < newIndex) {
+                  newIndex -= 1;
+                }
                 final int item = _rearrangeOrder!.removeAt(oldIndex);
                 _rearrangeOrder!.insert(newIndex, item);
               });
@@ -616,7 +957,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 _rearrangeSubmitted = true;
                 selected = isCorrect ? question.correctAnswerIndex : -1;
                 if (isCorrect) score++;
-                _playFeedback(isCorrect);
+                _playQuestionFeedback(question, isCorrect);
               });
             },
           ),
@@ -651,6 +992,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   // --- FILL IN THE BLANK TYPE ---
   int? _draggedOptionIndex;
   bool _fillBlankSubmitted = false;
+  bool _dragDropSpellingSubmitted = false;
+  bool _matchingSubmitted = false;
+  bool _strokeTraceSubmitted = false;
 
   Widget _buildFillBlankQuestion(Question question) {
     return Column(
@@ -704,7 +1048,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 _fillBlankSubmitted = true;
                 selected = isCorrect ? question.correctAnswerIndex : -1;
                 if (isCorrect) score++;
-                _playFeedback(isCorrect);
+                _playQuestionFeedback(question, isCorrect);
               });
             },
           ),
@@ -734,6 +1078,45 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     );
   }
 
+  Widget _buildStrokeTraceQuestion(Question question) {
+    return StrokeTraceQuestion(
+      key: ValueKey('stroke_trace_${question.id}'),
+      question: question,
+      onWrongAttempt: () {
+        unawaited(_playStrokeWrong());
+        final parentId = ref.read(parentIdProvider);
+        final childId = widget.childId;
+        if (parentId.isEmpty || childId == null || childId.isEmpty) return;
+
+        ref
+            .read(firestoreServiceProvider)
+            .flagWrongAnswer(
+              parentId,
+              childId,
+              questionId: question.id,
+              subjectId: widget.subjectId,
+              levelId: widget.levelId,
+              questionText: question.text,
+            )
+            .catchError((error) {
+              debugPrint('Error flagging wrong stroke answer: $error');
+            });
+      },
+      onCorrectStroke: (strokeIndex) {
+        unawaited(_playStrokeCorrect(strokeIndex));
+      },
+      onComplete: (isCorrect) {
+        if (_strokeTraceSubmitted) return;
+        setState(() {
+          _strokeTraceSubmitted = true;
+          selected = isCorrect ? question.correctAnswerIndex : -1;
+          if (isCorrect) score++;
+        });
+        unawaited(_playTracingCompletionFeedback(question, isCorrect));
+      },
+    );
+  }
+
   Widget _option(int index, Question question) {
     final option = question.options[index];
     final picked = selected == index;
@@ -755,10 +1138,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 final isCorrect = index == question.correctAnswerIndex;
                 if (isCorrect) {
                   HapticFeedback.mediumImpact();
-                  _playFeedback(true);
+                  _playQuestionFeedback(question, true);
                 } else {
                   HapticFeedback.vibrate();
-                  _playFeedback(false);
+                  _playQuestionFeedback(question, false);
                 }
                 setState(() {
                   selected = index;
@@ -813,7 +1196,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 ),
                 const SizedBox(width: AppSpacing.md),
               ],
-              Expanded(child: Text(option.text, style: AppTextStyles.bodyBold)),
+              if (option.text.isNotEmpty)
+                Expanded(
+                  child: Text(option.text, style: AppTextStyles.bodyBold),
+                ),
             ],
           ),
         ),

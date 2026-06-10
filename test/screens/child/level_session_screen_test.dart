@@ -4,16 +4,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bear_tahan/screens/child/level_session_screen.dart';
 import 'package:bear_tahan/models/question.dart';
 import 'package:bear_tahan/providers/data_providers.dart';
+import 'package:bear_tahan/widgets/child/stroke_trace_question.dart';
 import 'package:bear_tahan/widgets/common/audio_prompt_player.dart';
 
 void main() {
-  Widget createTestWidget(List<Question> questions, {Key? key}) {
+  Widget createTestWidget(
+    List<Question> questions, {
+    Key? key,
+    String parentId = 'test_parent_id',
+  }) {
     return ProviderScope(
       overrides: [
         questionsProvider(
           'test_prefix',
         ).overrideWith((ref) => Future.value(questions)),
-        parentIdProvider.overrideWithValue('test_parent_id'),
+        parentIdProvider.overrideWithValue(parentId),
+        parentSettingsProvider.overrideWith(
+          (ref) => Stream.value({'soundEffects': true}),
+        ),
       ],
       child: MaterialApp(
         home: LevelSessionScreen(
@@ -188,6 +196,108 @@ void main() {
 
       expect(find.byType(AudioPromptPlayer), findsOneWidget);
     });
+
+    testWidgets('should render stroke tracing question type', (tester) async {
+      final questions = [
+        Question(
+          id: 'q_stroke',
+          text: 'Trace this character',
+          type: 'stroke_trace',
+          options: const [],
+          correctAnswerIndex: 0,
+          characterUnicode: '人',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questions, key: const ValueKey('stroke_trace')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.textContaining('Trace 人'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('stroke_progress_markers')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('attempt_progress_markers')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'should safely complete consecutive failed stroke tracing questions',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(430, 932));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final questions = [
+          Question(
+            id: 'q_stroke_1',
+            text: 'Trace person one',
+            type: 'stroke_trace',
+            options: const [],
+            correctAnswerIndex: 0,
+            characterUnicode: '\u4eba',
+          ),
+          Question(
+            id: 'q_stroke_2',
+            text: 'Trace person two',
+            type: 'stroke_trace',
+            options: const [],
+            correctAnswerIndex: 0,
+            characterUnicode: '\u4eba',
+          ),
+        ];
+
+        await tester.pumpWidget(
+          createTestWidget(
+            questions,
+            key: const ValueKey('consecutive_stroke_trace'),
+            parentId: '',
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        Future<void> failCurrentTracingQuestion() async {
+          final tracingState = tester.state<StrokeTraceQuestionState>(
+            find.byType(StrokeTraceQuestion),
+          );
+
+          for (var attempt = 0; attempt < 3; attempt++) {
+            tracingState.simulateWrongStroke();
+            await tester.pump();
+            if (attempt < 2) {
+              await tester.pump(const Duration(milliseconds: 700));
+            }
+          }
+          await tester.pump(const Duration(milliseconds: 400));
+        }
+
+        await failCurrentTracingQuestion();
+
+        expect(tester.takeException(), isNull);
+        expect(
+          find.text('Not quite. Watch the stroke order and try again later.'),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Next'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        await failCurrentTracingQuestion();
+
+        expect(tester.takeException(), isNull);
+        expect(
+          find.text('Not quite. Watch the stroke order and try again later.'),
+          findsOneWidget,
+        );
+        expect(find.text('Finish'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'should handle empty question pool gracefully with error message',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../models/chapter_data.dart';
 import '../../theme/app_theme.dart';
 
 class BearHeadShape extends CustomPainter {
@@ -30,9 +31,6 @@ class BearHeadShape extends CustomPainter {
     final headRadius = size.width * 0.38;
     final earRadius = size.width * 0.16;
 
-    // Centering the whole shape (head + ears)
-    // The ears stick out above the head, so we shift the center down slightly
-    // to make the visual center of the whole bear head align with the widget center.
     final center = Offset(size.width / 2, size.height * 0.54);
 
     final headPath = Path()
@@ -60,8 +58,6 @@ class BearHeadShape extends CustomPainter {
         ),
       );
 
-    // Combine paths to create a single silhouette
-    // This prevents border lines from showing inside the ears
     var combinedPath = Path.combine(PathOperation.union, headPath, leftEarPath);
     combinedPath = Path.combine(
       PathOperation.union,
@@ -81,7 +77,7 @@ class BearHeadShape extends CustomPainter {
 }
 
 class LevelNode extends StatelessWidget {
-  final int levelNumber;
+  final String label;
   final int stars;
   final bool isUnlocked;
   final bool isCompleted;
@@ -91,7 +87,7 @@ class LevelNode extends StatelessWidget {
 
   const LevelNode({
     super.key,
-    required this.levelNumber,
+    required this.label,
     required this.stars,
     required this.isUnlocked,
     required this.isCompleted,
@@ -160,14 +156,14 @@ class LevelNode extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          if (!isBoss)
+          if (!isBoss || label == 'Summary')
             Text(
-              'Level $levelNumber',
+              label,
               style: AppTextStyles.bodyBold.copyWith(
                 color: isUnlocked ? AppColors.foreground : AppColors.mutedText,
               ),
             ),
-          if (!isBoss) _buildStars(),
+          if (!isBoss || label == 'Summary') _buildStars(),
         ],
       ),
     );
@@ -317,14 +313,12 @@ class PathPainter extends CustomPainter {
       final p0 = points[i];
       final p1 = points[i + 1];
 
-      // Control points for curvy S-shape
       final cp1 = Offset(p0.dx, p0.dy + (p1.dy - p0.dy) / 2);
       final cp2 = Offset(p1.dx, p1.dy - (p1.dy - p0.dy) / 2);
 
       path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p1.dx, p1.dy);
     }
 
-    // Draw dashed path
     _drawDashedPath(canvas, path, paint);
   }
 
@@ -341,7 +335,7 @@ class PathPainter extends CustomPainter {
         );
         distance += dashWidth + dashSpace;
       }
-      distance = 0.0; // Reset for next metric if any
+      distance = 0.0;
     }
   }
 
@@ -383,13 +377,15 @@ class ChapterDivider extends StatelessWidget {
 
 class LevelWindingPath extends StatelessWidget {
   final Map<String, int> starMap;
+  final List<ChapterData> chapters;
   final String subjectId;
   final String? childId;
-  final void Function(String levelId, bool isBoss) onLevelTap;
+  final void Function(String levelId, bool isBoss, String chapterId) onLevelTap;
 
   const LevelWindingPath({
     super.key,
     required this.starMap,
+    required this.chapters,
     required this.subjectId,
     required this.onLevelTap,
     this.childId,
@@ -408,61 +404,87 @@ class LevelWindingPath extends StatelessWidget {
         final List<Widget> nodes = [];
 
         int visualIndex = 0;
-        for (int i = 0; i < 8; i++) {
-          final levelId = 'l${i + 1}';
-          final stars = starMap[levelId] ?? 0;
-          bool isUnlocked = i == 0 || (starMap['l$i'] ?? 0) > 0;
-          bool isCompleted = stars > 0;
-          bool isActive = isUnlocked && !isCompleted;
-          bool isBoss = i == 4;
+        int absoluteLevelIndex = 0;
 
-          // Calculate position for visual layout (excluding dividers for path)
-          double x;
-          int pattern = visualIndex % 4;
-          if (pattern == 0) {
-            x = centerX;
-          } else if (pattern == 1) {
-            x = centerX + horizontalOffset;
-          } else if (pattern == 2) {
-            x = centerX;
-          } else {
-            x = centerX - horizontalOffset;
-          }
-
-          final y = visualIndex * verticalStep + 80.0;
-          points.add(Offset(x, y));
-
+        for (var chapter in chapters) {
           nodes.add(
             Positioned(
-              left: x - (isBoss ? 60 : 45),
-              top: y - (isBoss ? 60 : 45),
-              child: LevelNode(
-                levelNumber: i + 1,
-                stars: stars,
-                isUnlocked: isUnlocked,
-                isCompleted: isCompleted,
-                isActive: isActive,
-                isBoss: isBoss,
-                onTap: () => onLevelTap(levelId, isBoss),
-              ),
+              left: 0,
+              right: 0,
+              top: visualIndex * verticalStep + 20,
+              child: ChapterDivider(title: chapter.name),
             ),
           );
-
           visualIndex++;
 
-          // Add Chapter Divider after Boss (Level 5 / Index 4)
-          if (i == 4) {
-            // We need to shift the next nodes down to accommodate the divider
-            // But for simplicity in a Stack, we'll just add the divider as a widget
+          int chapterLevelIndex = 1; // Counter that resets for each chapter
+
+          for (int i = 0; i < chapter.levelIds.length; i++) {
+            final levelId = chapter.levelIds[i];
+            final stars = starMap[levelId] ?? 0;
+
+            bool isUnlocked;
+            if (chapters.first == chapter && i == 0) {
+              isUnlocked = true;
+            } else {
+              String? prevLevelId;
+              if (i > 0) {
+                prevLevelId = chapter.levelIds[i - 1];
+              } else {
+                final chapterIdx = chapters.indexOf(chapter);
+                if (chapterIdx > 0) {
+                  final prevChapter = chapters[chapterIdx - 1];
+                  prevLevelId = prevChapter.levelIds.last;
+                }
+              }
+              isUnlocked =
+                  prevLevelId != null && (starMap[prevLevelId] ?? 0) > 0;
+            }
+
+            bool isCompleted = stars > 0;
+            bool isActive = isUnlocked && !isCompleted;
+            bool isBoss = i == chapter.levelIds.length - 1;
+
+            double x;
+            int pattern =
+                absoluteLevelIndex %
+                4; // Keep absolute index for the zig-zag visual pattern
+            if (pattern == 0) {
+              x = centerX;
+            } else if (pattern == 1) {
+              x = centerX + horizontalOffset;
+            } else if (pattern == 2) {
+              x = centerX;
+            } else {
+              x = centerX - horizontalOffset;
+            }
+
+            final y = visualIndex * verticalStep + 80.0;
+            points.add(Offset(x, y));
+
             nodes.add(
               Positioned(
-                left: 0,
-                right: 0,
-                top: visualIndex * verticalStep + 20,
-                child: const ChapterDivider(title: 'Chapter 2'),
+                left: x - (isBoss ? 60 : 45),
+                top: y - (isBoss ? 60 : 45),
+                child: LevelNode(
+                  label: levelId.toLowerCase().contains('summary')
+                      ? 'Summary'
+                      : 'Level $chapterLevelIndex',
+                  stars: stars,
+                  isUnlocked: isUnlocked,
+                  isCompleted: isCompleted,
+                  isActive: isActive,
+                  isBoss: isBoss,
+                  onTap: () => onLevelTap(levelId, isBoss, chapter.id),
+                ),
               ),
             );
-            visualIndex++; // Increment visual index to skip space for divider
+
+            visualIndex++;
+            absoluteLevelIndex++;
+            if (!levelId.toLowerCase().contains('summary')) {
+              chapterLevelIndex++;
+            }
           }
         }
 

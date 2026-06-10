@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../models/outfit_quest.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/star_utils.dart';
@@ -17,6 +18,9 @@ class CompletionScreen extends ConsumerStatefulWidget {
     this.levelId = 'l1',
     this.subjectId = 'bm',
     this.stars,
+    this.isEscalated = false,
+    this.isDailyBonus = false,
+    this.unlockedOutfits = const [],
   });
 
   final String? childId;
@@ -25,12 +29,94 @@ class CompletionScreen extends ConsumerStatefulWidget {
   final String levelId;
   final String subjectId;
   final int? stars;
+  final bool isEscalated;
+  final bool isDailyBonus;
+  final List<String> unlockedOutfits;
 
   @override
   ConsumerState<CompletionScreen> createState() => _CompletionScreenState();
 }
 
 class _CompletionScreenState extends ConsumerState<CompletionScreen> {
+  bool _unlockDialogShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showUnlockDialogIfNeeded();
+    });
+  }
+
+  Future<void> _showUnlockDialogIfNeeded() async {
+    if (_unlockDialogShown || widget.unlockedOutfits.isEmpty || !mounted) {
+      return;
+    }
+    _unlockDialogShown = true;
+
+    final unlockedQuests = widget.unlockedOutfits
+        .map(OutfitQuest.byId)
+        .toList();
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: AppRadius.r(AppRadius.xl),
+          ),
+          title: const Text('New outfit unlocked!'),
+          content: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.7, end: 1),
+            duration: const Duration(milliseconds: 550),
+            curve: Curves.elasticOut,
+            builder: (context, scale, child) {
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final quest in unlockedQuests) ...[
+                  MascotWidget(size: 96, outfitId: quest.id),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    quest.name,
+                    style: AppTextStyles.cardTitle,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    quest.description,
+                    style: AppTextStyles.small,
+                    textAlign: TextAlign.center,
+                  ),
+                  if (quest != unlockedQuests.last)
+                    const SizedBox(height: AppSpacing.lg),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Later'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                context.go(
+                  AppRouter.withChildId(AppRouter.quests, widget.childId),
+                );
+              },
+              child: const Text('View outfits'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final earnedStars =
@@ -70,17 +156,36 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
-                  3,
+                  widget.isDailyBonus ? 4 : 3,
                   (index) => Icon(
                     Icons.star,
                     size: 40,
-                    color: index < earnedStars
+                    color: index < (widget.isDailyBonus ? 4 : earnedStars)
                         ? AppColors.star
                         : AppColors.muted,
                   ),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
+              if (widget.isEscalated)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: AppRadius.r(AppRadius.lg),
+                    ),
+                    child: Text(
+                      'Goal Increased! Next time try for more!',
+                      style: AppTextStyles.whiteBodyBold,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -90,7 +195,9 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 ),
                 child: Text(
                   passed
-                      ? '+$earnedStars stars added to your wallet!'
+                      ? widget.isDailyBonus
+                            ? 'You earned a Daily Bonus Star! Amazing!'
+                            : '+$earnedStars stars added to your wallet!'
                       : 'You need at least 50% to earn a star. Don\'t give up!',
                   style: AppTextStyles.bodyBold,
                   textAlign: TextAlign.center,

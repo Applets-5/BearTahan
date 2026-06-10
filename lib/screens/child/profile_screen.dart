@@ -89,7 +89,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: StatCard(
                         icon: Icons.star,
                         label: 'Available',
-                        value: profile.starBalance.toString(),
+                        value: profile.availableStars.toString(),
+                        color: AppColors.star,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: StatCard(
+                        icon: Icons.auto_awesome,
+                        label: 'Total Earned',
+                        value: profile.lifetimeStarsEarned.toString(),
                         color: AppColors.star,
                       ),
                     ),
@@ -134,6 +143,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton.icon(
+                  onPressed: () {
+                    context.push(
+                      Uri(
+                        path: AppRouter.starHistory,
+                        queryParameters: {'childId': childId},
+                      ).toString(),
+                    );
+                  },
+                  icon: const Icon(Icons.history),
+                  label: const Text('Star History'),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 FilledButton.icon(
