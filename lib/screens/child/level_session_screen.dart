@@ -17,6 +17,7 @@ import '../../widgets/common/audio_prompt_player.dart';
 import '../../widgets/questions/drag_drop_spelling_widget.dart';
 import '../../widgets/questions/matching_widget.dart';
 import '../../widgets/child/stroke_trace_question.dart';
+import '../../widgets/common/mascot_widget.dart';
 
 class LevelSessionScreen extends ConsumerStatefulWidget {
   const LevelSessionScreen({
@@ -668,9 +669,36 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                       : AppColors.destructiveLight,
                   borderRadius: AppRadius.r(AppRadius.lg),
                 ),
-                child: Text(
-                  _answerFeedbackText(question),
-                  style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
+                child: Row(
+                  children: [
+                    if (widget.showFeedbackMascot) ...[
+                      SizedBox(
+                        width: 72,
+                        height: 54,
+                        child: OverflowBox(
+                          maxWidth: 120,
+                          maxHeight: 120,
+                          child: ActiveMascotWidget(
+                            childId: widget.childId,
+                            size: selected == question.correctAnswerIndex
+                                ? 86
+                                : 82,
+                            showBackground: false,
+                            mood: selected == question.correctAnswerIndex
+                                ? MascotMood.cheering
+                                : MascotMood.crying,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                    ],
+                    Expanded(
+                      child: Text(
+                        _answerFeedbackText(question),
+                        style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

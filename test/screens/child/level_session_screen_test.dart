@@ -30,6 +30,7 @@ void main() {
           childId: 'test_child_id',
           subjectId: 'bm',
           levelId: 'l1',
+          showFeedbackMascot: false,
         ),
       ),
     );
