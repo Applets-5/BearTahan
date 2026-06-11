@@ -326,7 +326,7 @@ exports.askBearAi = onCall(async (request) => {
   
   // 2. Initialize Gemini API
   // In a real project, the API key is stored in Firebase Secret Manager
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "AIzaSy...");
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({
     model: "gemini-1.5-flash",
     systemInstruction: buildBearAiSystemPrompt(context),

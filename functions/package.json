@@ -19,7 +19,7 @@
     "migrate:sprint3:apply": "node scripts/migrate_sprint3_data.js --apply"
   },
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "main": "index.js",
   "dependencies": {

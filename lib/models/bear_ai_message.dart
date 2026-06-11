@@ -1,14 +1,16 @@
-enum MessageRole { user, assistant }
+enum MessageRole { user, assistant, error }
 
 class BearAiMessage {
   final String content;
   final MessageRole role;
   final DateTime timestamp;
+  final dynamic retryData;
 
   BearAiMessage({
     required this.content,
     required this.role,
     DateTime? timestamp,
+    this.retryData,
   }) : timestamp = timestamp ?? DateTime.now();
 }
 

@@ -5,10 +5,7 @@ import '../../theme/app_theme.dart';
 class SubjectRadarChart extends StatelessWidget {
   final Map<String, double> subjectScores;
 
-  const SubjectRadarChart({
-    super.key,
-    required this.subjectScores,
-  });
+  const SubjectRadarChart({super.key, required this.subjectScores});
 
   @override
   Widget build(BuildContext context) {
@@ -103,10 +100,7 @@ class _LegendItem extends StatelessWidget {
         Container(
           width: 8,
           height: 8,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: AppSpacing.xs),
         Text(label, style: AppTextStyles.tiny),

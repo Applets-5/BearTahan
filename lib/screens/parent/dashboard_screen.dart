@@ -212,40 +212,41 @@ class _OverviewTab extends ConsumerWidget {
             return subjectsAsync.when(
               data: (subjects) {
                 // Merge real data with default subjects to ensure all are shown
-                final List<Map<String, dynamic>> displaySubjects =
-                    _defaultSubjects.map((defaultSub) {
-                      final realSub = subjects.cast<Subject?>().firstWhere(
-                        (s) => s?.id == defaultSub['id'],
-                        orElse: () => null,
-                      );
+                final List<Map<String, dynamic>>
+                displaySubjects = _defaultSubjects.map((defaultSub) {
+                  final realSub = subjects.cast<Subject?>().firstWhere(
+                    (s) => s?.id == defaultSub['id'],
+                    orElse: () => null,
+                  );
 
-                      // Self-healing: if the subject exists but is missing aggregation, trigger a sync
-                      if (realSub != null &&
-                          (realSub.totalStars == 0 && realSub.progress > 0)) {
-                        debugPrint(
-                          'DEBUG: Self-healing triggered for ${realSub.id} on dashboard',
-                        );
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          final parentId = ref.read(parentIdProvider);
-                          ref
-                              .read(firestoreServiceProvider)
-                              .syncSubjectAggregation(
-                                parentId,
-                                selectedChildId,
-                                realSub.id,
-                              );
-                        });
-                      }
+                  // Self-healing: if the subject exists but is missing aggregation, trigger a sync
+                  if (realSub != null &&
+                      (realSub.totalStars == 0 && realSub.progress > 0)) {
+                    debugPrint(
+                      'DEBUG: Self-healing triggered for ${realSub.id} on dashboard',
+                    );
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      final parentId = ref.read(parentIdProvider);
+                      ref
+                          .read(firestoreServiceProvider)
+                          .syncSubjectAggregation(
+                            parentId,
+                            selectedChildId,
+                            realSub.id,
+                          );
+                    });
+                  }
 
-                      return {
-                        'name': defaultSub['name'],
-                        'progress': realSub != null ? realSub.progress : 0,
-                        'completedLevels':
-                            realSub != null ? realSub.completedLevels : 0,
-                        'totalStars': realSub != null ? realSub.totalStars : 0,
-                        'color': defaultSub['color'],
-                      };
-                    }).toList();
+                  return {
+                    'name': defaultSub['name'],
+                    'progress': realSub != null ? realSub.progress : 0,
+                    'completedLevels': realSub != null
+                        ? realSub.completedLevels
+                        : 0,
+                    'totalStars': realSub != null ? realSub.totalStars : 0,
+                    'color': defaultSub['color'],
+                  };
+                }).toList();
 
                 int totalProgress = displaySubjects.fold(
                   0,
@@ -386,7 +387,6 @@ class _OverviewTab extends ConsumerWidget {
     );
   }
 }
-
 
 class _SubjectProgress extends StatelessWidget {
   const _SubjectProgress({

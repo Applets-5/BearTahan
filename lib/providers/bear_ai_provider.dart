@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/bear_ai_message.dart';
+import 'package:flutter/foundation.dart';
 
 class BearAiNotifier extends Notifier<BearAiState> {
   @override
@@ -31,7 +32,8 @@ class BearAiNotifier extends Notifier<BearAiState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      final result = await FirebaseFunctions.instance
+      // NEW CORRECT WAY
+      final result = await FirebaseFunctions.instanceFor(region: 'asia-southeast1')
           .httpsCallable('getBearAiInsight')
           .call({
         'childId': childId,
@@ -50,10 +52,7 @@ class BearAiNotifier extends Notifier<BearAiState> {
   Future<void> sendMessage(String childId, String text) async {
     if (text.trim().isEmpty || state.isLoading) return;
 
-    final userMessage = BearAiMessage(
-      content: text,
-      role: MessageRole.user,
-    );
+    final userMessage = BearAiMessage(content: text, role: MessageRole.user);
 
     state = state.copyWith(
       messages: [...state.messages, userMessage],
@@ -61,19 +60,24 @@ class BearAiNotifier extends Notifier<BearAiState> {
     );
 
     try {
-      final history = state.messages.map((m) => {
-        'role': m.role.name,
-        'content': m.content,
-      }).toList();
+      final history = state.messages
+          .where((m) => m.role != MessageRole.error)
+          .map(
+            (m) => {
+              'role': m.role.name == 'assistant' ? 'model' : 'user',
+              'content': m.content,
+            },
+          )
+          .toList();
 
-      final result = await FirebaseFunctions.instance
+      // NEW CORRECT WAY
+      final result = await FirebaseFunctions.instanceFor(region: 'asia-southeast1')
           .httpsCallable('askBearAi')
           .call({
         'childId': childId,
         'message': text,
         'history': history,
       });
-
       final assistantMessage = BearAiMessage(
         content: result.data['text'] as String,
         role: MessageRole.assistant,
@@ -84,7 +88,16 @@ class BearAiNotifier extends Notifier<BearAiState> {
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false);
+      debugPrint("🐻 BearAI Error: $e");
+      final errorMessage = BearAiMessage(
+        content: "Couldn't reach BearAI. Tap to try again.",
+        role: MessageRole.error,
+        retryData: text,
+      );
+      state = state.copyWith(
+        messages: [...state.messages, errorMessage],
+        isLoading: false,
+      );
     }
   }
 }
