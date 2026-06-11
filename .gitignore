@@ -63,3 +63,4 @@ service-account.json
 **/serviceAccountKey.json
 **/serviceAccountKey.json.json
 
+functions/.env
