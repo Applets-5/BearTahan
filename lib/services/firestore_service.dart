@@ -195,6 +195,59 @@ class FirestoreService {
     });
   }
 
+  Future<void> revertRewardClaim(String parentId, RewardClaim claim) async {
+    final childDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(claim.childId);
+    final claimDocRef = childDocRef.collection('rewardClaims').doc(claim.id);
+    final claimLockRef = childDocRef
+        .collection('rewardClaimLocks')
+        .doc(claim.rewardId);
+
+    await _db.runTransaction((transaction) async {
+      final childSnapshot = await transaction.get(childDocRef);
+      final claimSnapshot = await transaction.get(claimDocRef);
+      final childData = childSnapshot.data() ?? {};
+      final claimData = claimSnapshot.data() ?? {};
+
+      if (claimData['status'] == 'pending') return;
+
+      if (claimData['status'] == 'approved') {
+        final availableStars = (childData['availableStars'] ?? 0).toInt();
+        final starCost = (claimData['starCost'] ?? claim.starCost).toInt();
+
+        transaction.update(childDocRef, {
+          'availableStars': availableStars + starCost,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      transaction.update(claimDocRef, {
+        'status': 'pending',
+        'resolvedAt': null,
+      });
+
+      transaction.set(claimLockRef, {
+        'claimId': claim.id,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> deleteRewardClaim(String parentId, RewardClaim claim) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(claim.childId)
+        .collection('rewardClaims')
+        .doc(claim.id)
+        .delete();
+  }
+
   Future<void> rejectRewardClaim(String parentId, RewardClaim claim) async {
     final claimDocRef = _db
         .collection('parents')

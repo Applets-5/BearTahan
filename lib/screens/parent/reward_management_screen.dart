@@ -17,12 +17,117 @@ class RewardManagementScreen extends ConsumerStatefulWidget {
       _RewardManagementScreenState();
 }
 
-class _RewardManagementScreenState
-    extends ConsumerState<RewardManagementScreen> {
+class _RewardManagementScreenState extends ConsumerState<RewardManagementScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final Set<String> _processingClaimIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   void _onEdit(Reward reward) {
     _showRewardDialog(reward);
+  }
+
+  void _onRevertClaim(RewardClaim claim) async {
+    final parentId = ref.read(parentIdProvider);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Revert Claim'),
+        content: const Text(
+          'Moving this claim back to "Pending" will refund any stars deducted if it was approved. Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Revert'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (!mounted) return;
+      setState(() => _processingClaimIds.add(claim.id));
+      try {
+        await ref
+            .read(firestoreServiceProvider)
+            .revertRewardClaim(parentId, claim);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Claim moved back to Pending')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error reverting: $e')));
+      } finally {
+        if (mounted) {
+          setState(() => _processingClaimIds.remove(claim.id));
+        }
+      }
+    }
+  }
+
+  void _onDeleteClaim(RewardClaim claim) async {
+    final parentId = ref.read(parentIdProvider);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Claim History'),
+        content: const Text(
+          'Are you sure you want to remove this transaction from history? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (!mounted) return;
+      try {
+        await ref
+            .read(firestoreServiceProvider)
+            .deleteRewardClaim(parentId, claim);
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Claim history deleted')));
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
+      }
+    }
   }
 
   void _showRewardDialog([Reward? reward]) {
@@ -167,87 +272,170 @@ class _RewardManagementScreenState
             )),
           );
 
-    return SafeArea(
-      child: rewardsAsync.when(
-        data: (rewards) {
-          final availableRewards = rewards
-              .where((r) => r.status == 'available')
-              .toList();
-          final redeemedRewards = rewards
-              .where((r) => r.status == 'redeemed')
-              .toList();
-          final pendingClaims =
-              claimsAsync.value?.where((claim) => claim.isPending).toList() ??
-              [];
-          final resolvedClaims =
-              claimsAsync.value?.where((claim) => !claim.isPending).toList() ??
-              [];
-
-          final children = childrenAsync.value ?? [];
-
-          return ListView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Manage Rewards',
-                      style: AppTextStyles.screenTitle,
-                    ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        toolbarHeight: 70,
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: childrenAsync.when(
+          data: (children) {
+            final selectedChild = children.firstWhere(
+              (c) => c.uid == selectedChildId,
+              orElse: () => children.first,
+            );
+            return Row(
+              children: [
+                PopupMenuButton<String>(
+                  onSelected: (id) {
+                    ref.read(childIdProvider.notifier).update(id);
+                  },
+                  offset: const Offset(0, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadius.r(AppRadius.lg),
                   ),
-                  FilledButton.icon(
-                    onPressed: () => _showRewardDialog(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add'),
-                  ),
-                ],
-              ),
-              const Text(
-                'Set goals for your child',
-                style: AppTextStyles.small,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              if (selectedChildId == null) ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: Text(
-                    'Select a child on the dashboard to manage reward claims.',
-                    style: AppTextStyles.small,
-                  ),
-                ),
-              ] else if (claimsAsync.isLoading) ...[
-                const Padding(
-                  padding: EdgeInsets.all(AppSpacing.lg),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ] else ...[
-                Row(
-                  children: [
-                    Text(
-                      'Pending claims (${pendingClaims.length})',
-                      style: AppTextStyles.tiny,
-                    ),
-                    if (_processingClaimIds.isNotEmpty) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      const SizedBox(
-                        height: 14,
-                        width: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                  itemBuilder: (context) => children.map((child) {
+                    return PopupMenuItem<String>(
+                      value: child.uid,
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.face,
+                            size: 20,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(child.name, style: AppTextStyles.bodyBold),
+                              Text(
+                                'Streak: ${child.streakCount} days',
+                                style: AppTextStyles.tiny,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ],
+                    );
+                  }).toList(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: AppRadius.r(AppRadius.xl),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.child_care,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          selectedChild.name,
+                          style: AppTextStyles.bodyBold.copyWith(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_drop_down,
+                          color: AppColors.primary,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                if (pendingClaims.isEmpty)
+              ],
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, _) => const SizedBox.shrink(),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.lg),
+            child: IconButton.filled(
+              onPressed: () => _showRewardDialog(),
+              icon: const Icon(Icons.add, color: Colors.white),
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: rewardsAsync.when(
+          data: (rewards) {
+            final availableRewards = rewards
+                .where(
+                  (r) =>
+                      r.status == 'available' &&
+                      (r.targetChildId == null ||
+                          r.targetChildId == selectedChildId),
+                )
+                .toList();
+            final redeemedRewards = rewards
+                .where(
+                  (r) =>
+                      r.status == 'redeemed' &&
+                      (r.claimedByChildId == selectedChildId),
+                )
+                .toList();
+            final pendingClaims =
+                claimsAsync.value?.where((claim) => claim.isPending).toList() ??
+                [];
+            final resolvedClaims =
+                claimsAsync.value
+                    ?.where((claim) => !claim.isPending)
+                    .toList() ??
+                [];
+
+            return ListView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              children: [
+                if (selectedChildId == null) ...[
                   const Padding(
-                    padding: EdgeInsets.only(bottom: AppSpacing.lg),
+                    padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
                     child: Text(
-                      'No pending reward claims.',
+                      'Select a child on the dashboard to manage reward claims.',
                       style: AppTextStyles.small,
                     ),
-                  )
-                else
+                  ),
+                ] else if (claimsAsync.isLoading) ...[
+                  const Padding(
+                    padding: EdgeInsets.all(AppSpacing.lg),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ] else if (pendingClaims.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      Text(
+                        'Pending claims (${pendingClaims.length})',
+                        style: AppTextStyles.tiny,
+                      ),
+                      if (_processingClaimIds.isNotEmpty) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        const SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                   ...pendingClaims.map((claim) {
                     final isProcessing = _processingClaimIds.contains(claim.id);
                     return Padding(
@@ -255,7 +443,7 @@ class _RewardManagementScreenState
                       child: RewardCard(
                         title: claim.rewardName,
                         description:
-                            '${claim.childName} claimed this reward on ${DateFormat('dd MMM yyyy, hh:mm a').format(claim.claimedAt)}.',
+                            'Requested on ${DateFormat('dd MMM yyyy, hh:mm a').format(claim.claimedAt)}.',
                         cost: claim.starCost,
                         status: claim.status,
                         primaryLabel: isProcessing ? 'Approving...' : 'Approve',
@@ -267,166 +455,345 @@ class _RewardManagementScreenState
                       ),
                     );
                   }),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              const Text('Available rewards', style: AppTextStyles.tiny),
-              const SizedBox(height: AppSpacing.sm),
-              if (availableRewards.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                  child: Center(
-                    child: Text(
-                      'No rewards yet. Click "Add" to create one!',
-                      style: AppTextStyles.small,
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+
+                // Tabbed Navigation
+                Container(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: AppColors.muted.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: false,
+                    dividerColor: Colors.transparent,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    indicatorPadding: const EdgeInsets.all(4),
+                    indicator: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: AppRadius.r(AppRadius.md),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
+                    labelColor: AppColors.primary,
+                    unselectedLabelColor: AppColors.mutedText,
+                    labelStyle: AppTextStyles.bodyBold,
+                    unselectedLabelStyle: AppTextStyles.body,
+                    tabs: const [
+                      Tab(text: 'Available'),
+                      Tab(text: 'History'),
+                    ],
                   ),
                 ),
-              ...availableRewards.map((r) {
-                String? childName;
-                if (r.targetChildId != null) {
-                  final target = children
-                      .where((c) => c.uid == r.targetChildId)
-                      .toList();
-                  if (target.isNotEmpty) {
-                    childName = target.first.name;
-                  }
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: RewardCard(
-                    title: r.title,
-                    description: r.description,
-                    cost: r.cost,
-                    childName: childName,
-                    onEdit: () => _onEdit(r),
-                    onDelete: () => _onDelete(r),
-                  ),
-                );
-              }),
-              if (redeemedRewards.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.lg),
-                const Text('Redeemed', style: AppTextStyles.tiny),
-                const SizedBox(height: AppSpacing.sm),
-                ...redeemedRewards.map(
-                  (r) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: RewardCard(
-                      title: r.title,
-                      description: r.description,
-                      cost: r.cost,
-                      status: r.status,
-                      onEdit: () => _onEdit(r),
-                      onDelete: () => _onDelete(r),
+
+                // Tab Content via conditional rendering
+                if (_tabController.index == 0) ...[
+                  // Available Rewards Tab
+                  if (availableRewards.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                      child: Center(
+                        child: Text(
+                          'No rewards yet. Click "+" to create one!',
+                          style: AppTextStyles.small,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  ...availableRewards.map((r) => _buildSwipeableRewardCard(r)),
+                  if (redeemedRewards.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    const Text('Redeemed', style: AppTextStyles.tiny),
+                    const SizedBox(height: AppSpacing.sm),
+                    ...redeemedRewards.map((r) => _buildSwipeableRewardCard(r)),
+                  ],
+                  _buildManagementInstruction(),
+                ] else ...[
+                  // Claim History Tab
+                  if (selectedChildId == null)
+                    const SizedBox.shrink()
+                  else if (resolvedClaims.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                      child: Center(
+                        child: Text(
+                          'No completed reward claims yet.',
+                          style: AppTextStyles.small,
+                        ),
+                      ),
+                    )
+                  else
+                    ...resolvedClaims.map((claim) {
+                      final resolvedAt = claim.resolvedAt ?? claim.claimedAt;
+                      final isRejected = claim.status == 'rejected';
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                right: 8,
+                                bottom: 6,
+                              ),
+                              child: Text(
+                                DateFormat(
+                                  'dd MMM yyyy, hh:mm a',
+                                ).format(resolvedAt),
+                                style: AppTextStyles.tiny.copyWith(
+                                  color: AppColors.mutedText,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            _SwipeableActionWrapper(
+                              onEdit: () {
+                                if (isRejected) {
+                                  _onApprove(claim);
+                                } else {
+                                  _onRevertClaim(claim);
+                                }
+                              },
+                              editLabel: isRejected ? 'Approve' : 'Revert',
+                              editIcon: isRejected
+                                  ? Icons.check_circle_outline_rounded
+                                  : Icons.undo_rounded,
+                              editColor: isRejected
+                                  ? AppColors.accent
+                                  : Colors.orange.shade400,
+                              onDelete: () => _onDeleteClaim(claim),
+                              child: RewardCard(
+                                title: claim.rewardName,
+                                description: claim.rewardDescription,
+                                cost: claim.starCost,
+                                status: claim.status,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  _buildManagementInstruction(),
+                ],
+                const SizedBox(height: 80),
               ],
-              const SizedBox(height: AppSpacing.lg),
-              const Text('Claim history', style: AppTextStyles.tiny),
-              const SizedBox(height: AppSpacing.sm),
-              if (selectedChildId == null)
-                const SizedBox.shrink()
-              else if (claimsAsync.isLoading)
-                const Padding(
-                  padding: EdgeInsets.all(AppSpacing.lg),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (resolvedClaims.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: Text(
-                    'No completed reward claims yet.',
-                    style: AppTextStyles.small,
-                  ),
-                )
-              else
-                ...resolvedClaims.map(
-                  (claim) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: _ClaimHistoryTile(claim: claim),
-                  ),
-                ),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Error: $e')),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, st) => Center(child: Text('Error: $e')),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildManagementInstruction() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 16),
+      child: Center(
+        child: Text(
+          'Swipe left to manage rewards',
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.mutedText,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwipeableRewardCard(Reward r) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: _SwipeableActionWrapper(
+        onEdit: () => _onEdit(r),
+        onDelete: () => _onDelete(r),
+        child: RewardCard(
+          title: r.title,
+          description: r.description,
+          cost: r.cost,
+          status: r.status,
+        ),
       ),
     );
   }
 }
 
-class _ClaimHistoryTile extends StatelessWidget {
-  const _ClaimHistoryTile({required this.claim});
+class _SwipeableActionWrapper extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final String editLabel;
+  final IconData editIcon;
+  final Color? editColor;
 
-  final RewardClaim claim;
+  const _SwipeableActionWrapper({
+    required this.child,
+    required this.onEdit,
+    required this.onDelete,
+    this.editLabel = 'Edit',
+    this.editIcon = Icons.edit_rounded,
+    this.editColor,
+  });
 
-  Color _statusColor() {
-    switch (claim.status) {
-      case 'approved':
-        return AppColors.accent;
-      case 'rejected':
-        return AppColors.destructive;
-      case 'expired':
-        return AppColors.mutedText;
-      default:
-        return AppColors.primary;
+  @override
+  State<_SwipeableActionWrapper> createState() =>
+      _SwipeableActionWrapperState();
+}
+
+class _SwipeableActionWrapperState extends State<_SwipeableActionWrapper>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  double _dragExtent = 0;
+  static const double _actionWidth = 80;
+  static const double _totalWidth = _actionWidth * 2;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    setState(() {
+      _dragExtent += details.primaryDelta!;
+      if (_dragExtent > 0) _dragExtent = 0;
+      if (_dragExtent < -_totalWidth - 20) _dragExtent = -_totalWidth - 20;
+    });
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (_dragExtent < -_totalWidth / 2) {
+      _open();
+    } else {
+      _close();
     }
   }
 
-  IconData _statusIcon() {
-    switch (claim.status) {
-      case 'approved':
-        return Icons.check_circle;
-      case 'rejected':
-        return Icons.cancel;
-      case 'expired':
-        return Icons.schedule;
-      default:
-        return Icons.info;
-    }
+  void _open() {
+    _controller.forward(from: _dragExtent / -_totalWidth);
+    _controller.animateTo(1.0, curve: Curves.easeOut);
+    setState(() => _dragExtent = -_totalWidth);
+  }
+
+  void _close() {
+    _controller.animateTo(0.0, curve: Curves.easeOut);
+    setState(() => _dragExtent = 0);
   }
 
   @override
   Widget build(BuildContext context) {
-    final resolvedAt = claim.resolvedAt ?? claim.claimedAt;
-    final color = _statusColor();
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Icon(_statusIcon(), color: color),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: AppColors.muted,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(claim.rewardName, style: AppTextStyles.bodyBold),
-                Text(
-                  '${claim.childName} - ${claim.starCost} stars - ${DateFormat('dd MMM yyyy, hh:mm a').format(resolvedAt)}',
-                  style: AppTextStyles.tiny,
+                GestureDetector(
+                  onTap: () {
+                    _close();
+                    widget.onEdit();
+                  },
+                  child: Container(
+                    width: _actionWidth,
+                    color: widget.editColor ?? Colors.blue.shade400,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(widget.editIcon, color: Colors.white),
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.editLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    _close();
+                    widget.onDelete();
+                  },
+                  child: Container(
+                    width: _actionWidth,
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade400,
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
+                      ),
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.delete_outline_rounded, color: Colors.white),
+                        SizedBox(height: 4),
+                        Text(
+                          'Delete',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          Text(claim.status, style: AppTextStyles.tiny.copyWith(color: color)),
-        ],
-      ),
+        ),
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            double offset = _dragExtent;
+            if (_controller.isAnimating) {
+              offset = -_controller.value * _totalWidth;
+            }
+            return Transform.translate(offset: Offset(offset, 0), child: child);
+          },
+          child: GestureDetector(
+            onHorizontalDragUpdate: _onHorizontalDragUpdate,
+            onHorizontalDragEnd: _onHorizontalDragEnd,
+            behavior: HitTestBehavior.opaque,
+            child: widget.child,
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _RewardDialog extends ConsumerStatefulWidget {
   final Reward? reward;
-
   const _RewardDialog({this.reward});
-
   @override
   ConsumerState<_RewardDialog> createState() => _RewardDialogState();
 }
@@ -462,11 +829,8 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
 
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
     final parentId = ref.read(parentIdProvider);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
     try {
       final reward = Reward(
         id: widget.reward?.id ?? '',
@@ -476,25 +840,17 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
         status: widget.reward?.status ?? 'available',
         targetChildId: _selectedChildId,
       );
-
       if (widget.reward == null) {
         await ref.read(firestoreServiceProvider).addReward(parentId, reward);
       } else {
         await ref.read(firestoreServiceProvider).updateReward(parentId, reward);
       }
-
       if (mounted) Navigator.pop(context);
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.reward == null ? 'Reward added' : 'Reward updated',
-          ),
-        ),
-      );
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Error saving reward: $e')),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -502,15 +858,13 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
 
   void _adjustCost(int delta) {
     final current = int.tryParse(_costController.text) ?? 0;
-    final newValue = (current + delta).clamp(0, 9999);
-    _costController.text = newValue.toString();
+    _costController.text = (current + delta).clamp(0, 9999).toString();
   }
 
   @override
   Widget build(BuildContext context) {
     final childrenAsync = ref.watch(childrenProvider);
     final children = childrenAsync.value ?? [];
-
     return AlertDialog(
       title: Text(widget.reward == null ? 'New Reward' : 'Edit Reward'),
       content: SingleChildScrollView(
@@ -518,20 +872,15 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(labelText: 'Reward name'),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               ),
-              const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(labelText: 'Description'),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               ),
-              const SizedBox(height: AppSpacing.sm),
               DropdownButtonFormField<String>(
                 initialValue: _selectedChildId,
                 hint: const Text('All Children'),
@@ -546,32 +895,16 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
                 ],
                 onChanged: (v) => setState(() => _selectedChildId = v),
               ),
-              const SizedBox(height: AppSpacing.md),
-              const Text('Star Cost', style: AppTextStyles.tiny),
-              const SizedBox(height: AppSpacing.xs),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   _CostBtn(icon: Icons.remove, onTap: () => _adjustCost(-1)),
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                      ),
-                      child: TextFormField(
-                        controller: _costController,
-                        textAlign: TextAlign.center,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 8),
-                        ),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        validator: (v) => v == null || int.tryParse(v) == null
-                            ? 'Required'
-                            : null,
-                      ),
+                    child: TextFormField(
+                      controller: _costController,
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                   ),
                   _CostBtn(icon: Icons.add, onTap: () => _adjustCost(1)),
@@ -588,16 +921,7 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
         ),
         FilledButton(
           onPressed: _isLoading ? null : _save,
-          child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(widget.reward == null ? 'Create' : 'Save'),
+          child: const Text('Save'),
         ),
       ],
     );
@@ -607,9 +931,7 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
 class _CostBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-
   const _CostBtn({required this.icon, required this.onTap});
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -620,10 +942,8 @@ class _CostBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.muted,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.border),
         ),
-        alignment: Alignment.center,
-        child: Icon(icon, size: 18, color: AppColors.mutedText),
+        child: Icon(icon, size: 18),
       ),
     );
   }
