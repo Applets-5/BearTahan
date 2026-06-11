@@ -39,10 +39,19 @@ void main() {
     );
   }
 
+  Future<void> setPhoneScreenSize(WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() async {
+      await tester.binding.setSurfaceSize(null);
+    });
+  }
+
   group('CompletionScreen Stars', () {
     testWidgets('should show 3 stars for a perfect score (100%)', (
       tester,
     ) async {
+      await setPhoneScreenSize(tester);
+
       await tester.pumpWidget(createWidget(score: 10, total: 10));
       await tester.pump(const Duration(seconds: 1));
 
@@ -56,6 +65,8 @@ void main() {
     });
 
     testWidgets('should show 2 stars for a score of 80%', (tester) async {
+      await setPhoneScreenSize(tester);
+
       await tester.pumpWidget(createWidget(score: 8, total: 10));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
@@ -68,6 +79,8 @@ void main() {
     });
 
     testWidgets('should show 1 star for a score of 50%', (tester) async {
+      await setPhoneScreenSize(tester);
+
       await tester.pumpWidget(createWidget(score: 5, total: 10));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
@@ -80,6 +93,8 @@ void main() {
     });
 
     testWidgets('should show 0 stars for a score below 50%', (tester) async {
+      await setPhoneScreenSize(tester);
+
       await tester.pumpWidget(createWidget(score: 4, total: 10));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
@@ -94,6 +109,8 @@ void main() {
     testWidgets('shows no-new-stars message for a completed replay', (
       tester,
     ) async {
+      await setPhoneScreenSize(tester);
+
       await tester.pumpWidget(
         createWidget(
           score: 8,
