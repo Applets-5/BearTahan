@@ -124,6 +124,7 @@ class OutfitQuestProgress {
     required this.currentValue,
     required this.targetValue,
     required this.isUnlocked,
+    this.rewardClaimed = false,
     this.unlockedAt,
   });
 
@@ -131,6 +132,7 @@ class OutfitQuestProgress {
   final int currentValue;
   final int targetValue;
   final bool isUnlocked;
+  final bool rewardClaimed;
   final DateTime? unlockedAt;
 
   double get percentage {
@@ -148,9 +150,8 @@ class OutfitQuestProgress {
       currentValue: (data['currentValue'] ?? 0).toInt(),
       targetValue: (data['targetValue'] ?? 0).toInt(),
       isUnlocked: data['isUnlocked'] == true,
-      unlockedAt: unlockedAtValue is Timestamp
-          ? unlockedAtValue.toDate()
-          : null,
+      rewardClaimed: data['rewardClaimed'] == true,
+      unlockedAt: unlockedAtValue is Timestamp ? unlockedAtValue.toDate() : null,
     );
   }
 }

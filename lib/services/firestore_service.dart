@@ -330,6 +330,36 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
+    Future<void> claimQuestReward(
+    String parentId,
+    String childId,
+    String outfitId,
+  ) async {
+    final progressDocRef = _childDocRef(
+      parentId,
+      childId,
+    ).collection('questProgress').doc(outfitId);
+
+    await _db.runTransaction((transaction) async {
+      final progressSnapshot = await transaction.get(progressDocRef);
+      final progressData = progressSnapshot.data() ?? {};
+
+      final isScholarBear = outfitId == 'scholar_bear';
+      final isUnlocked =
+          isScholarBear || progressData['isUnlocked'] == true;
+
+      if (!isUnlocked) {
+        throw Exception('This outfit is still locked.');
+      }
+
+      transaction.set(progressDocRef, {
+        'rewardClaimed': true,
+        'rewardClaimedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
+  }
+
   Future<List<String>> evaluateAndUpdateQuestProgress(
     String parentId,
     String childId,
@@ -407,9 +437,10 @@ class FirestoreService {
           if (quest.subjectId != null) 'subjectId': quest.subjectId,
           'currentValue': currentValue,
           'targetValue': quest.target,
-          'isUnlocked': shouldUnlock,
+                    'isUnlocked': shouldUnlock,
           'updatedAt': FieldValue.serverTimestamp(),
           if (isNewUnlock) 'unlockedAt': FieldValue.serverTimestamp(),
+          if (isNewUnlock) 'rewardClaimed': false,
         },
         SetOptions(merge: true),
       );
