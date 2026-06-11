@@ -27,5 +27,27 @@ void main() {
       expect(question.characterUnicode, '人');
       expect(question.strokeOrderDataJson, jsonEncode(strokeData));
     });
+
+    test('fromFirestore parses numeric answer metadata', () {
+      final question = Question.fromFirestore('math_q1', {
+        'questionText': 'How many apples?',
+        'questionType': 'keyinnumber',
+        'correctAnswer': 7,
+      });
+
+      expect(question.type, 'keyinnumber');
+      expect(question.correctNumber, 7);
+    });
+
+    test('fromFirestore parses legacy lowercase numeric answer metadata', () {
+      final question = Question.fromFirestore('math_q2', {
+        'questionText': 'How many oranges?',
+        'questionType': 'keyinnumber',
+        'correctanswerid': '9',
+      });
+
+      expect(question.type, 'keyinnumber');
+      expect(question.correctNumber, 9);
+    });
   });
 }

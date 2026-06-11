@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/data_contracts.dart';
 
 class OutfitQuest {
   const OutfitQuest({
@@ -30,7 +31,9 @@ class OutfitQuest {
       description: data['description']?.toString() ?? '',
       imagePath: data['imagePath']?.toString() ?? 'assets/images/bear1.png',
       conditionType: data['conditionType']?.toString() ?? 'starter',
-      subjectId: data['subjectId']?.toString(),
+      subjectId: data['subjectId'] == null
+          ? null
+          : DataContracts.normalizeSubjectId(data['subjectId'].toString()),
       target: (data['target'] ?? 0).toInt(),
       displayOrder: (data['displayOrder'] ?? 999).toInt(),
     );
@@ -85,7 +88,7 @@ class OutfitQuest {
       description: 'Complete 10 English lessons',
       imagePath: 'assets/images/bear4.png',
       conditionType: 'completed_lessons',
-      subjectId: 'en',
+      subjectId: 'bi',
       target: 10,
       displayOrder: 3,
     ),
@@ -104,7 +107,7 @@ class OutfitQuest {
       description: 'Complete all Science topics',
       imagePath: 'assets/images/bear6.png',
       conditionType: 'complete_all_topics',
-      subjectId: 'science',
+      subjectId: 'sci',
       target: 8,
       displayOrder: 5,
     ),

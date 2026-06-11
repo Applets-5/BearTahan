@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/app_theme.dart';
-import '../../widgets/common/primary_button.dart';
 
 class MemoryChallengeScreen extends StatelessWidget {
   const MemoryChallengeScreen({super.key});
@@ -33,24 +32,15 @@ class MemoryChallengeScreen extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const Text(
-              'Practise missed items and earn bonus stars after every 20 reviews.',
+              'This review activity is planned but is not available yet.',
               style: AppTextStyles.body,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xxl),
-            const LinearProgressIndicator(
-              value: .45,
-              minHeight: AppSpacing.md,
-              color: AppColors.primary,
-              backgroundColor: AppColors.muted,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            const Text('9/20 reviews to next star', style: AppTextStyles.small),
             const Spacer(),
-            PrimaryButton(
-              label: 'Start Review',
-              icon: Icons.play_arrow_rounded,
-              onPressed: () {},
+            FilledButton.icon(
+              onPressed: null,
+              icon: Icon(Icons.schedule_rounded),
+              label: Text('Coming Soon'),
             ),
           ],
         ),

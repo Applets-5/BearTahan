@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/user_profile.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
@@ -56,7 +57,6 @@ class _ParentProfileDetailScreenState
       await ref.read(firestoreServiceProvider).updateParentSettings(parentId, {
         'name': _parentNameController.text,
         'username': _usernameController.text,
-        'email': _emailController.text,
         'phoneNumber': _phoneController.text,
       });
       setState(() => _isEditingParent = false);
@@ -73,46 +73,6 @@ class _ParentProfileDetailScreenState
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _deleteAccount() async {
-    final parentId = ref.read(parentIdProvider);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Account?'),
-        content: const Text(
-          'This will permanently delete your account and all associated data. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete Permanently'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      setState(() => _isLoading = true);
-      try {
-        await ref.read(firestoreServiceProvider).deleteParentAccount(parentId);
-        if (mounted) context.go(AppRouter.login);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: $e')));
-        }
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
-      }
     }
   }
 
@@ -249,31 +209,6 @@ class _ParentProfileDetailScreenState
     );
   }
 
-  Future<void> _deleteChild(UserProfile child) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Child?'),
-        content: Text('Are you sure you want to delete ${child.name}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      final parentId = ref.read(parentIdProvider);
-      await ref.read(firestoreServiceProvider).deleteChild(parentId, child.uid);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final parentSettingsAsync = ref.watch(parentSettingsProvider);
@@ -294,7 +229,10 @@ class _ParentProfileDetailScreenState
                   if (!_isEditingParent) {
                     _parentNameController.text = settings['name'] ?? 'Parent';
                     _usernameController.text = settings['username'] ?? '';
-                    _emailController.text = settings['email'] ?? '';
+                    _emailController.text =
+                        FirebaseAuth.instance.currentUser?.email ??
+                        settings['email'] ??
+                        '';
                     _phoneController.text = settings['phoneNumber'] ?? '';
                   }
                   final avatar = settings['avatarPath'] ?? '🐻';
@@ -397,9 +335,12 @@ class _ParentProfileDetailScreenState
                           TextField(
                             controller: _emailController,
                             decoration: const InputDecoration(
-                              labelText: 'Email',
+                              labelText: 'Login email',
+                              helperText:
+                                  'Email changes are not available in this version.',
                             ),
                             keyboardType: TextInputType.emailAddress,
+                            readOnly: true,
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           TextField(
@@ -480,12 +421,14 @@ class _ParentProfileDetailScreenState
                               onPressed: () => _showChildDialog(child),
                             ),
                             IconButton(
+                              tooltip:
+                                  'Child deletion is unavailable until all associated data can be removed safely.',
                               icon: const Icon(
                                 Icons.delete,
                                 size: 20,
                                 color: Colors.redAccent,
                               ),
-                              onPressed: () => _deleteChild(child),
+                              onPressed: null,
                             ),
                           ],
                         ),
@@ -499,10 +442,10 @@ class _ParentProfileDetailScreenState
 
               const SizedBox(height: AppSpacing.xxl),
               TextButton.icon(
-                onPressed: _deleteAccount,
+                onPressed: null,
                 icon: const Icon(Icons.delete_forever, color: Colors.red),
                 label: const Text(
-                  'Delete Account',
+                  'Account deletion unavailable',
                   style: TextStyle(color: Colors.red),
                 ),
                 style: TextButton.styleFrom(

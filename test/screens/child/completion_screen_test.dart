@@ -18,7 +18,12 @@ void main() {
     when(() => mockAuth.currentUser).thenReturn(null);
   });
 
-  Widget createWidget({int score = 0, int total = 0}) {
+  Widget createWidget({
+    int score = 0,
+    int total = 0,
+    int? performanceStars,
+    int? newStarsAwarded,
+  }) {
     return ProviderScope(
       overrides: [firebaseAuthProvider.overrideWithValue(mockAuth)],
       child: MaterialApp(
@@ -26,6 +31,9 @@ void main() {
           score: score,
           total: total,
           childId: 'demo_child_001',
+          performanceStars: performanceStars,
+          newStarsAwarded:
+              newStarsAwarded ?? (score == total && total > 0 ? 3 : 0),
         ),
       ),
     );
@@ -78,6 +86,25 @@ void main() {
           .widgetList<Icon>(starIcons)
           .where((icon) => icon.color == AppColors.star);
       expect(coloredStars.length, 0);
+    });
+
+    testWidgets('shows no-new-stars message for a completed replay', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createWidget(
+          score: 8,
+          total: 10,
+          performanceStars: 2,
+          newStarsAwarded: 0,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Stage complete. No new wallet stars this time.'),
+        findsOneWidget,
+      );
     });
   });
 }

@@ -1,4 +1,5 @@
 import '../models/outfit_quest.dart';
+import 'data_contracts.dart';
 
 class QuestUtils {
   const QuestUtils._();
@@ -10,19 +11,27 @@ class QuestUtils {
     required List<Map<String, dynamic>> attempts,
   }) {
     final subjectId = quest.subjectId;
+    final normalizedSubjectProgress = <String, Map<String, dynamic>>{
+      for (final entry in subjectProgress.entries)
+        DataContracts.normalizeSubjectId(entry.key): entry.value,
+    };
 
     switch (quest.conditionType) {
       case 'starter':
         return quest.target;
       case 'completed_lessons':
         if (subjectId == null) return 0;
-        return (subjectProgress[subjectId]?['completedLevels'] ?? 0).toInt();
+        return (normalizedSubjectProgress[subjectId]?['completedLevels'] ?? 0)
+            .toInt();
       case 'perfect_quizzes':
         if (subjectId == null) return 0;
         return attempts.where((attempt) {
           final score = (attempt['score'] ?? 0).toInt();
           final total = (attempt['total'] ?? 0).toInt();
-          return attempt['subjectId'] == subjectId &&
+          return DataContracts.normalizeSubjectId(
+                    attempt['subjectId']?.toString() ?? '',
+                  ) ==
+                  subjectId &&
               total > 0 &&
               score == total;
         }).length;
@@ -30,7 +39,7 @@ class QuestUtils {
         return lifetimeStarsEarned;
       case 'complete_all_topics':
         if (subjectId == null) return 0;
-        final data = subjectProgress[subjectId] ?? {};
+        final data = normalizedSubjectProgress[subjectId] ?? {};
         final progress = (data['progress'] ?? 0).toInt();
         final completedLevels = (data['completedLevels'] ?? 0).toInt();
         return progress >= 100 ? quest.target : completedLevels;

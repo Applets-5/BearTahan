@@ -98,8 +98,11 @@ class AppRouter {
     String? childId, {
     int? score,
     int? total,
-    int? stars,
+    int? performanceStars,
+    int? newStarsAwarded,
+    int? dailyBonusStars,
     String? levelId,
+    String? levelPrefix,
     String? subjectId,
     bool? isEscalated,
     bool? isDailyBonus,
@@ -109,8 +112,17 @@ class AppRouter {
     if (childId != null && childId.isNotEmpty) params['childId'] = childId;
     if (score != null) params['score'] = score.toString();
     if (total != null) params['total'] = total.toString();
-    if (stars != null) params['stars'] = stars.toString();
+    if (performanceStars != null) {
+      params['performanceStars'] = performanceStars.toString();
+    }
+    if (newStarsAwarded != null) {
+      params['newStarsAwarded'] = newStarsAwarded.toString();
+    }
+    if (dailyBonusStars != null) {
+      params['dailyBonusStars'] = dailyBonusStars.toString();
+    }
     if (levelId != null) params['levelId'] = levelId;
+    if (levelPrefix != null) params['levelPrefix'] = levelPrefix;
     if (subjectId != null) params['subjectId'] = subjectId;
     if (isEscalated != null) params['isEscalated'] = isEscalated.toString();
     if (isDailyBonus != null) params['isDailyBonus'] = isDailyBonus.toString();
@@ -361,8 +373,23 @@ class AppRouter {
               int.tryParse(state.uri.queryParameters['score'] ?? '0') ?? 0;
           final total =
               int.tryParse(state.uri.queryParameters['total'] ?? '0') ?? 0;
-          final stars = int.tryParse(state.uri.queryParameters['stars'] ?? '');
+          final performanceStars = int.tryParse(
+            state.uri.queryParameters['performanceStars'] ??
+                state.uri.queryParameters['stars'] ??
+                '',
+          );
+          final newStarsAwarded =
+              int.tryParse(
+                state.uri.queryParameters['newStarsAwarded'] ?? '',
+              ) ??
+              performanceStars;
+          final dailyBonusStars =
+              int.tryParse(
+                state.uri.queryParameters['dailyBonusStars'] ?? '',
+              ) ??
+              0;
           final levelId = state.uri.queryParameters['levelId'] ?? 'l1';
+          final levelPrefix = state.uri.queryParameters['levelPrefix'];
           final subjectId = state.uri.queryParameters['subjectId'] ?? 'bm';
           final isEscalated =
               state.uri.queryParameters['isEscalated'] == 'true';
@@ -381,8 +408,11 @@ class AppRouter {
               childId: childId,
               score: score,
               total: total,
-              stars: stars,
+              performanceStars: performanceStars,
+              newStarsAwarded: newStarsAwarded ?? 0,
+              dailyBonusStars: dailyBonusStars,
               levelId: levelId,
+              levelPrefix: levelPrefix,
               subjectId: subjectId,
               isEscalated: isEscalated,
               isDailyBonus: isDailyBonus,
