@@ -32,7 +32,6 @@ class BearAiNotifier extends Notifier<BearAiState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      // NEW CORRECT WAY
       final result = await FirebaseFunctions.instanceFor(
         region: 'asia-southeast1',
       ).httpsCallable('getBearAiInsight').call({'childId': childId});
@@ -43,6 +42,7 @@ class BearAiNotifier extends Notifier<BearAiState> {
         hasGeneratedInsight: true,
       );
     } catch (e) {
+      debugPrint("🐻 BearAI Insight Error: $e");
       state = state.copyWith(isLoading: false);
     }
   }

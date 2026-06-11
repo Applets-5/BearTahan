@@ -7,6 +7,9 @@ const {
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 
+const {defineSecret} = require("firebase-functions/params");
+const geminiKey = defineSecret("GEMINI_API_KEY");
+
 admin.initializeApp();
 setGlobalOptions({maxInstances: 10, region: "asia-southeast1"});
 
@@ -309,7 +312,7 @@ exports.expireRewardClaims = onSchedule(
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {GoogleGenerativeAI} = require("@google/generative-ai");
 
-exports.askBearAi = onCall(async (request) => {
+exports.askBearAi = onCall({secrets: [geminiKey]}, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in.");
   }
@@ -326,9 +329,9 @@ exports.askBearAi = onCall(async (request) => {
   
   // 2. Initialize Gemini API
   // In a real project, the API key is stored in Firebase Secret Manager
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const genAI = new GoogleGenerativeAI(geminiKey.value());
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-3.1-flash-lite",
     systemInstruction: buildBearAiSystemPrompt(context),
   });
 
@@ -350,7 +353,7 @@ exports.askBearAi = onCall(async (request) => {
   }
 });
 
-exports.getBearAiInsight = onCall(async (request) => {
+exports.getBearAiInsight = onCall({secrets: [geminiKey]}, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in.");
   }
@@ -384,8 +387,8 @@ exports.getBearAiInsight = onCall(async (request) => {
   // Otherwise generate a new one
   const context = await assembleBearAiContext(parentId, childId, true);
 
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "AIzaSy...");
-  const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
+  const genAI = new GoogleGenerativeAI(geminiKey.value());
+  const model = genAI.getGenerativeModel({model: "gemini-3.1-flash-lite"});
 
   const prompt = `In exactly 2-3 sentences, summarise ${context.child.name}'s activity for the past 7 days. ` +
     "Mention their most active subject and one specific area for encouragement. Ground in data below.";

@@ -295,7 +295,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
     final childName = childProfileAsync.when(
       data: (child) => child.name,
       loading: () => "child",
-      error: (_, __) => "child",
+      error: (_, _) => "child",
     );
 
     return Container(
