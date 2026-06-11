@@ -5,10 +5,7 @@ import '../../theme/app_theme.dart';
 class SubjectRadarChart extends StatelessWidget {
   final Map<String, double> subjectScores;
 
-  const SubjectRadarChart({
-    super.key,
-    required this.subjectScores,
-  });
+  const SubjectRadarChart({super.key, required this.subjectScores});
 
   @override
   Widget build(BuildContext context) {
@@ -32,8 +29,10 @@ class SubjectRadarChart extends StatelessWidget {
             _buildLayer(80, opacity: 0.06),
             _buildLayer(60, opacity: 0.08),
             _buildLayer(40, opacity: 0.10),
-            _buildLayer(20, opacity: 0.15), // Inner tier is darkest due to stacking
-            
+            _buildLayer(
+              20,
+              opacity: 0.15,
+            ), // Inner tier is darkest due to stacking
             // 2. Child Progress Fill: Drawn under the scale lines for visibility
             RadarDataSet(
               fillColor: AppColors.primary.withValues(alpha: 0.2),
@@ -42,7 +41,7 @@ class SubjectRadarChart extends StatelessWidget {
               dataEntries: childEntries,
               borderWidth: 0,
             ),
-            
+
             // 3. Polygonal Scale Rings: Drawn ON TOP of the fill to show "inside and outside"
             _buildLayer(100, borderAlpha: 0.12),
             _buildLayer(80, borderAlpha: 0.12),
@@ -62,7 +61,7 @@ class SubjectRadarChart extends StatelessWidget {
           radarBackgroundColor: Colors.transparent,
           borderData: FlBorderData(show: false),
           radarBorderData: const BorderSide(color: Colors.transparent),
-          
+
           titlePositionPercentageOffset: 0.2,
           titleTextStyle: AppTextStyles.tiny.copyWith(
             fontWeight: FontWeight.w900,
@@ -72,23 +71,34 @@ class SubjectRadarChart extends StatelessWidget {
           getTitle: (index, angle) {
             String label;
             switch (index) {
-              case 0: label = 'BM'; break;
-              case 1: label = 'EN'; break;
-              case 2: label = 'MATH'; break;
-              case 3: label = 'SCI'; break;
-              case 4: label = 'BC'; break;
-              default: return const RadarChartTitle(text: '');
+              case 0:
+                label = 'BM';
+                break;
+              case 1:
+                label = 'EN';
+                break;
+              case 2:
+                label = 'MATH';
+                break;
+              case 3:
+                label = 'SCI';
+                break;
+              case 4:
+                label = 'BC';
+                break;
+              default:
+                return const RadarChartTitle(text: '');
             }
             return RadarChartTitle(
               text: label,
               angle: 0, // Keep all labels upright
             );
           },
-          
-          tickCount: 1, 
+
+          tickCount: 1,
           ticksTextStyle: const TextStyle(color: Colors.transparent),
           tickBorderData: const BorderSide(color: Colors.transparent),
-          
+
           // Axis Lines (Center to Axis Labels)
           gridBorderData: BorderSide(
             color: AppColors.primary.withValues(alpha: 0.1),
@@ -100,11 +110,15 @@ class SubjectRadarChart extends StatelessWidget {
   }
 
   /// Helper to build a background tier layer with fill and/or border
-  RadarDataSet _buildLayer(double value, {double opacity = 0, double borderAlpha = 0}) {
+  RadarDataSet _buildLayer(
+    double value, {
+    double opacity = 0,
+    double borderAlpha = 0,
+  }) {
     return RadarDataSet(
       fillColor: AppColors.primary.withValues(alpha: opacity),
-      borderColor: borderAlpha > 0 
-          ? AppColors.primary.withValues(alpha: borderAlpha) 
+      borderColor: borderAlpha > 0
+          ? AppColors.primary.withValues(alpha: borderAlpha)
           : Colors.transparent,
       entryRadius: 0,
       dataEntries: List.generate(5, (_) => RadarEntry(value: value)),

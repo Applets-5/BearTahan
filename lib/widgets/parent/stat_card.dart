@@ -9,12 +9,14 @@ class StatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +24,6 @@ class StatCard extends StatelessWidget {
     const Color subtitleColor = Color(0xFF666666); // Medium Slate Grey
 
     return Container(
-      padding: const EdgeInsets.all(20.0), // Generous padding
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24.0), // Highly rounded
@@ -34,20 +35,30 @@ class StatCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: AppSpacing.xxl),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            value,
-            style: AppTextStyles.cardTitle.copyWith(color: titleColor),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24.0),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0), // Generous padding
+            child: Column(
+              children: [
+                Icon(icon, color: color, size: AppSpacing.xxl),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  value,
+                  style: AppTextStyles.cardTitle.copyWith(color: titleColor),
+                ),
+                Text(
+                  label,
+                  style: AppTextStyles.tiny.copyWith(color: subtitleColor),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
-          Text(
-            label,
-            style: AppTextStyles.tiny.copyWith(color: subtitleColor),
-            textAlign: TextAlign.center,
-          ),
-        ],
+        ),
       ),
     );
   }

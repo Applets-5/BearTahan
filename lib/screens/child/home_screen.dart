@@ -315,33 +315,43 @@ class _Header extends ConsumerWidget {
           const Expanded(
             child: Text('BearTahan', style: AppTextStyles.screenTitle),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.destructiveLight,
-              borderRadius: AppRadius.r(AppRadius.xl),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.local_fire_department,
-                  color: AppColors.destructive,
-                  size: AppSpacing.lg,
-                ),
-                userProfileAsync.when(
-                  data: (profile) => Text(
-                    ' ${profile.streakCount} days',
-                    style: AppTextStyles.bodyBold,
+          GestureDetector(
+            onTap: () {
+              context.push(
+                Uri(
+                  path: AppRouter.streak,
+                  queryParameters: {'childId': childId},
+                ).toString(),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.destructiveLight,
+                borderRadius: AppRadius.r(AppRadius.xl),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.local_fire_department,
+                    color: AppColors.destructive,
+                    size: AppSpacing.lg,
                   ),
-                  loading: () =>
-                      const Text(' - days', style: AppTextStyles.bodyBold),
-                  error: (_, _) =>
-                      const Text(' 0 days', style: AppTextStyles.bodyBold),
-                ),
-              ],
+                  userProfileAsync.when(
+                    data: (profile) => Text(
+                      ' ${profile.streakCount} days',
+                      style: AppTextStyles.bodyBold,
+                    ),
+                    loading: () =>
+                        const Text(' - days', style: AppTextStyles.bodyBold),
+                    error: (_, _) =>
+                        const Text(' 0 days', style: AppTextStyles.bodyBold),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),

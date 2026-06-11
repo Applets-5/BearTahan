@@ -36,7 +36,10 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                 obscureText: true,
                 keyboardType: TextInputType.number,
                 maxLength: 4,
-                decoration: const InputDecoration(labelText: 'New 4-digit PIN', counterText: ''),
+                decoration: const InputDecoration(
+                  labelText: 'New 4-digit PIN',
+                  counterText: '',
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               TextField(
@@ -53,7 +56,10 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
               onPressed: () async {
                 if (pinController.text.length != 4) {
@@ -64,18 +70,18 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                   setDialogState(() => error = 'PINs do not match');
                   return;
                 }
-                
+
                 final parentId = ref.read(parentIdProvider);
                 try {
-                  await ref.read(firestoreServiceProvider).updateParentSettings(parentId, {
-                    'parentPin': pinController.text,
-                  });
-                  if (context.mounted) Navigator.pop(context);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('PIN updated successfully')),
-                    );
-                  }
+                  await ref.read(firestoreServiceProvider).updateParentSettings(
+                    parentId,
+                    {'parentPin': pinController.text},
+                  );
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('PIN updated successfully')),
+                  );
                 } catch (e) {
                   setDialogState(() => error = 'Error: $e');
                 }
@@ -96,10 +102,10 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
         key: value,
       });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating $key: $e')),
-        );
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error updating $key: $e')));
       }
     }
   }
@@ -116,9 +122,9 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error logging out: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
       }
     }
   }
@@ -141,7 +147,10 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
           final username = settings['username'] ?? '';
 
           return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
             children: [
               const Text('Settings', style: AppTextStyles.screenTitle),
               const SizedBox(height: AppSpacing.lg),
@@ -154,10 +163,16 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                   iconBgColor: const Color(0xFFEEEDFE),
                   iconColor: const Color(0xFF534AB7),
                   title: name,
-                  subtitle: username.isNotEmpty ? '@$username · Profile & children' : 'Profile & children',
+                  subtitle: username.isNotEmpty
+                      ? '@$username · Profile & children'
+                      : 'Profile & children',
                   isAvatar: true,
                   onTap: () => context.push(AppRouter.parentProfileDetail),
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.mutedText, size: 20),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.mutedText,
+                    size: 20,
+                  ),
                 ),
               ),
 
@@ -170,7 +185,10 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                   if (children.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.all(AppSpacing.md),
-                      child: Text('No children added yet.', style: AppTextStyles.small),
+                      child: Text(
+                        'No children added yet.',
+                        style: AppTextStyles.small,
+                      ),
                     );
                   }
                   return Column(
@@ -259,7 +277,11 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                       title: 'Change parent PIN',
                       subtitle: '4-digit access code',
                       onTap: _showPinDialog,
-                      trailing: const Icon(Icons.chevron_right, color: AppColors.mutedText, size: 20),
+                      trailing: const Icon(
+                        Icons.chevron_right,
+                        color: AppColors.mutedText,
+                        size: 20,
+                      ),
                     ),
                     _SettingsRow(
                       icon: Icons.fingerprint_rounded,
@@ -270,7 +292,8 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                       showTopBorder: true,
                       trailing: Switch.adaptive(
                         value: biometrics,
-                        onChanged: (v) => _updateSetting('biometricsEnabled', v),
+                        onChanged: (v) =>
+                            _updateSetting('biometricsEnabled', v),
                         activeTrackColor: const Color(0xFF534AB7),
                       ),
                     ),
@@ -298,7 +321,11 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                         }
                         context.go(AppRouter.childHomeFor(childId));
                       },
-                      trailing: const Icon(Icons.chevron_right, color: AppColors.mutedText, size: 20),
+                      trailing: const Icon(
+                        Icons.chevron_right,
+                        color: AppColors.mutedText,
+                        size: 20,
+                      ),
                     ),
                     _SettingsRow(
                       icon: Icons.logout_rounded,
@@ -308,7 +335,11 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                       titleColor: const Color(0xFFA32D2D),
                       showTopBorder: true,
                       onTap: () => _logout(context),
-                      trailing: const Icon(Icons.chevron_right, color: AppColors.mutedText, size: 20),
+                      trailing: const Icon(
+                        Icons.chevron_right,
+                        color: AppColors.mutedText,
+                        size: 20,
+                      ),
                     ),
                   ],
                 ),
@@ -325,9 +356,13 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                   iconColor: const Color(0xFF185FA5),
                   title: 'Credits & licences',
                   onTap: () {
-                     showLicensePage(context: context);
+                    showLicensePage(context: context);
                   },
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.mutedText, size: 20),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.mutedText,
+                    size: 20,
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.xxxl),
@@ -374,10 +409,7 @@ class _CardContainer extends StatelessWidget {
         border: Border.all(color: AppColors.border, width: 0.5),
         borderRadius: AppRadius.r(AppRadius.lg),
       ),
-      child: ClipRRect(
-        borderRadius: AppRadius.r(AppRadius.lg),
-        child: child,
-      ),
+      child: ClipRRect(borderRadius: AppRadius.r(AppRadius.lg), child: child),
     );
   }
 }
@@ -417,7 +449,10 @@ class _SettingsRow extends StatelessWidget {
             ? const Border(top: BorderSide(color: AppColors.border, width: 0.5))
             : null,
       ),
-      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: isAvatar ? 14 : 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: isAvatar ? 14 : 12,
+      ),
       child: Row(
         children: [
           Container(
@@ -429,7 +464,10 @@ class _SettingsRow extends StatelessWidget {
             ),
             alignment: Alignment.center,
             child: iconText != null
-                ? Text(iconText!, style: TextStyle(fontSize: isAvatar ? 22 : 16))
+                ? Text(
+                    iconText!,
+                    style: TextStyle(fontSize: isAvatar ? 22 : 16),
+                  )
                 : Icon(icon, color: iconColor, size: 18),
           ),
           const SizedBox(width: 12),
@@ -526,20 +564,20 @@ class _ChildGoalCardState extends ConsumerState<_ChildGoalCard> {
             'target': _val,
             'todayProgress': 0, // Reset progress on goal change
             'lastUpdatedDate': now,
-          }
+          },
         },
       );
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Goal updated successfully')),
         );
         setState(() => _isExpanded = false);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving goal: $e')),
-        );
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving goal: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -589,11 +627,18 @@ class _ChildGoalCardState extends ConsumerState<_ChildGoalCard> {
                       children: [
                         Text(
                           widget.childProfile.name,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.foreground),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.foreground,
+                          ),
                         ),
                         Text(
                           '${widget.childProfile.grade ?? "Standard 1"} · Goal: $currentTarget $unitLabel/day',
-                          style: const TextStyle(fontSize: 11, color: AppColors.mutedText),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.mutedText,
+                          ),
                         ),
                       ],
                     ),
@@ -610,15 +655,22 @@ class _ChildGoalCardState extends ConsumerState<_ChildGoalCard> {
           if (_isExpanded)
             Container(
               decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+                border: Border(
+                  top: BorderSide(color: AppColors.border, width: 0.5),
+                ),
                 color: Color(0xFFFAFAFA),
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(16),
+                ),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Daily goal type', style: TextStyle(fontSize: 12, color: AppColors.mutedText)),
+                  const Text(
+                    'Daily goal type',
+                    style: TextStyle(fontSize: 12, color: AppColors.mutedText),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -645,18 +697,28 @@ class _ChildGoalCardState extends ConsumerState<_ChildGoalCard> {
                       Expanded(
                         child: Row(
                           children: [
-                            _StepBtn(icon: Icons.remove, onTap: () => _step(-1)),
+                            _StepBtn(
+                              icon: Icons.remove,
+                              onTap: () => _step(-1),
+                            ),
                             Container(
                               constraints: const BoxConstraints(minWidth: 40),
                               alignment: Alignment.center,
                               child: Text(
                                 '$_val',
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.foreground),
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.foreground,
+                                ),
                               ),
                             ),
                             Text(
                               _type == 'lessons' ? 'lessons' : 'min',
-                              style: const TextStyle(fontSize: 12, color: AppColors.mutedText),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.mutedText,
+                              ),
                             ),
                             const SizedBox(width: 4),
                             _StepBtn(icon: Icons.add, onTap: () => _step(1)),
@@ -670,11 +732,26 @@ class _ChildGoalCardState extends ConsumerState<_ChildGoalCard> {
                           style: FilledButton.styleFrom(
                             backgroundColor: const Color(0xFF534AB7),
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           child: _isSaving
-                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Text('Save', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Save',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -693,7 +770,11 @@ class _GoalPill extends StatelessWidget {
   final bool isActive;
   final VoidCallback onTap;
 
-  const _GoalPill({required this.label, required this.isActive, required this.onTap});
+  const _GoalPill({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {

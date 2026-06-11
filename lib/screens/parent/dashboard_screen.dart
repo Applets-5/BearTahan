@@ -199,13 +199,14 @@ class _OverviewTab extends ConsumerWidget {
 
     final double progress = (goal.todayProgress / goal.target).clamp(0.0, 1.0);
     final bool isComplete = goal.todayProgress >= goal.target;
-    final int remaining = (goal.target - goal.todayProgress).clamp(0, goal.target);
+    final int remaining = (goal.target - goal.todayProgress).clamp(
+      0,
+      goal.target,
+    );
 
     return ProgressBarCard(
       title: 'Daily Goal',
-      subtitle: isComplete
-          ? 'Goal completed!'
-          : '$remaining more to go today',
+      subtitle: isComplete ? 'Goal completed!' : '$remaining more to go today',
       progress: progress,
       icon: isComplete ? Icons.stars_rounded : Icons.flag_rounded,
       color: isComplete ? AppColors.star : AppColors.primary,
@@ -303,6 +304,14 @@ class _OverviewTab extends ConsumerWidget {
                             label: 'Streak',
                             value: '${profile.streakCount}d',
                             color: AppColors.accent,
+                            onTap: () {
+                              context.push(
+                                Uri(
+                                  path: AppRouter.streak,
+                                  queryParameters: {'childId': selectedChildId},
+                                ).toString(),
+                              );
+                            },
                           ),
                         ),
                       ],

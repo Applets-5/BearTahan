@@ -127,12 +127,17 @@ class RewardCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: AppTextStyles.cardTitle.copyWith(color: titleColor),
+                      style: AppTextStyles.cardTitle.copyWith(
+                        color: titleColor,
+                      ),
                     ),
                     if (childName != null)
                       Text(
                         'For: $childName',
-                        style: AppTextStyles.tiny.copyWith(color: tealGreen, fontWeight: FontWeight.bold),
+                        style: AppTextStyles.tiny.copyWith(
+                          color: tealGreen,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                   ],
                 ),

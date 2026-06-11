@@ -39,7 +39,7 @@ class _RewardManagementScreenState
       await ref
           .read(firestoreServiceProvider)
           .approveRewardClaim(parentId, claim);
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Reward "${claim.rewardName}" approved!'),
@@ -48,7 +48,7 @@ class _RewardManagementScreenState
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error approving reward: $e')));
@@ -83,12 +83,13 @@ class _RewardManagementScreenState
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
       setState(() => _processingClaimIds.add(claim.id));
       try {
         await ref
             .read(firestoreServiceProvider)
             .rejectRewardClaim(parentId, claim);
-        if (mounted) {
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Request declined. Stars were not deducted.'),
@@ -96,7 +97,7 @@ class _RewardManagementScreenState
           );
         }
       } catch (e) {
-        if (mounted) {
+        if (context.mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('Error declining reward: $e')));
@@ -111,7 +112,6 @@ class _RewardManagementScreenState
 
   void _onDelete(Reward reward) async {
     final parentId = ref.read(parentIdProvider);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -132,17 +132,22 @@ class _RewardManagementScreenState
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
       try {
         await ref
             .read(firestoreServiceProvider)
             .deleteReward(parentId, reward.id);
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('Reward deleted')),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Reward deleted')));
+        }
       } catch (e) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text('Error deleting reward: $e')),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error deleting reward: $e')));
+        }
       }
     }
   }
@@ -276,28 +281,28 @@ class _RewardManagementScreenState
                     ),
                   ),
                 ),
-              ...availableRewards.map(
-                (r) {
-                  String? childName;
-                  if (r.targetChildId != null) {
-                    final target = children.where((c) => c.uid == r.targetChildId).toList();
-                    if (target.isNotEmpty) {
-                      childName = target.first.name;
-                    }
+              ...availableRewards.map((r) {
+                String? childName;
+                if (r.targetChildId != null) {
+                  final target = children
+                      .where((c) => c.uid == r.targetChildId)
+                      .toList();
+                  if (target.isNotEmpty) {
+                    childName = target.first.name;
                   }
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: RewardCard(
-                      title: r.title,
-                      description: r.description,
-                      cost: r.cost,
-                      childName: childName,
-                      onEdit: () => _onEdit(r),
-                      onDelete: () => _onDelete(r),
-                    ),
-                  );
-                },
-              ),
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: RewardCard(
+                    title: r.title,
+                    description: r.description,
+                    cost: r.cost,
+                    childName: childName,
+                    onEdit: () => _onEdit(r),
+                    onDelete: () => _onDelete(r),
+                  ),
+                );
+              }),
               if (redeemedRewards.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.lg),
                 const Text('Redeemed', style: AppTextStyles.tiny),
@@ -535,10 +540,9 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
                     value: null,
                     child: Text('All Children'),
                   ),
-                  ...children.map((c) => DropdownMenuItem(
-                    value: c.uid,
-                    child: Text(c.name),
-                  )),
+                  ...children.map(
+                    (c) => DropdownMenuItem(value: c.uid, child: Text(c.name)),
+                  ),
                 ],
                 onChanged: (v) => setState(() => _selectedChildId = v),
               ),
@@ -550,7 +554,9 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
                   _CostBtn(icon: Icons.remove, onTap: () => _adjustCost(-1)),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                      ),
                       child: TextFormField(
                         controller: _costController,
                         textAlign: TextAlign.center,
@@ -559,7 +565,9 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
                           contentPadding: EdgeInsets.symmetric(vertical: 8),
                         ),
                         keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         validator: (v) => v == null || int.tryParse(v) == null
                             ? 'Required'
                             : null,
