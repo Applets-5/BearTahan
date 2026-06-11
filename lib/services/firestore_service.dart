@@ -10,6 +10,8 @@ import '../models/reward_claim.dart';
 import '../models/notification.dart';
 import '../models/outfit_quest.dart';
 import '../models/star_transaction.dart';
+import '../models/level_progress_result.dart';
+import '../utils/data_contracts.dart';
 import '../utils/streak_utils.dart';
 import '../utils/star_utils.dart';
 import '../utils/quest_utils.dart';
@@ -47,6 +49,9 @@ class FirestoreService {
         .collection('children')
         .doc(childId);
     final claimColRef = childDocRef.collection('rewardClaims');
+    final claimLockRef = childDocRef
+        .collection('rewardClaimLocks')
+        .doc(reward.id);
     final notificationColRef = _db
         .collection('parents')
         .doc(parentId)
@@ -57,7 +62,6 @@ class FirestoreService {
         .where('status', isEqualTo: 'pending')
         .limit(1)
         .get();
-
     if (existingPendingClaim.docs.isNotEmpty) {
       throw Exception('Reward claim already pending');
     }
@@ -66,7 +70,12 @@ class FirestoreService {
 
     await _db.runTransaction((transaction) async {
       final childSnapshot = await transaction.get(childDocRef);
+      final claimLockSnapshot = await transaction.get(claimLockRef);
       final childData = childSnapshot.data() ?? {};
+
+      if (claimLockSnapshot.exists) {
+        throw Exception('Reward claim already pending');
+      }
 
       final int currentBalance =
           (childData['availableStars'] ??
@@ -92,6 +101,11 @@ class FirestoreService {
         'expiresAt': Timestamp.fromDate(
           DateTime.now().add(const Duration(days: 7)),
         ),
+      });
+      transaction.set(claimLockRef, {
+        'claimId': claimDocRef.id,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
       final notification = ParentNotification(
@@ -122,6 +136,9 @@ class FirestoreService {
         .collection('children')
         .doc(claim.childId);
     final claimDocRef = childDocRef.collection('rewardClaims').doc(claim.id);
+    final claimLockRef = childDocRef
+        .collection('rewardClaimLocks')
+        .doc(claim.rewardId);
 
     await _db.runTransaction((transaction) async {
       final childSnapshot = await transaction.get(childDocRef);
@@ -174,6 +191,7 @@ class FirestoreService {
         'status': 'approved',
         'resolvedAt': FieldValue.serverTimestamp(),
       });
+      transaction.delete(claimLockRef);
     });
   }
 
@@ -185,10 +203,24 @@ class FirestoreService {
         .doc(claim.childId)
         .collection('rewardClaims')
         .doc(claim.id);
+    final claimLockRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(claim.childId)
+        .collection('rewardClaimLocks')
+        .doc(claim.rewardId);
 
-    await claimDocRef.update({
-      'status': 'rejected',
-      'resolvedAt': FieldValue.serverTimestamp(),
+    await _db.runTransaction((transaction) async {
+      final claimSnapshot = await transaction.get(claimDocRef);
+      if (claimSnapshot.data()?['status'] != 'pending') {
+        throw Exception('Reward claim is no longer pending');
+      }
+      transaction.update(claimDocRef, {
+        'status': 'rejected',
+        'resolvedAt': FieldValue.serverTimestamp(),
+      });
+      transaction.delete(claimLockRef);
     });
   }
 
@@ -259,24 +291,6 @@ class FirestoreService {
         .doc(parentId)
         .collection('children')
         .doc(childId);
-  }
-
-  Future<void> seedDefaultOutfitQuests({bool overwrite = false}) async {
-    final batch = _db.batch();
-    var writeCount = 0;
-
-    for (final quest in OutfitQuest.defaults) {
-      final docRef = _outfitQuestsRef.doc(quest.id);
-      final snapshot = await docRef.get();
-      if (overwrite || !snapshot.exists) {
-        batch.set(docRef, quest.toFirestore(), SetOptions(merge: true));
-        writeCount++;
-      }
-    }
-
-    if (writeCount > 0) {
-      await batch.commit();
-    }
   }
 
   Stream<List<OutfitQuest>> streamOutfitQuests() {
@@ -356,9 +370,16 @@ class FirestoreService {
     final subjectProgressSnapshot = await childDocRef
         .collection('subjectProgress')
         .get();
-    final subjectProgress = {
-      for (final doc in subjectProgressSnapshot.docs) doc.id: doc.data(),
-    };
+    final subjectProgress = <String, Map<String, dynamic>>{};
+    for (final doc in subjectProgressSnapshot.docs) {
+      final subjectId = DataContracts.normalizeSubjectId(doc.id);
+      final existing = subjectProgress[subjectId];
+      final data = doc.data();
+      if (existing == null ||
+          (data['completedLevels'] ?? 0) > (existing['completedLevels'] ?? 0)) {
+        subjectProgress[subjectId] = data;
+      }
+    }
 
     final attemptsSnapshot = await childDocRef.collection('attempts').get();
     final attempts = attemptsSnapshot.docs.map((doc) => doc.data()).toList();
@@ -527,12 +548,9 @@ class FirestoreService {
   }
 
   Future<void> deleteChild(String parentId, String childId) async {
-    await _db
-        .collection('parents')
-        .doc(parentId)
-        .collection('children')
-        .doc(childId)
-        .delete();
+    throw UnsupportedError(
+      'Child deletion requires the planned server-side recursive deletion flow.',
+    );
   }
 
   Future<void> addReward(String parentId, Reward reward) async {
@@ -575,9 +593,6 @@ class FirestoreService {
   }
 
   Stream<List<Subject>> streamSubjectProgress(String parentId, String childId) {
-    debugPrint(
-      'DEBUG: streamSubjectProgress called - parentId: $parentId, childId: $childId',
-    );
     return _db
         .collection('parents')
         .doc(parentId)
@@ -586,17 +601,17 @@ class FirestoreService {
         .collection('subjectProgress')
         .snapshots()
         .map((snapshot) {
-          debugPrint(
-            'DEBUG: subjectProgress snapshot - docs count: ${snapshot.docs.length}',
-          );
-          for (var doc in snapshot.docs) {
-            debugPrint(
-              'DEBUG: subjectProgress doc id: ${doc.id}, data: ${doc.data()}',
-            );
+          final subjects = <String, Subject>{};
+          for (final doc in snapshot.docs) {
+            final subjectId = DataContracts.normalizeSubjectId(doc.id);
+            final candidate = Subject.fromFirestore(subjectId, doc.data());
+            final existing = subjects[subjectId];
+            if (existing == null ||
+                candidate.completedLevels > existing.completedLevels) {
+              subjects[subjectId] = candidate;
+            }
           }
-          return snapshot.docs
-              .map((doc) => Subject.fromFirestore(doc.id, doc.data()))
-              .toList();
+          return subjects.values.toList();
         });
   }
 
@@ -733,14 +748,9 @@ class FirestoreService {
   }
 
   Future<void> deleteParentAccount(String parentId) async {
-    final user = _auth.currentUser;
-    if (user == null) throw Exception('No user logged in');
-
-    // Delete Firestore data
-    await _db.collection('parents').doc(parentId).delete();
-
-    // Delete Auth User
-    await user.delete();
+    throw UnsupportedError(
+      'Account deletion requires the planned server-side recursive deletion flow.',
+    );
   }
 
   Future<void> updateDailyGoal(
@@ -771,8 +781,17 @@ class FirestoreService {
           : <String, dynamic>{};
 
       final lastUpdatedDate = currentGoal['lastUpdatedDate']?.toString();
-      final existingProgress = lastUpdatedDate == today
+      final isSameGoalType = currentGoal['type']?.toString() == type;
+      final canPreserveProgress = lastUpdatedDate == today && isSameGoalType;
+      final existingProgress = canPreserveProgress
           ? (currentGoal['todayProgress'] ?? 0).toInt()
+          : 0;
+      final existingSeconds = canPreserveProgress
+          ? (currentGoal['todaySeconds'] ??
+                    (currentGoal['type'] == 'minutes'
+                        ? existingProgress * 60
+                        : 0))
+                .toInt()
           : 0;
 
       transaction.set(childDocRef, {
@@ -780,8 +799,11 @@ class FirestoreService {
           'type': type,
           'target': target,
           'todayProgress': existingProgress,
+          'todaySeconds': existingSeconds,
           'lastUpdatedDate': today,
-          'lastNotifiedDate': currentGoal['lastNotifiedDate'],
+          'lastNotifiedDate': isSameGoalType
+              ? currentGoal['lastNotifiedDate']
+              : null,
         },
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -818,10 +840,17 @@ class FirestoreService {
       final previousProgress = lastUpdatedDate == today
           ? (goal['todayProgress'] ?? 0).toInt()
           : 0;
-      final increment = type == 'minutes'
-          ? (timeInSeconds / 60).ceil().clamp(1, 1000000).toInt()
-          : 1;
-      final nextProgress = previousProgress + increment;
+      final previousSeconds = lastUpdatedDate == today
+          ? (goal['todaySeconds'] ??
+                    (type == 'minutes' ? previousProgress * 60 : 0))
+                .toInt()
+          : 0;
+      final nextSeconds = type == 'minutes'
+          ? previousSeconds + timeInSeconds.clamp(0, 1000000)
+          : previousSeconds;
+      final nextProgress = type == 'minutes'
+          ? nextSeconds ~/ 60
+          : previousProgress + 1;
       final wasComplete = previousProgress >= target;
       final isComplete = nextProgress >= target;
 
@@ -840,6 +869,7 @@ class FirestoreService {
         'type': type,
         'target': target,
         'todayProgress': nextProgress,
+        'todaySeconds': nextSeconds,
         'lastUpdatedDate': today,
         if (shouldNotify) 'lastNotifiedDate': today,
       };
@@ -886,7 +916,7 @@ class FirestoreService {
     return doc.data() ?? {};
   }
 
-  Future<int> updateLevelProgress(
+  Future<LevelProgressResult> updateLevelProgress(
     String parentId,
     String childId,
     String subjectId,
@@ -894,210 +924,223 @@ class FirestoreService {
     int score,
     int total,
   ) async {
-    debugPrint(
-      'DEBUG: updateLevelProgress for child: $childId, subject: $subjectId, level: $levelId, score: $score/$total',
-    );
-
     final childDocRef = _db
         .collection('parents')
         .doc(parentId)
         .collection('children')
         .doc(childId);
 
-    final subjectDocRef = childDocRef
+    final normalizedSubjectId = DataContracts.normalizeSubjectId(subjectId);
+    final normalizedLevelId = DataContracts.normalizeLevelId(levelId);
+    final normalizedSubjectDocRef = childDocRef
         .collection('subjectProgress')
-        .doc(subjectId);
+        .doc(normalizedSubjectId);
+    final normalizedLevelDocRef = normalizedSubjectDocRef
+        .collection('levels')
+        .doc(normalizedLevelId);
+    final legacyLevelId = DataContracts.legacyLevelId(normalizedLevelId);
+    final legacyLevelDocRef = legacyLevelId == null
+        ? null
+        : normalizedSubjectDocRef.collection('levels').doc(legacyLevelId);
 
-    final levelDocRef = subjectDocRef.collection('levels').doc(levelId);
+    int performanceStars = 0;
+    int newStarsAwarded = 0;
+    int dailyBonusStars = 0;
+    bool didImprove = false;
+    bool didEscalate = false;
 
-    int starsToReturn = 0;
+    final chapters = await getSubjectChapters(normalizedSubjectId);
+    final Set<String> validLevelIds = chapters
+        .expand((c) => c.levelIds)
+        .toSet();
+    final int totalLevels = validLevelIds.length;
+    final bool isValidLevel = validLevelIds.contains(normalizedLevelId);
+    final bool isSummaryOrRevision =
+        normalizedLevelId.contains('summary') ||
+        normalizedLevelId.contains('revision');
+    bool shouldForceSync = false;
 
-    try {
-      final chapters = await getSubjectChapters(subjectId);
-      final Set<String> validLevelIds = chapters
-          .expand((c) => c.levelIds)
-          .toSet();
-      final int totalLevels = validLevelIds.length;
-      final bool isValidLevel = validLevelIds.contains(levelId);
-      final bool isSummaryOrRevision =
-          levelId.toLowerCase().contains('summary') ||
-          levelId.toLowerCase().contains('revision');
-      bool shouldForceSync = false;
+    await _db.runTransaction((transaction) async {
+      final levelSnapshot = await transaction.get(normalizedLevelDocRef);
+      final legacyLevelSnapshot = legacyLevelDocRef == null
+          ? null
+          : await transaction.get(legacyLevelDocRef);
+      final childSnapshot = await transaction.get(childDocRef);
+      final subjectSnapshot = await transaction.get(normalizedSubjectDocRef);
 
-      await _db.runTransaction((transaction) async {
-        final levelSnapshot = await transaction.get(levelDocRef);
-        final childSnapshot = await transaction.get(childDocRef);
-        final subjectSnapshot = await transaction.get(subjectDocRef);
+      final levelData = levelSnapshot.data() ?? {};
+      final int previousBestStars = [
+        (levelData['stars'] ?? 0).toInt(),
+        (legacyLevelSnapshot?.data()?['stars'] ?? 0).toInt(),
+      ].reduce((a, b) => a > b ? a : b);
 
-        final levelData = levelSnapshot.data() ?? {};
-        final int previousBestStars = (levelData['stars'] ?? 0).toInt();
-
-        final childData = childSnapshot.data() ?? {};
-        final int currentAvailableStars =
-            (childData['availableStars'] ??
-                    childData['starBalance'] ??
-                    childData['stars'] ??
-                    0)
-                .toInt();
-        final int currentLifetimeStars =
-            (childData['lifetimeStarsEarned'] ?? currentAvailableStars).toInt();
-
-        final subjectData = subjectSnapshot.data() ?? {};
-
-        // Force a full sync if aggregation fields are missing OR look suspicious
-        if (!subjectData.containsKey('totalStars') ||
-            !subjectData.containsKey('completedLevels') ||
-            (subjectData['completedLevels'] ?? 0) > totalLevels ||
-            (subjectData['completedLevels'] ?? 0) < 0 ||
-            (subjectData['totalStars'] ?? 0) > (totalLevels * 3) ||
-            (subjectData['totalStars'] ?? 0) < 0) {
-          shouldForceSync = true;
-        }
-
-        int currentTotalStars = (subjectData['totalStars'] ?? 0).toInt();
-        int currentCompletedLevels = (subjectData['completedLevels'] ?? 0)
-            .toInt();
-
-        final childUpdates = <String, dynamic>{};
-
-        // Handle streak logic
-        final streakResult = StreakUtils.calculateStreak(
-          currentStreak: (childData['streakCount'] ?? 0).toInt(),
-          lastActivityDate: childData['lastActivityDate'] != null
-              ? (childData['lastActivityDate'] as Timestamp).toDate()
-              : null,
-          now: DateTime.now(),
-        );
-
-        if (streakResult.shouldUpdate) {
-          childUpdates['streakCount'] = streakResult.newStreak;
-          childUpdates['lastActivityDate'] = Timestamp.fromDate(
-            streakResult.lastActivityDate,
-          );
-        }
-
-        int calculatedStars = 0;
-        int totalStarsToAward = 0;
-        final levelUpdates = <String, dynamic>{};
-
-        if (isSummaryOrRevision) {
-          final int currentThreshold = (levelData['summaryThreshold'] ?? 0)
+      final childData = childSnapshot.data() ?? {};
+      final int currentAvailableStars =
+          (childData['availableStars'] ??
+                  childData['starBalance'] ??
+                  childData['stars'] ??
+                  0)
               .toInt();
-          final DateTime? lastSummaryStarDate =
-              levelData['lastSummaryStarDate'] != null
-              ? (levelData['lastSummaryStarDate'] as Timestamp).toDate()
-              : null;
+      final int currentLifetimeStars =
+          (childData['lifetimeStarsEarned'] ?? currentAvailableStars).toInt();
 
-          final result = StarUtils.calculateSummaryResult(
-            score: score,
-            total: total,
-            currentThreshold: currentThreshold,
-            lastSummaryStarDate: lastSummaryStarDate,
-          );
+      final subjectData = subjectSnapshot.data() ?? {};
 
-          calculatedStars = result['stars'];
-          bool earnedDailyStar = result['earnedDailyStar'];
-          int newThreshold = result['newThreshold'];
-
-          levelUpdates['summaryThreshold'] = newThreshold;
-          if (earnedDailyStar) {
-            totalStarsToAward += 1;
-            levelUpdates['lastSummaryStarDate'] = FieldValue.serverTimestamp();
-          }
-
-          starsToReturn = calculatedStars + (earnedDailyStar ? 1 : 0);
-        } else {
-          calculatedStars = StarUtils.calculateStars(
-            score: score,
-            total: total,
-            levelId: levelId,
-          );
-          starsToReturn = calculatedStars;
-        }
-
-        final didImprove = calculatedStars > previousBestStars;
-        if (didImprove) {
-          levelUpdates['stars'] = calculatedStars;
-          final int improvement = calculatedStars - previousBestStars;
-          totalStarsToAward += improvement;
-
-          if (isValidLevel) {
-            currentTotalStars += improvement;
-            if (previousBestStars == 0) {
-              currentCompletedLevels++;
-            }
-
-            final int progressPercentage = totalLevels > 0
-                ? ((currentCompletedLevels / totalLevels) * 100).toInt().clamp(
-                    0,
-                    100,
-                  )
-                : 0;
-
-            transaction.set(subjectDocRef, {
-              'progress': progressPercentage,
-              'completedLevels': currentCompletedLevels,
-              'totalStars': currentTotalStars,
-              'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
-          }
-        }
-
-        if (levelUpdates.isNotEmpty) {
-          transaction.set(levelDocRef, levelUpdates, SetOptions(merge: true));
-        }
-
-        if (totalStarsToAward > 0) {
-          childUpdates['availableStars'] =
-              currentAvailableStars + totalStarsToAward;
-          childUpdates['lifetimeStarsEarned'] =
-              currentLifetimeStars + totalStarsToAward;
-
-          // Record earn transaction
-          final transactionDocRef = childDocRef
-              .collection('starTransactions')
-              .doc();
-          final String bonusText =
-              totalStarsToAward > (calculatedStars - previousBestStars)
-              ? ' (Daily Bonus!)'
-              : '';
-          transaction.set(transactionDocRef, {
-            'type': 'earn',
-            'source': 'level_completion',
-            'sourceID': '$subjectId:$levelId',
-            'amount': totalStarsToAward,
-            'description':
-                'Learned ${_getSubjectName(subjectId)} (${levelId.toUpperCase()})$bonusText',
-            'timestamp': FieldValue.serverTimestamp(),
-            'subjectId': subjectId,
-            'levelId': levelId,
-          });
-        }
-
-        if (childUpdates.isNotEmpty) {
-          transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
-        }
-      });
-
-      if (shouldForceSync) {
-        await syncSubjectAggregation(parentId, childId, subjectId);
+      // Force a full sync if aggregation fields are missing OR look suspicious
+      if (!subjectData.containsKey('totalStars') ||
+          !subjectData.containsKey('completedLevels') ||
+          (subjectData['completedLevels'] ?? 0) > totalLevels ||
+          (subjectData['completedLevels'] ?? 0) < 0 ||
+          (subjectData['totalStars'] ?? 0) > (totalLevels * 3) ||
+          (subjectData['totalStars'] ?? 0) < 0) {
+        shouldForceSync = true;
       }
 
-      return starsToReturn;
-    } catch (e) {
-      debugPrint('DEBUG ERROR: updateLevelProgress failed: $e');
-      return 0;
-    }
-  }
+      int currentTotalStars = (subjectData['totalStars'] ?? 0).toInt();
+      int currentCompletedLevels = (subjectData['completedLevels'] ?? 0)
+          .toInt();
 
-  /// Performs a full scan of all subjects for a child and updates the
-  /// aggregation documents. This is a one-time repair for legacy data.
-  Future<void> repairSubjectProgress(String parentId, String childId) async {
-    final subjects = ['bm', 'bi', 'bc', 'math', 'sci'];
+      final childUpdates = <String, dynamic>{
+        'availableStars': currentAvailableStars,
+        'lifetimeStarsEarned': currentLifetimeStars,
+      };
 
-    for (final subjectId in subjects) {
-      await syncSubjectAggregation(parentId, childId, subjectId);
+      // Handle streak logic
+      final streakResult = StreakUtils.calculateStreak(
+        currentStreak: (childData['streakCount'] ?? 0).toInt(),
+        lastActivityDate: childData['lastActivityDate'] != null
+            ? (childData['lastActivityDate'] as Timestamp).toDate()
+            : null,
+        now: DateTime.now(),
+      );
+
+      if (streakResult.shouldUpdate) {
+        childUpdates['streakCount'] = streakResult.newStreak;
+        childUpdates['lastActivityDate'] = Timestamp.fromDate(
+          streakResult.lastActivityDate,
+        );
+      }
+
+      int calculatedStars = 0;
+      int totalStarsToAward = 0;
+      final levelUpdates = <String, dynamic>{};
+
+      if (isSummaryOrRevision) {
+        final int currentThreshold = (levelData['summaryThreshold'] ?? 0)
+            .toInt();
+        final DateTime? lastSummaryStarDate =
+            levelData['lastSummaryStarDate'] != null
+            ? (levelData['lastSummaryStarDate'] as Timestamp).toDate()
+            : null;
+
+        final result = StarUtils.calculateSummaryResult(
+          score: score,
+          total: total,
+          currentThreshold: currentThreshold,
+          lastSummaryStarDate: lastSummaryStarDate,
+        );
+
+        calculatedStars = result['stars'];
+        bool earnedDailyStar = result['earnedDailyStar'];
+        int newThreshold = result['newThreshold'];
+        didEscalate = newThreshold > currentThreshold;
+
+        levelUpdates['summaryThreshold'] = newThreshold;
+        if (earnedDailyStar) {
+          totalStarsToAward += 1;
+          dailyBonusStars = 1;
+          levelUpdates['lastSummaryStarDate'] = FieldValue.serverTimestamp();
+        }
+      } else {
+        calculatedStars = StarUtils.calculateStars(
+          score: score,
+          total: total,
+          levelId: normalizedLevelId,
+        );
+      }
+
+      performanceStars = calculatedStars;
+      didImprove = calculatedStars > previousBestStars;
+      if (didImprove) {
+        levelUpdates['stars'] = calculatedStars;
+        final int improvement = calculatedStars - previousBestStars;
+        newStarsAwarded = improvement;
+        totalStarsToAward += improvement;
+
+        if (isValidLevel) {
+          currentTotalStars += improvement;
+          if (previousBestStars == 0) {
+            currentCompletedLevels++;
+          }
+
+          final int progressPercentage = totalLevels > 0
+              ? ((currentCompletedLevels / totalLevels) * 100).toInt().clamp(
+                  0,
+                  100,
+                )
+              : 0;
+
+          transaction.set(normalizedSubjectDocRef, {
+            'progress': progressPercentage,
+            'completedLevels': currentCompletedLevels,
+            'totalStars': currentTotalStars,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      }
+
+      if (levelUpdates.isNotEmpty) {
+        transaction.set(
+          normalizedLevelDocRef,
+          levelUpdates,
+          SetOptions(merge: true),
+        );
+      }
+
+      if (totalStarsToAward > 0) {
+        childUpdates['availableStars'] =
+            currentAvailableStars + totalStarsToAward;
+        childUpdates['lifetimeStarsEarned'] =
+            currentLifetimeStars + totalStarsToAward;
+
+        // Record earn transaction
+        final transactionDocRef = childDocRef
+            .collection('starTransactions')
+            .doc();
+        final String bonusText = dailyBonusStars > 0 ? ' (Daily Bonus!)' : '';
+        transaction.set(transactionDocRef, {
+          'type': 'earn',
+          'source': 'level_completion',
+          'sourceID': '$normalizedSubjectId:$normalizedLevelId',
+          'amount': totalStarsToAward,
+          'description':
+              'Learned ${_getSubjectName(normalizedSubjectId)} (${normalizedLevelId.toUpperCase()})$bonusText',
+          'timestamp': FieldValue.serverTimestamp(),
+          'subjectId': normalizedSubjectId,
+          'levelId': normalizedLevelId,
+        });
+      }
+
+      if (childUpdates.isNotEmpty) {
+        transaction.set(childDocRef, childUpdates, SetOptions(merge: true));
+      }
+    });
+
+    if (shouldForceSync) {
+      try {
+        await syncSubjectAggregation(parentId, childId, normalizedSubjectId);
+      } catch (error) {
+        debugPrint('Progress saved but aggregate sync failed: $error');
+      }
     }
+
+    return LevelProgressResult(
+      performanceStars: performanceStars,
+      newStarsAwarded: newStarsAwarded,
+      dailyBonusStars: dailyBonusStars,
+      didImprove: didImprove,
+      didEscalate: didEscalate,
+    );
   }
 
   Future<void> updateQuestionStats(
@@ -1162,16 +1205,17 @@ class FirestoreService {
     String childId,
     String subjectId,
   ) async {
+    final normalizedSubjectId = DataContracts.normalizeSubjectId(subjectId);
     final subjectDocRef = _db
         .collection('parents')
         .doc(parentId)
         .collection('children')
         .doc(childId)
         .collection('subjectProgress')
-        .doc(subjectId);
+        .doc(normalizedSubjectId);
 
     // Progress is based on total levels from chapters
-    final chapters = await getSubjectChapters(subjectId);
+    final chapters = await getSubjectChapters(normalizedSubjectId);
     final Set<String> validLevelIds = chapters
         .expand((c) => c.levelIds)
         .toSet();
@@ -1182,18 +1226,24 @@ class FirestoreService {
 
     int totalStarsCount = 0;
     int completedLevels = 0;
+    final starsByLevel = <String, int>{};
 
     for (var doc in levelsSnapshot.docs) {
-      if (!validLevelIds.contains(doc.id)) {
-        continue; // Filter out ghost/legacy levels
-      }
+      final normalizedLevelId = DataContracts.normalizeLevelId(doc.id);
+      if (!validLevelIds.contains(normalizedLevelId)) continue;
 
       // Get the actual stars (0-3) earned for this specific level
       final starsEarned = (doc.data()['stars'] ?? 0) as num;
-      if (starsEarned > 0) {
-        completedLevels++;
-        totalStarsCount += starsEarned.toInt();
-      }
+      final existing = starsByLevel[normalizedLevelId] ?? 0;
+      starsByLevel[normalizedLevelId] = starsEarned.toInt() > existing
+          ? starsEarned.toInt()
+          : existing;
+    }
+
+    for (final starsEarned in starsByLevel.values) {
+      if (starsEarned <= 0) continue;
+      completedLevels++;
+      totalStarsCount += starsEarned;
     }
 
     final bool allChaptersComplete =
@@ -1210,10 +1260,6 @@ class FirestoreService {
       'allChaptersComplete': allChaptersComplete,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-
-    debugPrint(
-      'DEBUG: Subject $subjectId repaired. Total Stars: $totalStarsCount, Completed: $completedLevels, AllComplete: $allChaptersComplete',
-    );
   }
 
   Stream<Map<String, int>> streamLevelStars(
@@ -1221,24 +1267,23 @@ class FirestoreService {
     String childId,
     String subjectId,
   ) {
-    debugPrint(
-      'DEBUG: streamLevelStars for child: $childId, subject: $subjectId',
-    );
+    final normalizedSubjectId = DataContracts.normalizeSubjectId(subjectId);
     return _db
         .collection('parents')
         .doc(parentId)
         .collection('children')
         .doc(childId)
         .collection('subjectProgress')
-        .doc(subjectId)
+        .doc(normalizedSubjectId)
         .collection('levels')
         .snapshots()
         .map((snapshot) {
           final Map<String, int> stars = {};
           for (var doc in snapshot.docs) {
-            stars[doc.id] = (doc.data()['stars'] ?? 0).toInt();
+            final levelId = DataContracts.normalizeLevelId(doc.id);
+            final value = (doc.data()['stars'] ?? 0).toInt();
+            if (value > (stars[levelId] ?? 0)) stars[levelId] = value;
           }
-          debugPrint('DEBUG: Emitted stars: $stars');
           return stars;
         });
   }

@@ -11,7 +11,7 @@ void main() {
   Widget createTestWidget(
     List<Question> questions, {
     Key? key,
-    String parentId = 'test_parent_id',
+    String parentId = '',
   }) {
     return ProviderScope(
       overrides: [
@@ -153,6 +153,35 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.byType(Image), findsOneWidget);
+    });
+
+    testWidgets('should render and validate numeric input questions', (
+      tester,
+    ) async {
+      final questions = [
+        Question(
+          id: 'math_q1',
+          text: 'How many?',
+          type: 'keyinnumber',
+          options: const [],
+          correctAnswerIndex: 0,
+          correctNumber: 7,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questions, key: const ValueKey('numeric')),
+      );
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const ValueKey('numeric_answer_input')),
+        '7',
+      );
+      await tester.tap(find.text('Check Answer'));
+      await tester.pump();
+
+      expect(find.text('Correct! Well done!'), findsOneWidget);
+      expect(find.text('Finish'), findsOneWidget);
     });
 
     testWidgets('should NOT display image container when imageUrl is missing', (

@@ -35,14 +35,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (selectedChildId == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref.read(childIdProvider.notifier).update(children.first.uid);
-
-            // One-time repair: recalculate missing or inaccurate aggregation fields
-            final parentId = ref.read(parentIdProvider);
-            for (final child in children) {
-              ref
-                  .read(firestoreServiceProvider)
-                  .repairSubjectProgress(parentId, child.uid);
-            }
           });
           return const Center(child: CircularProgressIndicator());
         }

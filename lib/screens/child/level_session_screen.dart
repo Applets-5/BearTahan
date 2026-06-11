@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,8 +44,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   Timer? _sessionTimer;
   int _elapsedSeconds = 0;
   bool _timerStarted = false;
+  bool _isSaving = false;
 
   int? selected;
+  final TextEditingController _numberController = TextEditingController();
+  bool _numberSubmitted = false;
   List<Question>? shuffledQuestions;
   List<Question>? _lastRawQuestions;
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -190,6 +192,34 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     });
   }
 
+  Future<void> _recordQuestionResult(Question question, bool isCorrect) async {
+    final parentId = ref.read(parentIdProvider);
+    final childId = widget.childId;
+    if (parentId.isEmpty || childId == null || childId.isEmpty) return;
+
+    final firestore = ref.read(firestoreServiceProvider);
+    try {
+      await firestore.updateQuestionStats(
+        parentId,
+        childId,
+        question.id,
+        isCorrect,
+      );
+      if (!isCorrect) {
+        await firestore.flagWrongAnswer(
+          parentId,
+          childId,
+          questionId: question.id,
+          subjectId: widget.subjectId,
+          levelId: widget.levelId,
+          questionText: question.text,
+        );
+      }
+    } catch (error) {
+      debugPrint('Unable to record question result: $error');
+    }
+  }
+
   Future<void> _disposeSoundEffectAudio() async {
     await _stopCorrectAnswer?.call();
     await _stopWrongAnswer?.call();
@@ -206,6 +236,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     _stopSessionTimer();
     unawaited(_disposeSoundEffectAudio());
     unawaited(_audioPlayer.dispose());
+    _numberController.dispose();
     super.dispose();
   }
 
@@ -232,9 +263,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   }
 
   Future<void> _completeSession(int totalQuestions) async {
+    if (_isSaving) return;
     _stopSessionTimer();
+    setState(() => _isSaving = true);
 
-    int stars = 0;
+    int performanceStars = 0;
+    int newStarsAwarded = 0;
+    int dailyBonusStars = 0;
     bool isEscalated = false;
     bool isDailyBonus = false;
     final newlyUnlockedOutfits = <String>[];
@@ -244,34 +279,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       if (widget.childId != null && parentId.isNotEmpty) {
         final firestore = ref.read(firestoreServiceProvider);
 
-        // For summary stages, we need to know if it escalated or got a daily bonus
-        if (widget.levelId.toLowerCase().contains('summary')) {
-          final levelData = await firestore.getLevelProgress(
-            parentId,
-            widget.childId!,
-            widget.subjectId,
-            widget.levelId,
-          );
-          final int currentThreshold = (levelData['summaryThreshold'] ?? 0)
-              .toInt();
-          final DateTime? lastSummaryStarDate =
-              levelData['lastSummaryStarDate'] != null
-              ? (levelData['lastSummaryStarDate'] as Timestamp).toDate()
-              : null;
-
-          final result = StarUtils.calculateSummaryResult(
-            score: score,
-            total: totalQuestions,
-            currentThreshold: currentThreshold,
-            lastSummaryStarDate: lastSummaryStarDate,
-          );
-
-          isEscalated = result['newThreshold'] > currentThreshold;
-          isDailyBonus = result['earnedDailyStar'];
-        }
-
-        // Update progress and get calculated stars (handles summary thresholds/daily cap)
-        stars = await firestore.updateLevelProgress(
+        final progressResult = await firestore.updateLevelProgress(
           parentId,
           widget.childId!,
           widget.subjectId,
@@ -279,45 +287,61 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           score,
           totalQuestions,
         );
+        performanceStars = progressResult.performanceStars;
+        newStarsAwarded = progressResult.newStarsAwarded;
+        dailyBonusStars = progressResult.dailyBonusStars;
+        isEscalated = progressResult.didEscalate;
+        isDailyBonus = progressResult.dailyBonusStars > 0;
 
-        // Record detailed attempt including timer data
-        await firestore.recordAttempt(
-          parentId,
-          widget.childId!,
-          subjectId: widget.subjectId,
-          levelId: widget.levelId,
-          score: score,
-          total: totalQuestions,
-          stars: stars,
-          timeInSeconds: _elapsedSeconds,
-        );
-
-        // Evaluate and update quest progress for outfit unlocks
-        newlyUnlockedOutfits.addAll(
-          await firestore.evaluateAndUpdateQuestProgress(
+        try {
+          await firestore.recordAttempt(
             parentId,
             widget.childId!,
-          ),
-        );
+            subjectId: widget.subjectId,
+            levelId: widget.levelId,
+            score: score,
+            total: totalQuestions,
+            stars: performanceStars,
+            timeInSeconds: _elapsedSeconds,
+          );
+        } catch (error) {
+          debugPrint('Progress saved but attempt logging failed: $error');
+        }
+
+        try {
+          newlyUnlockedOutfits.addAll(
+            await firestore.evaluateAndUpdateQuestProgress(
+              parentId,
+              widget.childId!,
+            ),
+          );
+        } catch (error) {
+          debugPrint('Progress saved but quest evaluation failed: $error');
+        }
       } else {
-        // Fallback for offline/guest mode
-        stars = StarUtils.calculateStars(
+        performanceStars = StarUtils.calculateStars(
           score: score,
           total: totalQuestions,
           levelId: widget.levelId,
         );
       }
     } catch (e) {
-      debugPrint('Error saving attempt: $e');
-      stars = StarUtils.calculateStars(
-        score: score,
-        total: totalQuestions,
-        levelId: widget.levelId,
-      );
+      debugPrint('Unable to save level progress: $e');
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Progress could not be saved. Check your connection and try again.',
+            ),
+          ),
+        );
+      }
+      return;
     }
 
     // Play appropriate audio
-    final String audioPath = stars > 0
+    final String audioPath = performanceStars > 0
         ? 'audio/levelPassed.mp3'
         : 'audio/levelFailed.mp3';
 
@@ -325,11 +349,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       await _feedbackAudioContextReady;
       final completed = _audioPlayer.onPlayerComplete.first;
       await _audioPlayer.play(AssetSource(audioPath), volume: 0.60);
-      await completed;
+      await completed.timeout(const Duration(seconds: 5), onTimeout: () {});
     });
 
     // Wait for the audio to finish before navigating
-    await playFuture;
+    await playFuture.timeout(const Duration(seconds: 5), onTimeout: () {});
 
     if (mounted) {
       final params = {
@@ -338,7 +362,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         'total': totalQuestions.toString(),
         'levelId': widget.levelId,
         'subjectId': widget.subjectId,
-        'stars': stars.toString(),
+        'performanceStars': performanceStars.toString(),
+        'newStarsAwarded': newStarsAwarded.toString(),
+        'dailyBonusStars': dailyBonusStars.toString(),
+        'levelPrefix': widget.levelPrefix,
         'isEscalated': isEscalated.toString(),
         'isDailyBonus': isDailyBonus.toString(),
         if (newlyUnlockedOutfits.isNotEmpty)
@@ -642,19 +669,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                   borderRadius: AppRadius.r(AppRadius.lg),
                 ),
                 child: Text(
-                  selected == question.correctAnswerIndex
-                      ? 'Correct! Well done!'
-                      : question.type?.toLowerCase() == 'stroke_trace'
-                      ? 'Not quite. Watch the stroke order and try again later.'
-                      : (question.type?.toLowerCase() == 'rearrange' &&
-                            question.correctOrder != null)
-                      ? 'Not quite! The correct sentence is "${question.correctOrder!.join(' ')}".'
-                      : question
-                            .options[question.correctAnswerIndex]
-                            .text
-                            .isNotEmpty
-                      ? 'Not quite! The answer is "${question.options[question.correctAnswerIndex].text}".'
-                      : 'Not quite! The correct answer is option ${String.fromCharCode(65 + question.correctAnswerIndex)}.',
+                  _answerFeedbackText(question),
                   style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
                 ),
               ),
@@ -662,6 +677,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             const SizedBox(height: 8),
             PrimaryButton(
               label: isLastQuestion ? 'Finish' : 'Next',
+              isLoading: isLastQuestion && _isSaving,
               icon: Icons.arrow_forward_rounded,
               onPressed: () {
                 if (isLastQuestion) {
@@ -677,6 +693,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     _dragDropSpellingSubmitted = false;
                     _matchingSubmitted = false;
                     _strokeTraceSubmitted = false;
+                    _strokeHadWrongAttempt = false;
+                    _numberSubmitted = false;
+                    _numberController.clear();
                   });
                 }
               },
@@ -824,6 +843,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     if (type == 'dragdropspelling') return _dragDropSpellingSubmitted;
     if (type == 'matching') return _matchingSubmitted;
     if (type == 'stroke_trace') return _strokeTraceSubmitted;
+    if (type == 'keyinnumber') return _numberSubmitted;
     return selected != null;
   }
 
@@ -846,6 +866,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               if (isCorrect) score++;
               _playQuestionFeedback(question, isCorrect);
             });
+            unawaited(_recordQuestionResult(question, isCorrect));
           },
         );
       case 'matching':
@@ -858,10 +879,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               if (isCorrect) score++;
               _playQuestionFeedback(question, isCorrect);
             });
+            unawaited(_recordQuestionResult(question, isCorrect));
           },
         );
       case 'stroke_trace':
         return _buildStrokeTraceQuestion(question);
+      case 'keyinnumber':
+        return _buildNumberQuestion(question);
       case 'mcq':
       default:
         return Column(
@@ -959,6 +983,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 if (isCorrect) score++;
                 _playQuestionFeedback(question, isCorrect);
               });
+              unawaited(_recordQuestionResult(question, isCorrect));
             },
           ),
       ],
@@ -995,6 +1020,92 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   bool _dragDropSpellingSubmitted = false;
   bool _matchingSubmitted = false;
   bool _strokeTraceSubmitted = false;
+  bool _strokeHadWrongAttempt = false;
+
+  Widget _buildNumberQuestion(Question question) {
+    final correctNumber = question.correctNumber;
+    if (correctNumber == null) {
+      return Column(
+        children: [
+          const Text(
+            'This question is unavailable because its answer data is invalid.',
+            style: AppTextStyles.small,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          PrimaryButton(
+            label: 'Continue',
+            onPressed: () {
+              setState(() {
+                _numberSubmitted = true;
+                selected = -1;
+              });
+            },
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          width: 180,
+          child: TextField(
+            key: const ValueKey('numeric_answer_input'),
+            controller: _numberController,
+            enabled: !_numberSubmitted,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textAlign: TextAlign.center,
+            decoration: const InputDecoration(
+              labelText: 'Your answer',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (!_numberSubmitted)
+          PrimaryButton(
+            label: 'Check Answer',
+            onPressed: () {
+              final answer = int.tryParse(_numberController.text);
+              if (answer == null) return;
+              final isCorrect = answer == correctNumber;
+              setState(() {
+                _numberSubmitted = true;
+                selected = isCorrect ? question.correctAnswerIndex : -1;
+                if (isCorrect) score++;
+              });
+              unawaited(_playQuestionFeedback(question, isCorrect));
+              unawaited(_recordQuestionResult(question, isCorrect));
+            },
+          ),
+      ],
+    );
+  }
+
+  String _answerFeedbackText(Question question) {
+    if (selected == question.correctAnswerIndex) {
+      return 'Correct! Well done!';
+    }
+
+    final type = question.type?.toLowerCase();
+    if (type == 'stroke_trace') {
+      return 'Not quite. Watch the stroke order and try again later.';
+    }
+    if (type == 'rearrange' && question.correctOrder != null) {
+      return 'Not quite! The correct sentence is "${question.correctOrder!.join(' ')}".';
+    }
+    if (type == 'keyinnumber' && question.correctNumber != null) {
+      return 'Not quite! The answer is ${question.correctNumber}.';
+    }
+    if (question.correctAnswerIndex >= 0 &&
+        question.correctAnswerIndex < question.options.length) {
+      final answer = question.options[question.correctAnswerIndex].text;
+      if (answer.isNotEmpty) return 'Not quite! The answer is "$answer".';
+    }
+    return 'Not quite. Try again next time.';
+  }
 
   Widget _buildFillBlankQuestion(Question question) {
     return Column(
@@ -1040,16 +1151,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
               bool isCorrect = selectedText == correctText;
 
-              debugPrint(
-                'DEBUG: FillBlank Validation - Selected: "$selectedText", Correct: "$correctText", Result: $isCorrect',
-              );
-
               setState(() {
                 _fillBlankSubmitted = true;
                 selected = isCorrect ? question.correctAnswerIndex : -1;
                 if (isCorrect) score++;
                 _playQuestionFeedback(question, isCorrect);
               });
+              unawaited(_recordQuestionResult(question, isCorrect));
             },
           ),
       ],
@@ -1084,23 +1192,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       question: question,
       onWrongAttempt: () {
         unawaited(_playStrokeWrong());
-        final parentId = ref.read(parentIdProvider);
-        final childId = widget.childId;
-        if (parentId.isEmpty || childId == null || childId.isEmpty) return;
-
-        ref
-            .read(firestoreServiceProvider)
-            .flagWrongAnswer(
-              parentId,
-              childId,
-              questionId: question.id,
-              subjectId: widget.subjectId,
-              levelId: widget.levelId,
-              questionText: question.text,
-            )
-            .catchError((error) {
-              debugPrint('Error flagging wrong stroke answer: $error');
-            });
+        _strokeHadWrongAttempt = true;
       },
       onCorrectStroke: (strokeIndex) {
         unawaited(_playStrokeCorrect(strokeIndex));
@@ -1113,6 +1205,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           if (isCorrect) score++;
         });
         unawaited(_playTracingCompletionFeedback(question, isCorrect));
+        unawaited(
+          _recordQuestionResult(question, isCorrect && !_strokeHadWrongAttempt),
+        );
       },
     );
   }
@@ -1149,6 +1244,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     score++;
                   }
                 });
+                unawaited(_recordQuestionResult(question, isCorrect));
               }
             : null,
         borderRadius: AppRadius.r(AppRadius.lg),

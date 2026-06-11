@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-
 class QuestionOption {
   final String text;
   final String? imageUrl;
@@ -22,6 +20,7 @@ class Question {
   final String? correctBlank;
   final String? characterUnicode;
   final String? strokeOrderDataJson;
+  final int? correctNumber;
 
   Question({
     required this.id,
@@ -36,6 +35,7 @@ class Question {
     this.correctBlank,
     this.characterUnicode,
     this.strokeOrderDataJson,
+    this.correctNumber,
   }) : options = options.map((e) {
          if (e is QuestionOption) return e;
          if (e == null) return QuestionOption(text: '');
@@ -64,8 +64,6 @@ class Question {
        }).toList();
 
   factory Question.fromFirestore(String id, Map<String, dynamic> data) {
-    debugPrint('DEBUG: Parsing question document: $id');
-
     String extractText(dynamic value) {
       if (value == null) return '';
       if (value is String) return value;
@@ -126,6 +124,7 @@ class Question {
 
     // Map questionType (used in Firestore) to type
     String? type = (data['questionType'] ?? data['type'])?.toString();
+    final normalizedType = type?.toLowerCase();
 
     // correctOrder for rearrange and dragDropSpelling
     List<String>? correctOrder;
@@ -165,6 +164,20 @@ class Question {
         data['correctIndex'] ??
         data['correctAnswer'] ??
         data['answer'];
+
+    int? correctNumber;
+    if (normalizedType == 'keyinnumber') {
+      final rawNumber =
+          data['correctNumber'] ??
+          data['correctAnswer'] ??
+          data['correctanswerid'] ??
+          data['correctAnswerId'] ??
+          data['correctBlank'] ??
+          data['answer'];
+      correctNumber = rawNumber is num
+          ? rawNumber.toInt()
+          : int.tryParse(rawNumber?.toString().trim() ?? '');
+    }
 
     int finalIndex = 0;
     if (rawIndex is num) {
@@ -207,6 +220,7 @@ class Question {
       correctBlank: correctBlank,
       characterUnicode: data['characterUnicode']?.toString(),
       strokeOrderDataJson: strokeOrderDataJson,
+      correctNumber: correctNumber,
     );
   }
 }

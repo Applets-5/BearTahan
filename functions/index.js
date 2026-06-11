@@ -289,6 +289,12 @@ exports.expireRewardClaims = onSchedule(
           status: "expired",
           resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+        const rewardId = doc.data().rewardId;
+        if (rewardId) {
+          batch.delete(doc.ref.parent.parent
+              .collection("rewardClaimLocks")
+              .doc(rewardId));
+        }
       });
 
       await batch.commit();

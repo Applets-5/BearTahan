@@ -13,7 +13,10 @@
     "assets:hanzi:dry-run": "node ../tool/download_hanzi_assets.js --dry-run",
     "assets:hanzi:apply": "node ../tool/download_hanzi_assets.js --apply",
     "audio:mandarin-tracing:dry-run": "node scripts/generate_mandarin_tracing_audio.js --dry-run",
-    "audio:mandarin-tracing:apply": "node scripts/generate_mandarin_tracing_audio.js --apply"
+    "audio:mandarin-tracing:apply": "node scripts/generate_mandarin_tracing_audio.js --apply",
+    "migrate:sprint3:inspect": "node scripts/migrate_sprint3_data.js --inspect",
+    "migrate:sprint3:dry-run": "node scripts/migrate_sprint3_data.js --dry-run",
+    "migrate:sprint3:apply": "node scripts/migrate_sprint3_data.js --apply"
   },
   "engines": {
     "node": "20"
