@@ -966,9 +966,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             onReorder: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
-                if (oldIndex < newIndex) {
-                  newIndex -= 1;
-                }
                 final int item = _rearrangeOrder!.removeAt(oldIndex);
                 _rearrangeOrder!.insert(newIndex, item);
               });

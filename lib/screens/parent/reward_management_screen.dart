@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -18,15 +19,17 @@ class RewardManagementScreen extends ConsumerStatefulWidget {
 
 class _RewardManagementScreenState
     extends ConsumerState<RewardManagementScreen> {
-  bool showForm = false;
-  Reward? editingReward;
   final Set<String> _processingClaimIds = {};
 
   void _onEdit(Reward reward) {
-    setState(() {
-      editingReward = reward;
-      showForm = true;
-    });
+    _showRewardDialog(reward);
+  }
+
+  void _showRewardDialog([Reward? reward]) {
+    showDialog(
+      context: context,
+      builder: (context) => _RewardDialog(reward: reward),
+    );
   }
 
   void _onApprove(RewardClaim claim) async {
@@ -36,20 +39,20 @@ class _RewardManagementScreenState
       await ref
           .read(firestoreServiceProvider)
           .approveRewardClaim(parentId, claim);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Reward "${claim.rewardName}" approved!'),
-            backgroundColor: AppColors.accent,
-          ),
-        );
-      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Reward "${claim.rewardName}" approved!'),
+          backgroundColor: AppColors.accent,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error approving reward: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error approving reward: $e')));
     } finally {
       if (mounted) {
         setState(() => _processingClaimIds.remove(claim.id));
@@ -80,24 +83,25 @@ class _RewardManagementScreenState
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
       setState(() => _processingClaimIds.add(claim.id));
       try {
         await ref
             .read(firestoreServiceProvider)
             .rejectRewardClaim(parentId, claim);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Request declined. Stars were not deducted.'),
-            ),
-          );
-        }
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Request declined. Stars were not deducted.'),
+          ),
+        );
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error declining reward: $e')));
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error declining reward: $e')));
       } finally {
         if (mounted) {
           setState(() => _processingClaimIds.remove(claim.id));
@@ -108,7 +112,6 @@ class _RewardManagementScreenState
 
   void _onDelete(Reward reward) async {
     final parentId = ref.read(parentIdProvider);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -129,17 +132,22 @@ class _RewardManagementScreenState
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
       try {
         await ref
             .read(firestoreServiceProvider)
             .deleteReward(parentId, reward.id);
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('Reward deleted')),
-        );
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Reward deleted')));
       } catch (e) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text('Error deleting reward: $e')),
-        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error deleting reward: $e')));
       }
     }
   }
@@ -149,6 +157,7 @@ class _RewardManagementScreenState
     final rewardsAsync = ref.watch(rewardsProvider);
     final parentId = ref.watch(parentIdProvider);
     final selectedChildId = ref.watch(childIdProvider);
+    final childrenAsync = ref.watch(childrenProvider);
     final claimsAsync = selectedChildId == null
         ? const AsyncValue<List<RewardClaim>>.data([])
         : ref.watch(
@@ -174,6 +183,8 @@ class _RewardManagementScreenState
               claimsAsync.value?.where((claim) => !claim.isPending).toList() ??
               [];
 
+          final children = childrenAsync.value ?? [];
+
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
@@ -186,14 +197,9 @@ class _RewardManagementScreenState
                     ),
                   ),
                   FilledButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        editingReward = null;
-                        showForm = !showForm;
-                      });
-                    },
-                    icon: Icon(showForm ? Icons.close : Icons.add),
-                    label: Text(showForm ? 'Cancel' : 'Add'),
+                    onPressed: () => _showRewardDialog(),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add'),
                   ),
                 ],
               ),
@@ -202,16 +208,6 @@ class _RewardManagementScreenState
                 style: AppTextStyles.small,
               ),
               const SizedBox(height: AppSpacing.md),
-              if (showForm)
-                _RewardForm(
-                  reward: editingReward,
-                  onSuccess: () {
-                    setState(() {
-                      showForm = false;
-                      editingReward = null;
-                    });
-                  },
-                ),
               if (selectedChildId == null) ...[
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
@@ -273,9 +269,9 @@ class _RewardManagementScreenState
                   }),
                 const SizedBox(height: AppSpacing.lg),
               ],
-              Text('Available rewards', style: AppTextStyles.tiny),
+              const Text('Available rewards', style: AppTextStyles.tiny),
               const SizedBox(height: AppSpacing.sm),
-              if (availableRewards.isEmpty && !showForm)
+              if (availableRewards.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
                   child: Center(
@@ -285,18 +281,28 @@ class _RewardManagementScreenState
                     ),
                   ),
                 ),
-              ...availableRewards.map(
-                (r) => Padding(
+              ...availableRewards.map((r) {
+                String? childName;
+                if (r.targetChildId != null) {
+                  final target = children
+                      .where((c) => c.uid == r.targetChildId)
+                      .toList();
+                  if (target.isNotEmpty) {
+                    childName = target.first.name;
+                  }
+                }
+                return Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.md),
                   child: RewardCard(
                     title: r.title,
                     description: r.description,
                     cost: r.cost,
+                    childName: childName,
                     onEdit: () => _onEdit(r),
                     onDelete: () => _onDelete(r),
                   ),
-                ),
-              ),
+                );
+              }),
               if (redeemedRewards.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.lg),
                 const Text('Redeemed', style: AppTextStyles.tiny),
@@ -416,21 +422,21 @@ class _ClaimHistoryTile extends StatelessWidget {
   }
 }
 
-class _RewardForm extends ConsumerStatefulWidget {
+class _RewardDialog extends ConsumerStatefulWidget {
   final Reward? reward;
-  final VoidCallback onSuccess;
 
-  const _RewardForm({this.reward, required this.onSuccess});
+  const _RewardDialog({this.reward});
 
   @override
-  ConsumerState<_RewardForm> createState() => _RewardFormState();
+  ConsumerState<_RewardDialog> createState() => _RewardDialogState();
 }
 
-class _RewardFormState extends ConsumerState<_RewardForm> {
+class _RewardDialogState extends ConsumerState<_RewardDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
   late TextEditingController _costController;
+  String? _selectedChildId;
   bool _isLoading = false;
 
   @override
@@ -441,8 +447,9 @@ class _RewardFormState extends ConsumerState<_RewardForm> {
       text: widget.reward?.description,
     );
     _costController = TextEditingController(
-      text: widget.reward?.cost.toString() ?? '',
+      text: widget.reward?.cost.toString() ?? '10',
     );
+    _selectedChildId = widget.reward?.targetChildId;
   }
 
   @override
@@ -467,6 +474,7 @@ class _RewardFormState extends ConsumerState<_RewardForm> {
         description: _descriptionController.text,
         cost: int.parse(_costController.text),
         status: widget.reward?.status ?? 'available',
+        targetChildId: _selectedChildId,
       );
 
       if (widget.reward == null) {
@@ -475,7 +483,7 @@ class _RewardFormState extends ConsumerState<_RewardForm> {
         await ref.read(firestoreServiceProvider).updateReward(parentId, reward);
       }
 
-      widget.onSuccess();
+      if (mounted) Navigator.pop(context);
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -492,65 +500,130 @@ class _RewardFormState extends ConsumerState<_RewardForm> {
     }
   }
 
+  void _adjustCost(int delta) {
+    final current = int.tryParse(_costController.text) ?? 0;
+    final newValue = (current + delta).clamp(0, 9999);
+    _costController.text = newValue.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
-        boxShadow: AppShadows.card,
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.reward == null ? 'New Reward' : 'Edit Reward',
-              style: AppTextStyles.bodyBold,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(hintText: 'Reward name'),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(hintText: 'Description'),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextFormField(
-              controller: _costController,
-              decoration: const InputDecoration(hintText: 'Star cost'),
-              keyboardType: TextInputType.number,
-              validator: (v) => v == null || int.tryParse(v) == null
-                  ? 'Enter a valid number'
-                  : null,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _isLoading ? null : _save,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(widget.reward == null ? 'Create' : 'Save Changes'),
+    final childrenAsync = ref.watch(childrenProvider);
+    final children = childrenAsync.value ?? [];
+
+    return AlertDialog(
+      title: Text(widget.reward == null ? 'New Reward' : 'Edit Reward'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(labelText: 'Reward name'),
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(labelText: 'Description'),
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedChildId,
+                hint: const Text('All Children'),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('All Children'),
+                  ),
+                  ...children.map(
+                    (c) => DropdownMenuItem(value: c.uid, child: Text(c.name)),
+                  ),
+                ],
+                onChanged: (v) => setState(() => _selectedChildId = v),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Text('Star Cost', style: AppTextStyles.tiny),
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
+                  _CostBtn(icon: Icons.remove, onTap: () => _adjustCost(-1)),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                      ),
+                      child: TextFormField(
+                        controller: _costController,
+                        textAlign: TextAlign.center,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        validator: (v) => v == null || int.tryParse(v) == null
+                            ? 'Required'
+                            : null,
+                      ),
+                    ),
+                  ),
+                  _CostBtn(icon: Icons.add, onTap: () => _adjustCost(1)),
+                ],
+              ),
+            ],
+          ),
         ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _isLoading ? null : _save,
+          child: _isLoading
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(widget.reward == null ? 'Create' : 'Save'),
+        ),
+      ],
+    );
+  }
+}
+
+class _CostBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CostBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppColors.muted,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border),
+        ),
+        alignment: Alignment.center,
+        child: Icon(icon, size: 18, color: AppColors.mutedText),
       ),
     );
   }

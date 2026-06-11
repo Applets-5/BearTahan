@@ -19,7 +19,7 @@ class ParentAccountService {
       'email': user.email,
       'role': 'parent',
       'createdAt': FieldValue.serverTimestamp(),
-      if (extraData != null) ...extraData,
+      ...?extraData,
     }, SetOptions(merge: true));
   }
 

@@ -13,6 +13,8 @@
 .swiftpm/
 migrate_working_dir/
 
+.env
+
 # IntelliJ related
 *.iml
 *.ipr
@@ -63,3 +65,4 @@ service-account.json
 **/serviceAccountKey.json
 **/serviceAccountKey.json.json
 
+functions/.env

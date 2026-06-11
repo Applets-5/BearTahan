@@ -57,6 +57,8 @@ class UserProfile {
   final String? phoneNumber;
   final String? avatarPath;
   final int? passwordLength;
+  final String? lastAiInsight;
+  final DateTime? lastAiInsightDate;
 
   UserProfile({
     required this.uid,
@@ -75,6 +77,8 @@ class UserProfile {
     this.phoneNumber,
     this.avatarPath,
     this.passwordLength,
+    this.lastAiInsight,
+    this.lastAiInsightDate,
   });
 
   int get starBalance => availableStars;
@@ -110,6 +114,10 @@ class UserProfile {
       avatarPath: data['avatarPath']?.toString(),
       passwordLength: data['passwordLength'] != null
           ? (data['passwordLength'] as num).toInt()
+          : null,
+      lastAiInsight: data['lastAiInsight']?.toString(),
+      lastAiInsightDate: data['lastAiInsightDate'] != null
+          ? (data['lastAiInsightDate'] as Timestamp).toDate()
           : null,
     );
   }
