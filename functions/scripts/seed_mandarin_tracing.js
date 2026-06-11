@@ -30,10 +30,19 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const questions = db.collection("questions");
-const tracingPrefix = "bc_c1_l3_trace_";
+const tracingPrefix = "bc_c1_l4_trace_";
+const legacyTracingPrefix = "bc_c1_l3_trace_";
+const targetLevelId = "BC_C1_L4";
+const targetLevelNumber = 4;
+const targetProgressLevelId = "c1_l4";
+const legacyProgressLevelId = "c1_l3";
 
 function desiredIds() {
   return new Set(definitions.map((definition) => definition.id));
+}
+
+function legacyQuestionId(definition) {
+  return definition.id.replace(tracingPrefix, legacyTracingPrefix);
 }
 
 function isTracingQuestion(data) {
@@ -57,8 +66,8 @@ function buildQuestion(definition, existingData) {
     id: definition.id,
     subjectId: "BC",
     chapterId: "BC_C1",
-    levelId: "BC_C1_L3",
-    levelNumber: 3,
+    levelId: targetLevelId,
+    levelNumber: targetLevelNumber,
     difficulty: 1,
     prompt: definition.prompt,
     questionText: definition.prompt,
@@ -107,10 +116,15 @@ function diffFields(existing, desired) {
 
 async function inspect() {
   const obsolete = await getObsoleteTracingDocs();
+  const legacyDocs = await getLegacyTracingDocs();
 
   for (const definition of definitions) {
     const snapshot = await questions.doc(definition.id).get();
-    console.log(`\n${definition.id}: ${snapshot.exists ? "exists" : "missing"}`);
+    const legacySnapshot = await questions.doc(legacyQuestionId(definition)).get();
+    console.log(
+      `\n${definition.id}: ${snapshot.exists ? "exists" : "missing"}` +
+        ` (legacy: ${legacySnapshot.exists ? "exists" : "missing"})`,
+    );
     if (snapshot.exists) {
       const data = snapshot.data();
       console.log(Object.keys(data).sort().join(", "));
@@ -121,41 +135,69 @@ async function inspect() {
   }
 
   if (obsolete.length > 0) {
-    console.log("\nObsolete tracing docs currently under bc_c1_l3_trace_:");
+    console.log(`\nObsolete tracing docs currently under ${tracingPrefix}:`);
     for (const doc of obsolete) {
       console.log(`  ${doc.id}`);
     }
   }
+
+  await inspectChildMigrations(legacyDocs.length > 0);
 }
 
 async function dryRun() {
   let changedCount = 0;
   const obsolete = await getObsoleteTracingDocs();
+  const legacyDocs = await getLegacyTracingDocs();
+  const childMigrations = await getChildMigrations({
+    migrateLevelProgress: legacyDocs.length > 0,
+  });
 
   for (const definition of definitions) {
     const snapshot = await questions.doc(definition.id).get();
-    const existing = snapshot.exists ? snapshot.data() : null;
+    const legacySnapshot = await questions.doc(legacyQuestionId(definition)).get();
+    const existing = snapshot.exists
+      ? snapshot.data()
+      : legacySnapshot.exists
+        ? legacySnapshot.data()
+        : null;
     const desired = buildQuestion(definition, existing);
     const changes = diffFields(existing, desired);
 
-    console.log(`\n${definition.id}: ${snapshot.exists ? "UPDATE" : "CREATE"}`);
+    const action = snapshot.exists
+      ? "UPDATE"
+      : legacySnapshot.exists
+        ? "MOVE"
+        : "CREATE";
+    console.log(`\n${definition.id}: ${action}`);
     if (changes.length === 0) {
       console.log("  No changes.");
-      continue;
+    } else {
+      changedCount++;
+      for (const change of changes) {
+        console.log(
+          `  ${change.field}: ${JSON.stringify(change.before)} -> ${JSON.stringify(change.after)}`,
+        );
+      }
     }
 
-    changedCount++;
-    for (const change of changes) {
-      console.log(
-        `  ${change.field}: ${JSON.stringify(change.before)} -> ${JSON.stringify(change.after)}`,
-      );
+    if (legacySnapshot.exists) {
+      changedCount++;
+      console.log(`  Delete legacy document: ${legacySnapshot.id}`);
     }
   }
 
   for (const doc of obsolete) {
     changedCount++;
     console.log(`\n${doc.id}: DELETE`);
-    console.log("  Obsolete stroke_trace doc under bc_c1_l3_trace_.");
+    console.log(`  Obsolete stroke_trace doc under ${tracingPrefix}.`);
+  }
+
+  for (const [index, migration] of childMigrations.entries()) {
+    changedCount += migration.operations.length;
+    console.log(`\nChild profile ${index + 1}:`);
+    for (const operation of migration.operations) {
+      console.log(`  ${operation}`);
+    }
   }
 
   console.log(`\nDry run complete. ${changedCount} document(s) would change.`);
@@ -164,21 +206,46 @@ async function dryRun() {
 async function apply() {
   const batch = db.batch();
   const obsolete = await getObsoleteTracingDocs();
+  const legacyDocs = await getLegacyTracingDocs();
+  const childMigrations = await getChildMigrations({
+    migrateLevelProgress: legacyDocs.length > 0,
+  });
 
   for (const definition of definitions) {
     const reference = questions.doc(definition.id);
     const snapshot = await reference.get();
-    const existing = snapshot.exists ? snapshot.data() : null;
+    const legacyReference = questions.doc(legacyQuestionId(definition));
+    const legacySnapshot = await legacyReference.get();
+    const existing = snapshot.exists
+      ? snapshot.data()
+      : legacySnapshot.exists
+        ? legacySnapshot.data()
+        : null;
     batch.set(reference, buildQuestion(definition, existing));
+    if (legacySnapshot.exists) {
+      batch.delete(legacyReference);
+    }
   }
 
   for (const doc of obsolete) {
     batch.delete(doc.ref);
   }
 
+  for (const migration of childMigrations) {
+    for (const write of migration.writes) {
+      if (write.type === "set") {
+        batch.set(write.reference, write.data);
+      } else {
+        batch.delete(write.reference);
+      }
+    }
+  }
+
   await batch.commit();
   console.log(
-    `Applied ${definitions.length} Mandarin tracing document(s), deleted ${obsolete.length} obsolete document(s).`,
+    `Applied ${definitions.length} Mandarin tracing document(s), ` +
+      `deleted ${obsolete.length} obsolete target document(s), and ` +
+      `migrated ${childMigrations.length} child profile(s).`,
   );
 }
 
@@ -193,6 +260,119 @@ async function getObsoleteTracingDocs() {
     if (desired.has(doc.id)) return false;
     return isTracingQuestion(doc.data());
   });
+}
+
+async function getLegacyTracingDocs() {
+  const snapshots = await Promise.all(
+    definitions.map((definition) =>
+      questions.doc(legacyQuestionId(definition)).get(),
+    ),
+  );
+  return snapshots.filter((snapshot) => snapshot.exists);
+}
+
+async function inspectChildMigrations(migrateLevelProgress) {
+  const migrations = await getChildMigrations({migrateLevelProgress});
+  console.log(`\nChild profiles requiring migration: ${migrations.length}`);
+  for (const [index, migration] of migrations.entries()) {
+    console.log(
+      `  Profile ${index + 1}: ${migration.operations.join("; ")}`,
+    );
+  }
+}
+
+async function getChildMigrations({migrateLevelProgress}) {
+  const mappings = new Map(
+    definitions.map((definition) => [
+      legacyQuestionId(definition),
+      definition.id,
+    ]),
+  );
+  const parentsSnapshot = await db.collection("parents").get();
+  const migrations = [];
+
+  for (const parentDoc of parentsSnapshot.docs) {
+    const childrenSnapshot = await parentDoc.ref.collection("children").get();
+
+    for (const childDoc of childrenSnapshot.docs) {
+      const writes = [];
+      const operations = [];
+      const levelsRef = childDoc.ref
+        .collection("subjectProgress")
+        .doc("bc")
+        .collection("levels");
+      const legacyProgress = await levelsRef.doc(legacyProgressLevelId).get();
+      const targetProgress = await levelsRef.doc(targetProgressLevelId).get();
+
+      if (migrateLevelProgress && legacyProgress.exists) {
+        const legacyData = legacyProgress.data();
+        const targetData = targetProgress.data() ?? {};
+        const mergedProgress = {
+          ...legacyData,
+          ...targetData,
+          stars: Math.max(legacyData?.stars ?? 0, targetData.stars ?? 0),
+        };
+        writes.push({
+          type: "set",
+          reference: levelsRef.doc(targetProgressLevelId),
+          data: mergedProgress,
+        });
+        writes.push({
+          type: "delete",
+          reference: levelsRef.doc(legacyProgressLevelId),
+        });
+        operations.push(
+          `move BC progress ${legacyProgressLevelId} -> ${targetProgressLevelId}`,
+        );
+      }
+
+      for (const collectionName of ["wrongAnswerBank", "questionStats"]) {
+        const collectionRef = childDoc.ref.collection(collectionName);
+        const snapshot = await collectionRef.get();
+
+        for (const doc of snapshot.docs) {
+          const targetQuestionId = mappings.get(doc.id);
+          if (!targetQuestionId) continue;
+
+          const targetRef = collectionRef.doc(targetQuestionId);
+          const targetSnapshot = await targetRef.get();
+          const legacyData = doc.data();
+          const targetData = targetSnapshot.data() ?? {};
+          const mergedData = {
+            ...legacyData,
+            ...targetData,
+            ...(collectionName === "wrongAnswerBank"
+              ? {
+                  questionId: targetQuestionId,
+                  levelId: targetProgressLevelId,
+                  reviewCount:
+                    (legacyData.reviewCount ?? 0) +
+                    (targetData.reviewCount ?? 0),
+                }
+              : {
+                  timesSeen:
+                    (legacyData.timesSeen ?? 0) + (targetData.timesSeen ?? 0),
+                  timesWrong:
+                    (legacyData.timesWrong ?? 0) +
+                    (targetData.timesWrong ?? 0),
+                }),
+          };
+
+          writes.push({type: "set", reference: targetRef, data: mergedData});
+          writes.push({type: "delete", reference: doc.ref});
+          operations.push(
+            `move ${collectionName}/${doc.id} -> ${targetQuestionId}`,
+          );
+        }
+      }
+
+      if (writes.length > 0) {
+        migrations.push({childId: childDoc.id, writes, operations});
+      }
+    }
+  }
+
+  return migrations;
 }
 
 async function main() {

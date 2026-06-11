@@ -1,0 +1,11 @@
+pre-commit:
+  commands:
+    format:
+      run: dart format .
+      shell: cmd
+      fail_text: "Formatting failed. Try running dart format . manually."
+
+    analyze:
+      run: flutter analyze
+      shell: cmd
+      fail_text: "Flutter analyze found issues. Fix them then re-commit."
