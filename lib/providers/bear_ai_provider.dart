@@ -33,11 +33,9 @@ class BearAiNotifier extends Notifier<BearAiState> {
 
     try {
       // NEW CORRECT WAY
-      final result = await FirebaseFunctions.instanceFor(region: 'asia-southeast1')
-          .httpsCallable('getBearAiInsight')
-          .call({
-        'childId': childId,
-      });
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'asia-southeast1',
+      ).httpsCallable('getBearAiInsight').call({'childId': childId});
 
       state = state.copyWith(
         insight: result.data['insight'] as String,
@@ -71,13 +69,10 @@ class BearAiNotifier extends Notifier<BearAiState> {
           .toList();
 
       // NEW CORRECT WAY
-      final result = await FirebaseFunctions.instanceFor(region: 'asia-southeast1')
-          .httpsCallable('askBearAi')
-          .call({
-        'childId': childId,
-        'message': text,
-        'history': history,
-      });
+      final result =
+          await FirebaseFunctions.instanceFor(region: 'asia-southeast1')
+              .httpsCallable('askBearAi')
+              .call({'childId': childId, 'message': text, 'history': history});
       final assistantMessage = BearAiMessage(
         content: result.data['text'] as String,
         role: MessageRole.assistant,
