@@ -44,7 +44,7 @@ void main() {
       final quest = OutfitQuest.byId('pirate_bear');
 
       expect(quest.conditionType, equals('completed_lessons'));
-      expect(quest.subjectId, equals('en'));
+      expect(quest.subjectId, equals('bi'));
       expect(quest.target, equals(10));
     });
 
@@ -59,7 +59,7 @@ void main() {
       final quest = OutfitQuest.byId('explorer_bear');
 
       expect(quest.conditionType, equals('complete_all_topics'));
-      expect(quest.subjectId, equals('science'));
+      expect(quest.subjectId, equals('sci'));
       expect(quest.target, equals(8));
     });
 

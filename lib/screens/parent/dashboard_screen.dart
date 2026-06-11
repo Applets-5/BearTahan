@@ -42,14 +42,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (selectedChildId == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref.read(childIdProvider.notifier).update(children.first.uid);
-
-            // One-time repair: recalculate missing or inaccurate aggregation fields
-            final parentId = ref.read(parentIdProvider);
-            for (final child in children) {
-              ref
-                  .read(firestoreServiceProvider)
-                  .repairSubjectProgress(parentId, child.uid);
-            }
           });
           return const Center(child: CircularProgressIndicator());
         }
@@ -160,24 +152,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           (s) => s?.id == defaultSub['id'],
                           orElse: () => null,
                         );
-
-                        // Self-healing: if the subject exists but is missing aggregation, trigger a sync
-                        if (realSub != null &&
-                            (realSub.totalStars == 0 && realSub.progress > 0)) {
-                          debugPrint(
-                            'DEBUG: Self-healing triggered for ${realSub.id} on dashboard',
-                          );
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            final parentId = ref.read(parentIdProvider);
-                            ref
-                                .read(firestoreServiceProvider)
-                                .syncSubjectAggregation(
-                                  parentId,
-                                  selectedChildId,
-                                  realSub.id,
-                                );
-                          });
-                        }
 
                         return {
                           'name': defaultSub['name'],

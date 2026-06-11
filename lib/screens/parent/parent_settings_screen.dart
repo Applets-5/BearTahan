@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -31,7 +32,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
       return;
     }
 
-    if (_pinController.text.length != 4) {
+    if (!RegExp(r'^\d{4}$').hasMatch(_pinController.text)) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('PIN must be 4 digits')));
@@ -221,6 +222,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                     ),
                     obscureText: true,
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     maxLength: 4,
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -229,6 +231,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                     decoration: const InputDecoration(hintText: 'Confirm PIN'),
                     obscureText: true,
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     maxLength: 4,
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -267,9 +270,9 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               FilledButton.icon(
-                onPressed: () {},
+                onPressed: null,
                 icon: const Icon(Icons.delete),
-                label: const Text('Delete All Data'),
+                label: const Text('Data deletion unavailable'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.destructive,
                 ),

@@ -6,6 +6,7 @@ import '../../models/outfit_quest.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/star_utils.dart';
+import '../../utils/data_contracts.dart';
 import '../../widgets/common/mascot_widget.dart';
 import '../../widgets/common/primary_button.dart';
 
@@ -17,7 +18,10 @@ class CompletionScreen extends ConsumerStatefulWidget {
     this.total = 0,
     this.levelId = 'l1',
     this.subjectId = 'bm',
-    this.stars,
+    this.performanceStars,
+    this.newStarsAwarded = 0,
+    this.dailyBonusStars = 0,
+    this.levelPrefix,
     this.isEscalated = false,
     this.isDailyBonus = false,
     this.unlockedOutfits = const [],
@@ -28,7 +32,10 @@ class CompletionScreen extends ConsumerStatefulWidget {
   final int total;
   final String levelId;
   final String subjectId;
-  final int? stars;
+  final int? performanceStars;
+  final int newStarsAwarded;
+  final int dailyBonusStars;
+  final String? levelPrefix;
   final bool isEscalated;
   final bool isDailyBonus;
   final List<String> unlockedOutfits;
@@ -119,14 +126,18 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final earnedStars =
-        widget.stars ??
+    final performanceStars =
+        widget.performanceStars ??
         StarUtils.calculateStars(
           score: widget.score,
           total: widget.total,
           levelId: widget.levelId,
         );
-    final passed = earnedStars > 0;
+    final passed = performanceStars > 0;
+    final totalAwarded = widget.newStarsAwarded + widget.dailyBonusStars;
+    final replayPrefix =
+        widget.levelPrefix ??
+        DataContracts.levelPrefix(widget.subjectId, widget.levelId);
 
     return Scaffold(
       body: SafeArea(
@@ -160,7 +171,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                   (index) => Icon(
                     Icons.star,
                     size: 40,
-                    color: index < (widget.isDailyBonus ? 4 : earnedStars)
+                    color: index < (widget.isDailyBonus ? 4 : performanceStars)
                         ? AppColors.star
                         : AppColors.muted,
                   ),
@@ -195,9 +206,9 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 ),
                 child: Text(
                   passed
-                      ? widget.isDailyBonus
-                            ? 'You earned a Daily Bonus Star! Amazing!'
-                            : '+$earnedStars stars added to your wallet!'
+                      ? totalAwarded > 0
+                            ? '+$totalAwarded stars added to your wallet!'
+                            : 'Stage complete. No new wallet stars this time.'
                       : 'You need at least 50% to earn a star. Don\'t give up!',
                   style: AppTextStyles.bodyBold,
                   textAlign: TextAlign.center,
@@ -220,7 +231,9 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                   onPressed: () => context.go(
                     AppRouter.levelSessionFor(
                       widget.childId,
-                      levelPrefix: '${widget.subjectId}_c1_${widget.levelId}_',
+                      levelPrefix: replayPrefix,
+                      subjectId: widget.subjectId,
+                      levelId: widget.levelId,
                     ),
                   ),
                 ),
@@ -233,7 +246,9 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                   onPressed: () => context.go(
                     AppRouter.levelSessionFor(
                       widget.childId,
-                      levelPrefix: '${widget.subjectId}_c1_${widget.levelId}_',
+                      levelPrefix: replayPrefix,
+                      subjectId: widget.subjectId,
+                      levelId: widget.levelId,
                     ),
                   ),
                 ),

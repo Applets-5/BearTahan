@@ -382,6 +382,53 @@ void main() {
       expect(goal['todayProgress'], 0);
     });
 
+    test('updateDailyGoal resets progress when goal type changes', () async {
+      const parentId = 'p1';
+      const childId = 'c1';
+      final today = DateTime.now();
+      final todayKey =
+          '${today.year.toString().padLeft(4, '0')}-'
+          '${today.month.toString().padLeft(2, '0')}-'
+          '${today.day.toString().padLeft(2, '0')}';
+
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .set({
+            'dailyGoal': {
+              'type': 'lessons',
+              'target': 3,
+              'todayProgress': 2,
+              'todaySeconds': 0,
+              'lastUpdatedDate': todayKey,
+              'lastNotifiedDate': todayKey,
+            },
+          });
+
+      await firestoreService.updateDailyGoal(
+        parentId,
+        childId,
+        type: 'minutes',
+        target: 10,
+      );
+
+      final childDoc = await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .get();
+      final goal = childDoc.data()?['dailyGoal'] as Map<String, dynamic>;
+
+      expect(goal['type'], 'minutes');
+      expect(goal['target'], 10);
+      expect(goal['todayProgress'], 0);
+      expect(goal['todaySeconds'], 0);
+      expect(goal['lastNotifiedDate'], isNull);
+    });
+
     test(
       'recordAttempt should increment lesson goal and notify once when completed',
       () async {
@@ -490,9 +537,45 @@ void main() {
             .get();
         final goal = childDoc.data()?['dailyGoal'] as Map<String, dynamic>;
 
-        expect(goal['todayProgress'], 3);
+        expect(goal['todayProgress'], 2);
+        expect(goal['todaySeconds'], 125);
       },
     );
+
+    test('minute goal accumulates seconds across attempts', () async {
+      const parentId = 'p1';
+      const childId = 'c1';
+      await fakeFirestore.collection('parents').doc(parentId).set({});
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .set({
+            'dailyGoal': {'type': 'minutes', 'target': 2},
+          });
+
+      await firestoreService.updateDailyGoalProgress(
+        parentId,
+        childId,
+        timeInSeconds: 59,
+      );
+      await firestoreService.updateDailyGoalProgress(
+        parentId,
+        childId,
+        timeInSeconds: 1,
+      );
+
+      final childDoc = await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .get();
+      final goal = childDoc.data()?['dailyGoal'] as Map<String, dynamic>;
+      expect(goal['todayProgress'], 1);
+      expect(goal['todaySeconds'], 60);
+    });
 
     test('addChild should create a new child document', () async {
       const parentId = 'p1';
@@ -543,7 +626,7 @@ void main() {
       expect(doc.data()?['grade'], 'Standard 1');
     });
 
-    test('deleteChild should remove child document', () async {
+    test('deleteChild should reject unsafe client-side deletion', () async {
       const parentId = 'p1';
       const childId = 'c1';
 
@@ -554,7 +637,10 @@ void main() {
           .doc(childId)
           .set({'name': 'Ali'});
 
-      await firestoreService.deleteChild(parentId, childId);
+      expect(
+        () => firestoreService.deleteChild(parentId, childId),
+        throwsUnsupportedError,
+      );
 
       final doc = await fakeFirestore
           .collection('parents')
@@ -563,7 +649,7 @@ void main() {
           .doc(childId)
           .get();
 
-      expect(doc.exists, false);
+      expect(doc.exists, true);
     });
   });
 }

@@ -39,7 +39,7 @@ void main() {
             .set({'name': 'Bear', 'availableStars': 0});
 
         // 2. Complete a level with 2 stars (8/10 = 80% = 2 stars)
-        await firestoreService.updateLevelProgress(
+        final result = await firestoreService.updateLevelProgress(
           parentId,
           childId,
           subjectId,
@@ -47,6 +47,8 @@ void main() {
           8,
           10,
         );
+        expect(result.performanceStars, 2);
+        expect(result.newStarsAwarded, 2);
 
         // Verify Child Balance
         final childDoc = await fakeFirestore
@@ -115,7 +117,7 @@ void main() {
           });
 
       // Complete same level with 3 stars (+1 improvement) (10/10 = 100% = 3 stars)
-      await firestoreService.updateLevelProgress(
+      final result = await firestoreService.updateLevelProgress(
         parentId,
         childId,
         subjectId,
@@ -123,6 +125,8 @@ void main() {
         10,
         10,
       );
+      expect(result.performanceStars, 3);
+      expect(result.newStarsAwarded, 1);
 
       final childDoc = await fakeFirestore
           .collection('parents')
@@ -147,6 +151,45 @@ void main() {
         1,
       ); // Only the improvement recorded
     });
+
+    test(
+      'legacy stars are not awarded again under canonical level ID',
+      () async {
+        final subjectRef = fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .collection('subjectProgress')
+            .doc(subjectId);
+        await subjectRef.collection('levels').doc('l1').set({'stars': 3});
+        await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .set({'availableStars': 3, 'lifetimeStarsEarned': 3});
+
+        final result = await firestoreService.updateLevelProgress(
+          parentId,
+          childId,
+          subjectId,
+          'c1_l1',
+          10,
+          10,
+        );
+
+        expect(result.performanceStars, 3);
+        expect(result.newStarsAwarded, 0);
+        final child = await fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId)
+            .get();
+        expect(child.data()?['availableStars'], 3);
+      },
+    );
 
     test('syncSubjectAggregation should correct inaccurate totals', () async {
       // Setup legacy/broken data (Progress is 25% but totalStars is missing)
@@ -175,6 +218,29 @@ void main() {
       expect(doc.data()?['totalStars'], 5);
       expect(doc.data()?['completedLevels'], 2);
       expect(doc.data()?['progress'], 20); // (2/10)*100
+    });
+
+    test('syncSubjectAggregation preserves legacy level IDs', () async {
+      final subjectRef = fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .collection('subjectProgress')
+          .doc(subjectId);
+
+      await subjectRef.collection('levels').doc('l1').set({'stars': 3});
+      await subjectRef.collection('levels').doc('c1_l1').set({'stars': 2});
+
+      await firestoreService.syncSubjectAggregation(
+        parentId,
+        childId,
+        subjectId,
+      );
+
+      final doc = await subjectRef.get();
+      expect(doc.data()?['totalStars'], 3);
+      expect(doc.data()?['completedLevels'], 1);
     });
   });
 

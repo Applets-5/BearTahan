@@ -77,32 +77,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  bool _didRepair = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAndRepair();
-  }
-
-  void _checkAndRepair() {
-    if (_didRepair) return;
-    _didRepair = true;
-
-    final childId = widget.childId ?? '';
-    if (childId.isEmpty) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final parentId = ref.read(parentIdProvider);
-      if (parentId.isNotEmpty) {
-        debugPrint('DEBUG: Triggering subject progress repair for $childId');
-        ref
-            .read(firestoreServiceProvider)
-            .repairSubjectProgress(parentId, childId);
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final effectiveChildId = widget.childId ?? '';
