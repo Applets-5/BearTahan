@@ -9,6 +9,7 @@ import '../../utils/star_utils.dart';
 import '../../utils/data_contracts.dart';
 import '../../widgets/common/mascot_widget.dart';
 import '../../widgets/common/primary_button.dart';
+import '../../widgets/child/completion_mascot_stage.dart';
 
 class CompletionScreen extends ConsumerStatefulWidget {
   const CompletionScreen({
@@ -146,7 +147,11 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ActiveMascotWidget(childId: widget.childId, size: 100),
+              CompletionMascotStage(
+                childId: widget.childId,
+                passed: passed,
+                stars: performanceStars,
+              ),
               const SizedBox(height: AppSpacing.lg),
               Icon(
                 passed ? Icons.emoji_events_rounded : Icons.refresh_rounded,
