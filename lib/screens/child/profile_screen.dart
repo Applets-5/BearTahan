@@ -140,6 +140,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         label: 'Streak',
                         value: '${profile.streakCount}d',
                         color: AppColors.destructive,
+                        onTap: () {
+                          context.push(
+                            Uri(
+                              path: AppRouter.streak,
+                              queryParameters: {'childId': childId},
+                            ).toString(),
+                          );
+                        },
                       ),
                     ),
                   ],

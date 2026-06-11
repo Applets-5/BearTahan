@@ -19,6 +19,7 @@ class RewardCard extends StatelessWidget {
     this.onDelete,
     this.currentStars,
     this.showBorder = true,
+    this.childName,
   });
 
   final String title;
@@ -35,6 +36,7 @@ class RewardCard extends StatelessWidget {
   final VoidCallback? onDelete;
   final int? currentStars;
   final bool showBorder;
+  final String? childName;
 
   @override
   Widget build(BuildContext context) {
@@ -120,9 +122,24 @@ class RewardCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  title,
-                  style: AppTextStyles.cardTitle.copyWith(color: titleColor),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.cardTitle.copyWith(
+                        color: titleColor,
+                      ),
+                    ),
+                    if (childName != null)
+                      Text(
+                        'For: $childName',
+                        style: AppTextStyles.tiny.copyWith(
+                          color: tealGreen,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               if (status != 'available')
