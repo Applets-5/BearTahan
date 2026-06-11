@@ -39,7 +39,7 @@ class _RewardManagementScreenState
       await ref
           .read(firestoreServiceProvider)
           .approveRewardClaim(parentId, claim);
-      
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -50,9 +50,9 @@ class _RewardManagementScreenState
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error approving reward: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error approving reward: $e')));
     } finally {
       if (mounted) {
         setState(() => _processingClaimIds.remove(claim.id));
@@ -89,7 +89,7 @@ class _RewardManagementScreenState
         await ref
             .read(firestoreServiceProvider)
             .rejectRewardClaim(parentId, claim);
-        
+
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -99,9 +99,9 @@ class _RewardManagementScreenState
         );
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error declining reward: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error declining reward: $e')));
       } finally {
         if (mounted) {
           setState(() => _processingClaimIds.remove(claim.id));
@@ -137,17 +137,17 @@ class _RewardManagementScreenState
         await ref
             .read(firestoreServiceProvider)
             .deleteReward(parentId, reward.id);
-        
+
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reward deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Reward deleted')));
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting reward: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error deleting reward: $e')));
       }
     }
   }

@@ -103,9 +103,9 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating $key: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error updating $key: $e')));
     }
   }
 
@@ -120,9 +120,9 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
       logoutContext.go(AppRouter.login);
     } catch (e) {
       if (!logoutContext.mounted) return;
-      ScaffoldMessenger.of(logoutContext).showSnackBar(
-        SnackBar(content: Text('Error logging out: $e')),
-      );
+      ScaffoldMessenger.of(
+        logoutContext,
+      ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
     }
   }
 
