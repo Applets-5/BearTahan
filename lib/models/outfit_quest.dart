@@ -146,6 +146,7 @@ class OutfitQuestProgress {
     Map<String, dynamic> data,
   ) {
     final unlockedAtValue = data['unlockedAt'];
+
     return OutfitQuestProgress(
       outfitId: id,
       currentValue: (data['currentValue'] ?? 0).toInt(),
