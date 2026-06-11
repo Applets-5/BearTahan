@@ -25,8 +25,8 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (sbContext, setDialogState) => AlertDialog(
           title: const Text('Change Parent PIN'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -57,7 +57,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
             FilledButton(
@@ -77,9 +77,9 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                     parentId,
                     {'parentPin': pinController.text},
                   );
-                  if (!context.mounted) return;
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  if (!sbContext.mounted) return;
+                  Navigator.pop(sbContext);
+                  ScaffoldMessenger.of(sbContext).showSnackBar(
                     const SnackBar(content: Text('PIN updated successfully')),
                   );
                 } catch (e) {
@@ -102,30 +102,27 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
         key: value,
       });
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error updating $key: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating $key: $e')),
+      );
     }
   }
 
-  Future<void> _logout(BuildContext context) async {
+  Future<void> _logout(BuildContext logoutContext) async {
     try {
       ref.read(childIdProvider.notifier).update(null);
       if (!kIsWeb && defaultTargetPlatform != TargetPlatform.windows) {
         await GoogleSignIn().signOut();
       }
       await FirebaseAuth.instance.signOut();
-      if (context.mounted) {
-        context.go(AppRouter.login);
-      }
+      if (!logoutContext.mounted) return;
+      logoutContext.go(AppRouter.login);
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
-      }
+      if (!logoutContext.mounted) return;
+      ScaffoldMessenger.of(logoutContext).showSnackBar(
+        SnackBar(content: Text('Error logging out: $e')),
+      );
     }
   }
 
@@ -567,18 +564,16 @@ class _ChildGoalCardState extends ConsumerState<_ChildGoalCard> {
           },
         },
       );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Goal updated successfully')),
-        );
-        setState(() => _isExpanded = false);
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Goal updated successfully')),
+      );
+      setState(() => _isExpanded = false);
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving goal: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving goal: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

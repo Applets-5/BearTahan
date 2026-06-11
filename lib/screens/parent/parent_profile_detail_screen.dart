@@ -65,23 +65,22 @@ class _ParentProfileDetailScreenState
       await ref
           .read(firestoreServiceProvider)
           .updateParentSettings(parentId, updates);
-      if (mounted) {
-        setState(() {
-          _isEditingParent = false;
-          _showAvatarPickerRow = false;
-        });
-      }
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
-      }
+      
+      if (!mounted) return;
+
+      setState(() {
+        _isEditingParent = false;
+        _showAvatarPickerRow = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

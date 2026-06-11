@@ -39,20 +39,20 @@ class _RewardManagementScreenState
       await ref
           .read(firestoreServiceProvider)
           .approveRewardClaim(parentId, claim);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Reward "${claim.rewardName}" approved!'),
-            backgroundColor: AppColors.accent,
-          ),
-        );
-      }
+      
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Reward "${claim.rewardName}" approved!'),
+          backgroundColor: AppColors.accent,
+        ),
+      );
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error approving reward: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error approving reward: $e')),
+      );
     } finally {
       if (mounted) {
         setState(() => _processingClaimIds.remove(claim.id));
@@ -89,19 +89,19 @@ class _RewardManagementScreenState
         await ref
             .read(firestoreServiceProvider)
             .rejectRewardClaim(parentId, claim);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Request declined. Stars were not deducted.'),
-            ),
-          );
-        }
+        
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Request declined. Stars were not deducted.'),
+          ),
+        );
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error declining reward: $e')));
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error declining reward: $e')),
+        );
       } finally {
         if (mounted) {
           setState(() => _processingClaimIds.remove(claim.id));
@@ -137,17 +137,17 @@ class _RewardManagementScreenState
         await ref
             .read(firestoreServiceProvider)
             .deleteReward(parentId, reward.id);
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Reward deleted')));
-        }
+        
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reward deleted')),
+        );
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error deleting reward: $e')));
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting reward: $e')),
+        );
       }
     }
   }
