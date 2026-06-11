@@ -44,7 +44,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(createWidget(score: 10, total: 10));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       final starIcons = find.byIcon(Icons.star);
       expect(starIcons, findsNWidgets(3));
@@ -57,7 +57,8 @@ void main() {
 
     testWidgets('should show 2 stars for a score of 80%', (tester) async {
       await tester.pumpWidget(createWidget(score: 8, total: 10));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       final starIcons = find.byIcon(Icons.star);
       final coloredStars = tester
@@ -68,7 +69,8 @@ void main() {
 
     testWidgets('should show 1 star for a score of 50%', (tester) async {
       await tester.pumpWidget(createWidget(score: 5, total: 10));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       final starIcons = find.byIcon(Icons.star);
       final coloredStars = tester
@@ -79,7 +81,8 @@ void main() {
 
     testWidgets('should show 0 stars for a score below 50%', (tester) async {
       await tester.pumpWidget(createWidget(score: 4, total: 10));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       final starIcons = find.byIcon(Icons.star);
       final coloredStars = tester
@@ -99,7 +102,8 @@ void main() {
           newStarsAwarded: 0,
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(
         find.text('Stage complete. No new wallet stars this time.'),
