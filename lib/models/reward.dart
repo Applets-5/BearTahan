@@ -5,6 +5,7 @@ class Reward {
   final int cost;
   final String status; // 'available', 'pending', 'redeemed'
   final String? claimedByChildId;
+  final String? targetChildId;
 
   Reward({
     required this.id,
@@ -13,6 +14,7 @@ class Reward {
     required this.cost,
     this.status = 'available',
     this.claimedByChildId,
+    this.targetChildId,
   });
 
   factory Reward.fromFirestore(String id, Map<String, dynamic> data) {
@@ -23,6 +25,7 @@ class Reward {
       cost: (data['cost'] ?? 0).toInt(),
       status: data['status'] ?? 'available',
       claimedByChildId: data['claimedByChildId'],
+      targetChildId: data['targetChildId'],
     );
   }
 
@@ -33,6 +36,7 @@ class Reward {
       'cost': cost,
       'status': status,
       if (claimedByChildId != null) 'claimedByChildId': claimedByChildId,
+      if (targetChildId != null) 'targetChildId': targetChildId,
     };
   }
 
@@ -43,6 +47,7 @@ class Reward {
     int? cost,
     String? status,
     String? claimedByChildId,
+    String? targetChildId,
   }) {
     return Reward(
       id: id ?? this.id,
@@ -51,6 +56,7 @@ class Reward {
       cost: cost ?? this.cost,
       status: status ?? this.status,
       claimedByChildId: claimedByChildId ?? this.claimedByChildId,
+      targetChildId: targetChildId ?? this.targetChildId,
     );
   }
 }

@@ -58,11 +58,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   const Expanded(
                     child: Text('Dashboard', style: AppTextStyles.screenTitle),
                   ),
-                  IconButton(
-                    tooltip: 'Daily goals',
-                    onPressed: () => context.go(AppRouter.parentGoals),
-                    icon: const Icon(Icons.flag_rounded),
-                  ),
                   PopupMenuButton<String>(
                     onSelected: (id) {
                       ref.read(childIdProvider.notifier).update(id);
@@ -191,6 +186,32 @@ class _OverviewTab extends ConsumerWidget {
 
   const _OverviewTab({required this.selectedChildId});
 
+  Widget _buildDailyGoalCard(dynamic profile) {
+    final goal = profile.dailyGoal;
+    if (goal == null || !goal.isValid) {
+      return ProgressBarCard(
+        title: 'Daily Goal',
+        subtitle: 'No daily goal set for ${profile.name}',
+        progress: 0,
+        icon: Icons.flag_outlined,
+      );
+    }
+
+    final double progress = (goal.todayProgress / goal.target).clamp(0.0, 1.0);
+    final bool isComplete = goal.todayProgress >= goal.target;
+    final int remaining = (goal.target - goal.todayProgress).clamp(0, goal.target);
+
+    return ProgressBarCard(
+      title: 'Daily Goal',
+      subtitle: isComplete
+          ? 'Goal completed!'
+          : '$remaining more to go today',
+      progress: progress,
+      icon: isComplete ? Icons.stars_rounded : Icons.flag_rounded,
+      color: isComplete ? AppColors.star : AppColors.primary,
+    );
+  }
+
   final List<Map<String, dynamic>> _defaultSubjects = const [
     {'id': 'bm', 'name': 'Bahasa Melayu', 'color': AppColors.subjectBm},
     {'id': 'bi', 'name': 'English', 'color': AppColors.subjectEnglish},
@@ -247,13 +268,6 @@ class _OverviewTab extends ConsumerWidget {
                     'color': defaultSub['color'],
                   };
                 }).toList();
-
-                int totalProgress = displaySubjects.fold(
-                  0,
-                  (sum, s) => sum + (s['progress'] as int),
-                );
-                int avgProgress = (totalProgress / displaySubjects.length)
-                    .round();
 
                 // Aggregated stats for top cards
                 int totalCompletedLevels = displaySubjects.fold(
@@ -326,12 +340,7 @@ class _OverviewTab extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    ProgressBarCard(
-                      title: 'Overall Progress',
-                      subtitle: '$avgProgress% of all subjects completed',
-                      progress: avgProgress / 100,
-                      icon: Icons.flag_rounded,
-                    ),
+                    _buildDailyGoalCard(profile),
                     const SizedBox(height: AppSpacing.lg),
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.lg),
