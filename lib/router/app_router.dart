@@ -32,6 +32,16 @@ import '../screens/auth/create_profile_screen.dart';
 import '../screens/auth/forgot_password_screen.dart';
 import 'go_router_refresh_stream.dart';
 
+List<Question>? parseReviewQuestionsExtra(
+  Object? extra, {
+  required bool isReviewSession,
+}) {
+  if (extra is List && extra.every((item) => item is Question)) {
+    return extra.cast<Question>();
+  }
+  return isReviewSession ? <Question>[] : null;
+}
+
 class AppRouter {
   static const splash = '/';
   static const login = '/login';
@@ -364,7 +374,10 @@ class AppRouter {
               explicitLevelId ??
               (parts.length >= 3 && parts[2].isNotEmpty ? parts[2] : 'l1');
 
-          final extra = state.extra as List<Question>?;
+          final reviewQuestions = parseReviewQuestionsExtra(
+            state.extra,
+            isReviewSession: levelId == 'review_session',
+          );
 
           return _noTransitionPage(
             state,
@@ -373,7 +386,7 @@ class AppRouter {
               levelPrefix: levelPrefix,
               subjectId: subjectId,
               levelId: levelId,
-              reviewQuestions: extra,
+              reviewQuestions: reviewQuestions,
             ),
           );
         },

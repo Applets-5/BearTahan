@@ -134,6 +134,20 @@ final levelStarsProvider =
           .streamLevelStars(parentId, arg.childId, arg.subjectId);
     });
 
+final levelProgressProvider =
+    FutureProvider.family<
+      Map<String, dynamic>,
+      ({String childId, String subjectId, String levelId})
+    >((ref, arg) {
+      final parentId = ref.watch(parentIdProvider);
+      if (parentId.isEmpty || arg.childId.isEmpty) {
+        return <String, dynamic>{};
+      }
+      return ref
+          .watch(firestoreServiceProvider)
+          .getLevelProgress(parentId, arg.childId, arg.subjectId, arg.levelId);
+    });
+
 final starTransactionsProvider =
     StreamProvider.family<
       List<StarTransaction>,
