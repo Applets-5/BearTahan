@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../models/outfit_quest.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/child/lucky_draw_dialog.dart';
 import '../../widgets/common/mascot_widget.dart';
 import '../../widgets/common/missing_child_profile.dart';
 
@@ -44,21 +45,92 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
           .setActiveOutfit(parentId, childId, quest.id);
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${quest.name} is now your active outfit!')),
       );
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Unable to equip outfit: $e')));
     }
   }
 
+  Future<void> _unlockOrEquipOutfit(
+    OutfitQuest quest,
+    OutfitQuestProgress progress,
+    String parentId,
+    String childId,
+  ) async {
+    final progressReached = progress.currentValue >= progress.targetValue;
+    final canUnlock = quest.isStarter || progressReached;
+    final unlocked = quest.isStarter || progress.isUnlocked;
+
+    if (unlocked) {
+      await _setActiveOutfit(quest, parentId, childId);
+      return;
+    }
+
+    if (!canUnlock) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Complete the quest progress first.')),
+      );
+      return;
+    }
+
+    await _showLuckyDraw(quest: quest, parentId: parentId, childId: childId);
+  }
+
+  Future<void> _showLuckyDraw({
+    required OutfitQuest quest,
+    required String parentId,
+    required String childId,
+  }) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return LuckyDrawDialog(
+          quest: quest,
+
+          // This will run when user clicks DONE
+          onEquipNow: () async {
+            Navigator.of(dialogContext).pop();
+
+            try {
+              await ref
+                  .read(firestoreServiceProvider)
+                  .unlockQuestOutfit(parentId, childId, quest.id);
+
+              if (!mounted) return;
+
+              setState(() {});
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('${quest.name} unlocked!')),
+              );
+            } catch (e) {
+              if (!mounted) return;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Unable to unlock outfit: $e')),
+              );
+            }
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _showQuestDetails({
     required OutfitQuest quest,
     required OutfitQuestProgress progress,
     required bool unlocked,
+    required bool canUnlock,
     required bool active,
     required String parentId,
     required String childId,
@@ -73,11 +145,12 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
           quest: quest,
           progress: progress,
           unlocked: unlocked,
+          canUnlock: canUnlock,
           active: active,
-          onEquip: unlocked && !active
+          onEquip: (unlocked || canUnlock) && !active
               ? () {
                   Navigator.of(dialogContext).pop();
-                  _setActiveOutfit(quest, parentId, childId);
+                  _unlockOrEquipOutfit(quest, progress, parentId, childId);
                 }
               : null,
           onClose: () => Navigator.of(dialogContext).pop(),
@@ -141,6 +214,7 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
                   : screenWidth - (horizontalPadding * 2);
 
               final crossAxisCount = contentWidth >= 760 ? 3 : 2;
+
               return SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   horizontalPadding,
@@ -167,7 +241,7 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
                                 crossAxisCount: crossAxisCount,
                                 mainAxisSpacing: AppSpacing.md,
                                 crossAxisSpacing: AppSpacing.md,
-                                mainAxisExtent: 296,
+                                mainAxisExtent: 315,
                               ),
                           itemCount: quests.length,
                           itemBuilder: (context, index) {
@@ -184,30 +258,34 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
                                   isUnlocked: quest.isStarter,
                                 );
 
+                            final progressReached =
+                                progress.currentValue >= progress.targetValue;
+                            final canUnlock =
+                                quest.isStarter || progressReached;
                             final unlocked =
                                 quest.isStarter || progress.isUnlocked;
-                            final active = activeOutfitId == quest.id;
+                            final active =
+                                activeOutfitId == quest.id && unlocked;
 
                             return _QuestOutfitCard(
                               quest: quest,
                               progress: progress,
                               unlocked: unlocked,
+                              canUnlock: canUnlock,
                               active: active,
-
-                              // Click bear/card -> detail popup appears.
                               onOpenDetails: () => _showQuestDetails(
                                 quest: quest,
                                 progress: progress,
                                 unlocked: unlocked,
+                                canUnlock: canUnlock,
                                 active: active,
                                 parentId: parentId,
                                 childId: childId,
                               ),
-
-                              // Click Equip button on card -> equips directly.
-                              onEquip: unlocked && !active
-                                  ? () => _setActiveOutfit(
+                              onEquip: (unlocked || canUnlock) && !active
+                                  ? () => _unlockOrEquipOutfit(
                                       quest,
+                                      progress,
                                       parentId,
                                       childId,
                                     )
@@ -286,6 +364,7 @@ class _QuestOutfitCard extends StatelessWidget {
     required this.quest,
     required this.progress,
     required this.unlocked,
+    required this.canUnlock,
     required this.active,
     required this.onOpenDetails,
     required this.onEquip,
@@ -294,12 +373,15 @@ class _QuestOutfitCard extends StatelessWidget {
   final OutfitQuest quest;
   final OutfitQuestProgress progress;
   final bool unlocked;
+  final bool canUnlock;
   final bool active;
   final VoidCallback onOpenDetails;
   final VoidCallback? onEquip;
 
   @override
   Widget build(BuildContext context) {
+    final buttonLabel = unlocked ? 'Equip' : '🎁 Unlock';
+
     return Material(
       color: Colors.transparent,
       borderRadius: AppRadius.r(AppRadius.xl),
@@ -320,7 +402,7 @@ class _QuestOutfitCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: active
                     ? AppColors.primaryLight
-                    : unlocked
+                    : unlocked || canUnlock
                     ? AppColors.card
                     : AppColors.muted,
                 borderRadius: AppRadius.r(AppRadius.xl),
@@ -331,14 +413,14 @@ class _QuestOutfitCard extends StatelessWidget {
                 boxShadow: AppShadows.card,
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   _OutfitImage(quest: quest, locked: !unlocked),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     quest.name,
                     style: AppTextStyles.bodyBold.copyWith(
-                      color: unlocked
+                      color: unlocked || canUnlock
                           ? AppColors.foreground
                           : AppColors.mutedText,
                     ),
@@ -349,23 +431,21 @@ class _QuestOutfitCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   _QuestTag(text: quest.description),
                   const SizedBox(height: AppSpacing.sm),
-
                   if (!quest.isStarter) ...[
                     _QuestProgressSection(progress: progress),
                     const SizedBox(height: AppSpacing.sm),
                   ],
-
                   if (active)
                     const _SmallStatusButton(
                       label: '✔ Active',
                       backgroundColor: AppColors.primary,
                       textColor: Colors.white,
                     )
-                  else if (unlocked)
+                  else if (unlocked || canUnlock)
                     _SmallStatusButton(
-                      label: 'Equip',
-                      backgroundColor: AppColors.muted,
-                      textColor: AppColors.mutedText,
+                      label: buttonLabel,
+                      backgroundColor: AppColors.primary,
+                      textColor: Colors.white,
                       onTap: onEquip,
                     )
                   else
@@ -379,7 +459,6 @@ class _QuestOutfitCard extends StatelessWidget {
                 ],
               ),
             ),
-
             if (active)
               Positioned(
                 right: -6,
@@ -410,6 +489,7 @@ class _QuestDetailsDialog extends StatelessWidget {
     required this.quest,
     required this.progress,
     required this.unlocked,
+    required this.canUnlock,
     required this.active,
     required this.onEquip,
     required this.onClose,
@@ -418,12 +498,15 @@ class _QuestDetailsDialog extends StatelessWidget {
   final OutfitQuest quest;
   final OutfitQuestProgress progress;
   final bool unlocked;
+  final bool canUnlock;
   final bool active;
   final VoidCallback? onEquip;
   final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
+    final actionLabel = unlocked ? 'Equip' : '🎁 Unlock';
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(AppSpacing.lg),
@@ -463,12 +546,10 @@ class _QuestDetailsDialog extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               _QuestTag(text: quest.description),
-
               if (!quest.isStarter) ...[
                 const SizedBox(height: AppSpacing.md),
                 _QuestProgressSection(progress: progress),
               ],
-
               const SizedBox(height: AppSpacing.md),
               Text(
                 _detailMessage(quest),
@@ -476,7 +557,6 @@ class _QuestDetailsDialog extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.lg),
-
               Row(
                 children: [
                   Expanded(
@@ -486,9 +566,9 @@ class _QuestDetailsDialog extends StatelessWidget {
                             backgroundColor: AppColors.primary,
                             textColor: Colors.white,
                           )
-                        : unlocked
+                        : unlocked || canUnlock
                         ? _SmallStatusButton(
-                            label: 'Equip',
+                            label: actionLabel,
                             backgroundColor: AppColors.primary,
                             textColor: Colors.white,
                             onTap: onEquip,
@@ -579,7 +659,6 @@ class _OutfitImage extends StatelessWidget {
                   ),
                 )
               : biggerImage,
-
           if (locked)
             Positioned(
               bottom: 0,
@@ -721,7 +800,7 @@ class _SmallStatusButton extends StatelessWidget {
         borderRadius: AppRadius.r(AppRadius.xxl),
         child: Container(
           width: double.infinity,
-          height: 34,
+          height: 40,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: AppRadius.r(AppRadius.xxl),
@@ -733,7 +812,7 @@ class _SmallStatusButton extends StatelessWidget {
             label,
             style: AppTextStyles.tiny.copyWith(
               color: textColor,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
           ),

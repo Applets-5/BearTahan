@@ -388,13 +388,45 @@ class FirestoreService {
         isScholarBear || progressDoc.data()?['isUnlocked'] == true;
 
     if (!isUnlocked) {
-      throw Exception('This outfit is still locked.');
+      throw Exception('Please unlock this outfit first.');
     }
 
     await _childDocRef(parentId, childId).set({
       'activeOutfitID': outfitId,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  Future<void> unlockQuestOutfit(
+    String parentId,
+    String childId,
+    String outfitId,
+  ) async {
+    final progressDocRef = _childDocRef(
+      parentId,
+      childId,
+    ).collection('questProgress').doc(outfitId);
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(progressDocRef);
+      final data = snapshot.data() ?? {};
+
+      final currentValue = (data['currentValue'] ?? 0).toInt();
+      final targetValue = (data['targetValue'] ?? 0).toInt();
+      final alreadyUnlocked = data['isUnlocked'] == true;
+
+      if (alreadyUnlocked) return;
+
+      if (currentValue < targetValue) {
+        throw Exception('Progress has not reached the target yet.');
+      }
+
+      transaction.set(progressDocRef, {
+        'isUnlocked': true,
+        'unlockedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
   }
 
   Future<List<String>> evaluateAndUpdateQuestProgress(
@@ -423,11 +455,14 @@ class FirestoreService {
     final subjectProgressSnapshot = await childDocRef
         .collection('subjectProgress')
         .get();
+
     final subjectProgress = <String, Map<String, dynamic>>{};
+
     for (final doc in subjectProgressSnapshot.docs) {
       final subjectId = DataContracts.normalizeSubjectId(doc.id);
       final existing = subjectProgress[subjectId];
       final data = doc.data();
+
       if (existing == null ||
           (data['completedLevels'] ?? 0) > (existing['completedLevels'] ?? 0)) {
         subjectProgress[subjectId] = data;
@@ -440,12 +475,12 @@ class FirestoreService {
     final existingProgressSnapshot = await childDocRef
         .collection('questProgress')
         .get();
+
     final existingProgress = {
       for (final doc in existingProgressSnapshot.docs) doc.id: doc.data(),
     };
 
     final batch = _db.batch();
-    final newlyUnlocked = <String>[];
 
     for (final quest in quests) {
       final currentValue = QuestUtils.calculateQuestCurrentValue(
@@ -456,21 +491,7 @@ class FirestoreService {
       );
 
       final existingData = existingProgress[quest.id] ?? {};
-      final wasUnlocked = existingData['isUnlocked'] == true;
-      final shouldUnlock = QuestUtils.isQuestUnlocked(
-        quest: quest,
-        currentValue: currentValue,
-        wasUnlocked: wasUnlocked,
-      );
-      final isNewUnlock = QuestUtils.isNewUnlock(
-        quest: quest,
-        currentValue: currentValue,
-        wasUnlocked: wasUnlocked,
-      );
-
-      if (isNewUnlock) {
-        newlyUnlocked.add(quest.id);
-      }
+      final alreadyUnlocked = existingData['isUnlocked'] == true;
 
       batch.set(
         childDocRef.collection('questProgress').doc(quest.id),
@@ -481,16 +502,22 @@ class FirestoreService {
           if (quest.subjectId != null) 'subjectId': quest.subjectId,
           'currentValue': currentValue,
           'targetValue': quest.target,
-          'isUnlocked': shouldUnlock,
+
+          // Progress reached only shows the Unlock button.
+          // It will NOT display the bear yet.
+          // isUnlocked becomes true only after lucky draw finishes.
+          'isUnlocked': quest.isStarter || alreadyUnlocked,
+
           'updatedAt': FieldValue.serverTimestamp(),
-          if (isNewUnlock) 'unlockedAt': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );
     }
 
     await batch.commit();
-    return newlyUnlocked;
+
+    // Return empty because reaching progress is not same as unlocked yet.
+    return [];
   }
 
   String _todayKey([DateTime? now]) {
