@@ -16,6 +16,7 @@ class BearAiMessage {
 
 class BearAiState {
   final String? insight;
+  final String? insightError;
   final List<BearAiMessage> messages;
   final bool isChatLoading;
   final bool isInsightLoading;
@@ -23,6 +24,7 @@ class BearAiState {
 
   BearAiState({
     this.insight,
+    this.insightError,
     this.messages = const [],
     this.isChatLoading = false,
     this.isInsightLoading = false,
@@ -31,6 +33,7 @@ class BearAiState {
 
   BearAiState copyWith({
     String? insight,
+    String? insightError,
     List<BearAiMessage>? messages,
     bool? isChatLoading,
     bool? isInsightLoading,
@@ -38,6 +41,7 @@ class BearAiState {
   }) {
     return BearAiState(
       insight: insight ?? this.insight,
+      insightError: insightError ?? this.insightError,
       messages: messages ?? this.messages,
       isChatLoading: isChatLoading ?? this.isChatLoading,
       isInsightLoading: isInsightLoading ?? this.isInsightLoading,

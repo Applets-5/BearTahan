@@ -29,7 +29,7 @@ class BearAiNotifier extends Notifier<BearAiState> {
       }
     }
 
-    state = state.copyWith(isInsightLoading: true);
+    state = state.copyWith(isInsightLoading: true, insightError: null);
 
     try {
       final result = await FirebaseFunctions.instanceFor(
@@ -43,7 +43,18 @@ class BearAiNotifier extends Notifier<BearAiState> {
       );
     } catch (e) {
       debugPrint("🐻 BearAI Insight Error: $e");
-      state = state.copyWith(isInsightLoading: false);
+      
+      String errorText = "Couldn't load weekly insight.";
+      if (e is FirebaseFunctionsException && e.code == 'resource-exhausted') {
+        errorText = e.message ?? "Rate limit reached. Please wait.";
+      } else if (e is FirebaseFunctionsException) {
+        errorText = e.message ?? "BearAI Insight Error: ${e.code}";
+      }
+
+      state = state.copyWith(
+        isInsightLoading: false,
+        insightError: errorText,
+      );
     }
   }
 

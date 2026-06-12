@@ -193,14 +193,19 @@ class _BearAITabState extends ConsumerState<BearAITab> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          if (displayInsight != null)
-            Text(displayInsight, style: AppTextStyles.body),
-          if (displayInsight == null && !aiState.isInsightLoading)
+          if (aiState.insightError != null)
+            Text(
+              aiState.insightError!,
+              style: AppTextStyles.body.copyWith(color: Colors.red.shade700),
+            )
+          else if (displayInsight != null)
+            Text(displayInsight, style: AppTextStyles.body)
+          else if (!aiState.isInsightLoading)
             const Text(
               'Generating weekly insight...',
               style: AppTextStyles.body,
-            ),
-          if (displayInsight == null && aiState.isInsightLoading)
+            )
+          else
             const Text('Connecting to BearAI...', style: AppTextStyles.body),
 
           const SizedBox(height: AppSpacing.lg),

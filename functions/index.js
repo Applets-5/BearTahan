@@ -370,7 +370,7 @@ exports.askBearAi = onCall({secrets: [geminiKey]}, async (request) => {
   // 3. Initialize Gemini API (Issue 13: Use stable model)
   const genAI = new GoogleGenerativeAI(geminiKey.value());
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-3.5-flash",
     systemInstruction: buildBearAiSystemPrompt(context),
   });
 
@@ -433,7 +433,7 @@ exports.getBearAiInsight = onCall({secrets: [geminiKey]}, async (request) => {
   const context = await assembleBearAiContext(parentId, childId, true);
 
   const genAI = new GoogleGenerativeAI(geminiKey.value());
-  const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
+  const model = genAI.getGenerativeModel({model: "gemini-3.5-flash"});
 
   const prompt = `In exactly 2-3 sentences, summarise ${context.child.name}'s activity for the past 7 days. ` +
     "Mention their most active subject and one specific area for encouragement. Ground in data below.";
