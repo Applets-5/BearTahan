@@ -158,13 +158,13 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
       } else {
         // Didn't reach a NEW star or was a reattempt
         if (bestStars == 0) {
-          return "Great try! Score 80% or more to earn your first star. Keep practicing!";
+          return "Keep going, superstar! Get 80% to win your first shiny star. Keep practicing!";
         }
         if (bestStars == 1) {
-          return "Awesome work! Reach 90% to earn your second star. Keep practicing!";
+          return "Nice job! Get 90% to collect another star. Keep practicing!";
         }
         if (bestStars == 2) {
-          return "You're so close! Get 100% to earn your third star. Keep practicing!";
+          return "Almost a star champion! Score 100% to collect all 3 stars. Keep practicing!";
         }
         if (bestStars == 3) {
           return "Fantastic! You've already mastered this stage with 3 stars!";
