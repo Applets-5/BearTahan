@@ -147,10 +147,10 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
 
       if (isEscalated) {
         if (bestStars == 1) {
-          return "You earned your 1st star! Get 90% next time for the 2nd star!";
+          return "Yey, you got your 1st star! Get 90% next time for the 2nd star!";
         }
         if (bestStars == 2) {
-          return "You earned your 2nd star! Get 100% next time for the 3rd star!";
+          return "Hooray, you got your 2nd star! Get 100% next time for the 3rd star!";
         }
         if (bestStars == 3) {
           return "Fantastic! You've mastered this stage with 3 stars!";
@@ -158,13 +158,13 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
       } else {
         // Didn't reach a NEW star or was a reattempt
         if (bestStars == 0) {
-          return "Summary stages need at least 80% to earn a star. Keep practicing!";
+          return "Great try! Score 80% or more to earn your first star. Keep practicing!";
         }
         if (bestStars == 1) {
-          return "Summary stages need at least 90% to earn your 2nd star. Keep practicing!";
+          return "Awesome work! Reach 90% to earn your second star. Keep practicing!";
         }
         if (bestStars == 2) {
-          return "Summary stages need 100% to earn your 3rd star. Keep practicing!";
+          return "You're so close! Get 100% to earn your third star. Keep practicing!";
         }
         if (bestStars == 3) {
           return "Fantastic! You've already mastered this stage with 3 stars!";
@@ -204,142 +204,167 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xxl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CompletionMascotStage(
-                childId: widget.childId,
-                passed: passed,
-                stars: performanceStars,
-                isReview: isReview,
+        child: Stack(
+          children: [
+            // Top Left Home Button
+            Positioned(
+              top: AppSpacing.sm,
+              left: AppSpacing.sm,
+              child: IconButton(
+                onPressed: () =>
+                    context.go(AppRouter.childHomeFor(widget.childId)),
+                icon: const Icon(
+                  Icons.home_rounded,
+                  color: AppColors.mutedText,
+                  size: 28,
+                ),
+                tooltip: 'Go to Home',
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Icon(
-                isReview || passed
-                    ? Icons.emoji_events_rounded
-                    : Icons.refresh_rounded,
-                size: 56,
-                color: isReview || passed ? AppColors.star : AppColors.mutedText,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                isReview
-                    ? 'Review Complete!'
-                    : (isSummaryOrRevision && bestStars == 3 && !widget.isEscalated)
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CompletionMascotStage(
+                    childId: widget.childId,
+                    passed: passed,
+                    stars: performanceStars,
+                    isReview: isReview,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Icon(
+                    isReview || passed
+                        ? Icons.emoji_events_rounded
+                        : Icons.refresh_rounded,
+                    size: 56,
+                    color: isReview || passed
+                        ? AppColors.star
+                        : AppColors.mutedText,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    isReview
+                        ? 'Review Complete!'
+                        : (isSummaryOrRevision &&
+                              bestStars == 3 &&
+                              !widget.isEscalated)
                         ? 'Mastery Revision!'
                         : passed
-                            ? 'Stage Clear!'
-                            : 'Try Again!',
-                style: AppTextStyles.title,
-                textAlign: TextAlign.center,
-              ),
-              Text(
-                'You got ${widget.score} out of ${widget.total} correct!',
-                style: AppTextStyles.small,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              if (!isReview)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    widget.isDailyBonus ? 4 : 3,
-                    (index) => Icon(
-                      Icons.star,
-                      size: 40,
-                      color:
-                          index < (widget.isDailyBonus ? 4 : performanceStars)
+                        ? 'Stage Clear!'
+                        : 'Try Again!',
+                    style: AppTextStyles.title,
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    'You got ${widget.score} out of ${widget.total} correct!',
+                    style: AppTextStyles.small,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  if (!isReview)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        widget.isDailyBonus ? 4 : 3,
+                        (index) => Icon(
+                          Icons.star,
+                          size: 40,
+                          color:
+                              index <
+                                  (widget.isDailyBonus ? 4 : performanceStars)
                               ? AppColors.star
                               : AppColors.muted,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              const SizedBox(height: AppSpacing.lg),
-              if (widget.isEscalated)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                  const SizedBox(height: AppSpacing.lg),
+                  if (widget.isEscalated)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: AppRadius.r(AppRadius.lg),
+                        ),
+                        child: Text(
+                          'Goal Increased! Next time try for more!',
+                          style: AppTextStyles.whiteBodyBold,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: isReview || passed
+                          ? AppColors.secondaryLight
+                          : AppColors.muted,
                       borderRadius: AppRadius.r(AppRadius.lg),
                     ),
                     child: Text(
-                      'Goal Increased! Next time try for more!',
-                      style: AppTextStyles.whiteBodyBold,
+                      _getFeedbackMessage(
+                        isReview: isReview,
+                        passed: passed,
+                        totalAwarded: totalAwarded,
+                        isSummaryOrRevision: isSummaryOrRevision,
+                        performanceStars: performanceStars,
+                        bestStars: bestStars,
+                        isEscalated: widget.isEscalated,
+                      ),
+                      style: AppTextStyles.bodyBold,
                       textAlign: TextAlign.center,
                     ),
                   ),
-                ),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color:
-                      isReview || passed ? AppColors.secondaryLight : AppColors.muted,
-                  borderRadius: AppRadius.r(AppRadius.lg),
-                ),
-                child: Text(
-                  _getFeedbackMessage(
-                    isReview: isReview,
-                    passed: passed,
-                    totalAwarded: totalAwarded,
-                    isSummaryOrRevision: isSummaryOrRevision,
-                    performanceStars: performanceStars,
-                    bestStars: bestStars,
-                    isEscalated: widget.isEscalated,
-                  ),
-                  style: AppTextStyles.bodyBold,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              if (isReview || passed)
-                PrimaryButton(
-                  label: 'Continue',
-                  onPressed: () => context.go(
-                    isReview
-                        ? AppRouter.childHomeFor(widget.childId)
-                        : AppRouter.subjectFor(
+                  const SizedBox(height: AppSpacing.xl),
+                  if (isReview || passed)
+                    PrimaryButton(
+                      label: 'Continue',
+                      onPressed: () => context.go(
+                        isReview
+                            ? AppRouter.childHomeFor(widget.childId)
+                            : AppRouter.subjectFor(
+                                widget.childId,
+                                subjectId: widget.subjectId,
+                              ),
+                      ),
+                    )
+                  else
+                    PrimaryButton(
+                      label: 'Try Again',
+                      onPressed: () => context.go(
+                        AppRouter.levelSessionFor(
                           widget.childId,
+                          levelPrefix: replayPrefix,
                           subjectId: widget.subjectId,
+                          levelId: widget.levelId,
                         ),
-                  ),
-                )
-              else
-                PrimaryButton(
-                  label: 'Try Again',
-                  onPressed: () => context.go(
-                    AppRouter.levelSessionFor(
-                      widget.childId,
-                      levelPrefix: replayPrefix,
-                      subjectId: widget.subjectId,
-                      levelId: widget.levelId,
+                      ),
                     ),
-                  ),
-                ),
-              if (!isReview && passed) ...[
-                const SizedBox(height: AppSpacing.md),
-                PrimaryButton(
-                  label: 'Replay',
-                  backgroundColor: AppColors.muted,
-                  foregroundColor: AppColors.mutedText,
-                  onPressed: () => context.go(
-                    AppRouter.levelSessionFor(
-                      widget.childId,
-                      levelPrefix: replayPrefix,
-                      subjectId: widget.subjectId,
-                      levelId: widget.levelId,
+                  if (!isReview && passed) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    PrimaryButton(
+                      label: 'Replay',
+                      backgroundColor: AppColors.muted,
+                      foregroundColor: AppColors.mutedText,
+                      onPressed: () => context.go(
+                        AppRouter.levelSessionFor(
+                          widget.childId,
+                          levelPrefix: replayPrefix,
+                          subjectId: widget.subjectId,
+                          levelId: widget.levelId,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
