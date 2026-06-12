@@ -135,6 +135,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
         );
     final passed = performanceStars > 0;
     final totalAwarded = widget.newStarsAwarded + widget.dailyBonusStars;
+    final isReview = widget.levelId == 'review_session';
     final replayPrefix =
         widget.levelPrefix ??
         DataContracts.levelPrefix(widget.subjectId, widget.levelId);
@@ -146,16 +147,31 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ActiveMascotWidget(childId: widget.childId, size: 100),
+              ActiveMascotWidget(
+                childId: widget.childId,
+                size: 100,
+                message:
+                    isReview
+                        ? 'Great job reviewing!'
+                        : passed
+                        ? 'Fantastic work!'
+                        : 'Almost there! Try again?',
+              ),
               const SizedBox(height: AppSpacing.lg),
               Icon(
-                passed ? Icons.emoji_events_rounded : Icons.refresh_rounded,
+                isReview || passed
+                    ? Icons.emoji_events_rounded
+                    : Icons.refresh_rounded,
                 size: 56,
-                color: passed ? AppColors.star : AppColors.mutedText,
+                color: isReview || passed ? AppColors.star : AppColors.mutedText,
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                passed ? 'Stage Clear!' : 'Try Again!',
+                isReview
+                    ? 'Review Complete!'
+                    : passed
+                    ? 'Stage Clear!'
+                    : 'Try Again!',
                 style: AppTextStyles.title,
                 textAlign: TextAlign.center,
               ),
@@ -164,19 +180,21 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 style: AppTextStyles.small,
               ),
               const SizedBox(height: AppSpacing.md),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  widget.isDailyBonus ? 4 : 3,
-                  (index) => Icon(
-                    Icons.star,
-                    size: 40,
-                    color: index < (widget.isDailyBonus ? 4 : performanceStars)
-                        ? AppColors.star
-                        : AppColors.muted,
+              if (!isReview)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    widget.isDailyBonus ? 4 : 3,
+                    (index) => Icon(
+                      Icons.star,
+                      size: 40,
+                      color:
+                          index < (widget.isDailyBonus ? 4 : performanceStars)
+                              ? AppColors.star
+                              : AppColors.muted,
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(height: AppSpacing.lg),
               if (widget.isEscalated)
                 Padding(
@@ -201,28 +219,33 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
-                  color: passed ? AppColors.secondaryLight : AppColors.muted,
+                  color:
+                      isReview || passed ? AppColors.secondaryLight : AppColors.muted,
                   borderRadius: AppRadius.r(AppRadius.lg),
                 ),
                 child: Text(
-                  passed
+                  isReview
+                      ? 'Each question you reviewed helps you earn stars and master subjects!'
+                      : passed
                       ? totalAwarded > 0
-                            ? '+$totalAwarded stars added to your wallet!'
-                            : 'Stage complete. No new wallet stars this time.'
+                          ? '+$totalAwarded stars added to your wallet!'
+                          : 'Stage complete. No new wallet stars this time.'
                       : 'You need at least 50% to earn a star. Don\'t give up!',
                   style: AppTextStyles.bodyBold,
                   textAlign: TextAlign.center,
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
-              if (passed)
+              if (isReview || passed)
                 PrimaryButton(
                   label: 'Continue',
                   onPressed: () => context.go(
-                    AppRouter.subjectFor(
-                      widget.childId,
-                      subjectId: widget.subjectId,
-                    ),
+                    isReview
+                        ? AppRouter.childHomeFor(widget.childId)
+                        : AppRouter.subjectFor(
+                          widget.childId,
+                          subjectId: widget.subjectId,
+                        ),
                   ),
                 )
               else
@@ -237,7 +260,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                     ),
                   ),
                 ),
-              if (passed) ...[
+              if (!isReview && passed) ...[
                 const SizedBox(height: AppSpacing.md),
                 PrimaryButton(
                   label: 'Replay',

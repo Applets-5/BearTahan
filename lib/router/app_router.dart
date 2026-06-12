@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/question.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/child/chapter_screen.dart';
 import '../screens/child/completion_screen.dart';
@@ -354,6 +355,8 @@ class AppRouter {
               explicitLevelId ??
               (parts.length >= 3 && parts[2].isNotEmpty ? parts[2] : 'l1');
 
+          final extra = state.extra as List<Question>?;
+
           return _noTransitionPage(
             state,
             LevelSessionScreen(
@@ -361,6 +364,7 @@ class AppRouter {
               levelPrefix: levelPrefix,
               subjectId: subjectId,
               levelId: levelId,
+              reviewQuestions: extra,
             ),
           );
         },

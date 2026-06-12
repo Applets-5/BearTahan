@@ -537,6 +537,117 @@ class FirestoreService {
     });
   }
 
+  Stream<int> streamWrongAnswerCount(String parentId, String childId) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  Future<List<Question>> getReviewQuestions(
+    String parentId,
+    String childId, {
+    String? subjectId,
+    int limit = 20,
+  }) async {
+    Query query = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank');
+
+    if (subjectId != null) {
+      query = query.where('subjectId', isEqualTo: subjectId);
+    }
+
+    final snapshot = await query
+        .orderBy('reviewCount', descending: false)
+        .orderBy('lastWrongAt', descending: true)
+        .limit(limit)
+        .get();
+
+    final List<Question> questions = [];
+    for (var doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final questionId = data['questionId'];
+      final subjectId = data['subjectId'];
+
+      // Fetch the actual question data from the global questions collection
+      // Based on prefix logic in getQuestions
+      final questionSnapshot = await _db
+          .collection('questions')
+          .doc(questionId)
+          .get();
+
+      if (questionSnapshot.exists) {
+        questions.add(
+          Question.fromFirestore(questionSnapshot.id, questionSnapshot.data()!),
+        );
+      }
+    }
+    return questions;
+  }
+
+  Future<void> updateReviewProgress(String parentId, String childId) async {
+    final childRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(childRef);
+      final data = snapshot.data() ?? {};
+      int counter = (data['reviewQuestionCounter'] ?? 0).toInt();
+      int availableStars = (data['availableStars'] ?? 0).toInt();
+      int lifetimeStars = (data['lifetimeStarsEarned'] ?? availableStars).toInt();
+
+      counter += 1;
+
+      if (counter >= 20) {
+        counter = 0;
+        availableStars += 1;
+        lifetimeStars += 1;
+
+        // Write star transaction
+        final starTxRef = childRef.collection('starTransactions').doc();
+        transaction.set(starTxRef, {
+          'amount': 1,
+          'type': 'earned',
+          'source': 'review_challenge',
+          'timestamp': FieldValue.serverTimestamp(),
+          'description': 'Completed 20 review questions',
+        });
+      }
+
+      transaction.update(childRef, {
+        'reviewQuestionCounter': counter,
+        'availableStars': availableStars,
+        'lifetimeStarsEarned': lifetimeStars,
+      });
+    });
+  }
+
+  Future<void> removeFromWrongAnswerBank(
+    String parentId,
+    String childId,
+    String questionId,
+  ) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank')
+        .doc(questionId)
+        .delete();
+  }
+
   Stream<List<UserProfile>> streamChildren(String parentId) {
     return _db
         .collection('parents')

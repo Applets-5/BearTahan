@@ -26,6 +26,7 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
     this.subjectId = 'bm',
     this.levelId = 'l1',
     this.showFeedbackMascot = true,
+    this.reviewQuestions,
   });
 
   final String? childId;
@@ -33,6 +34,7 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
   final String subjectId;
   final String levelId;
   final bool showFeedbackMascot;
+  final List<Question>? reviewQuestions;
 
   @override
   ConsumerState<LevelSessionScreen> createState() => _LevelSessionScreenState();
@@ -205,7 +207,25 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         question.id,
         isCorrect,
       );
-      if (!isCorrect) {
+
+      final isReviewQuestion =
+          widget.reviewQuestions != null ||
+          // If it's a regular level but the question prefix doesn't match the level prefix,
+          // it's likely a mixed-in review question.
+          (!widget.levelId.contains('summary') &&
+              !widget.levelId.contains('revision') &&
+              !question.id.startsWith(widget.levelPrefix));
+
+      if (isReviewQuestion) {
+        // In review mode (dedicated or mixed), increment counter regardless of correctness
+        await firestore.updateReviewProgress(parentId, childId);
+        // Remove from bank once reviewed
+        await firestore.removeFromWrongAnswerBank(
+          parentId,
+          childId,
+          question.id,
+        );
+      } else if (!isCorrect) {
         await firestore.flagWrongAnswer(
           parentId,
           childId,
@@ -411,6 +431,21 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.reviewQuestions != null) {
+      final rawQuestions = widget.reviewQuestions!;
+      if (shuffledQuestions == null) {
+        shuffledQuestions = List.from(rawQuestions)..shuffle();
+      }
+      return Scaffold(
+        body: SafeArea(
+          child:
+              shuffledQuestions!.isEmpty
+                  ? _buildNoQuestionsPlaceholder(context)
+                  : _buildSession(shuffledQuestions!),
+        ),
+      );
+    }
+
     // If it's a revision stage, we fetch ALL questions for the subject
     final isRevision = widget.levelId.toLowerCase().contains('revision');
     final queryPrefix = isRevision
@@ -465,8 +500,39 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                   },
                 );
               } else {
-                final List<Question> temp = List.from(rawQuestions)..shuffle();
-                shuffledQuestions = temp.take(10).toList();
+                // Regular session: mix in up to 2 review questions from same subject
+                return FutureBuilder<List<Question>>(
+                  future: ref
+                      .read(firestoreServiceProvider)
+                      .getReviewQuestions(
+                        ref.read(parentIdProvider),
+                        widget.childId ?? '',
+                        subjectId: widget.subjectId,
+                        limit: 2,
+                      ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        shuffledQuestions == null) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (shuffledQuestions == null) {
+                      final reviewQuestions = snapshot.data ?? [];
+                      final List<Question> pool = List.from(rawQuestions)
+                        ..shuffle();
+
+                      // Take 10 - reviewCount questions from pool
+                      final mainQuestions = pool.take(
+                        (10 - reviewQuestions.length).clamp(0, 10),
+                      ).toList();
+
+                      shuffledQuestions = [...mainQuestions, ...reviewQuestions]
+                        ..shuffle();
+                    }
+
+                    return _buildSession(shuffledQuestions!);
+                  },
+                );
               }
             }
 

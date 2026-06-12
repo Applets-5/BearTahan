@@ -57,6 +57,7 @@ class UserProfile {
   final String? phoneNumber;
   final String? avatarPath;
   final int? passwordLength;
+  final int reviewQuestionCounter;
 
   UserProfile({
     required this.uid,
@@ -75,6 +76,7 @@ class UserProfile {
     this.phoneNumber,
     this.avatarPath,
     this.passwordLength,
+    this.reviewQuestionCounter = 0,
   });
 
   int get starBalance => availableStars;
@@ -111,6 +113,7 @@ class UserProfile {
       passwordLength: data['passwordLength'] != null
           ? (data['passwordLength'] as num).toInt()
           : null,
+      reviewQuestionCounter: (data['reviewQuestionCounter'] ?? 0).toInt(),
     );
   }
 }

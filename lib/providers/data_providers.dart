@@ -147,6 +147,19 @@ final starTransactionsProvider =
           .streamStarTransactions(arg.parentId, arg.childId);
     });
 
+final wrongAnswerCountProvider = StreamProvider.family<int, String>((
+  ref,
+  childId,
+) {
+  final parentId = ref.watch(parentIdProvider);
+  if (childId.isEmpty || parentId.isEmpty) {
+    return Stream.value(0);
+  }
+  return ref
+      .watch(firestoreServiceProvider)
+      .streamWrongAnswerCount(parentId, childId);
+});
+
 final subjectChaptersProvider =
     FutureProvider.family<List<ChapterData>, String>((ref, subjectId) {
       return ref.watch(firestoreServiceProvider).getSubjectChapters(subjectId);

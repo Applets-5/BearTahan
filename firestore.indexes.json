@@ -13,6 +13,38 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "wrongAnswerBank",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "reviewCount",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastWrongAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "wrongAnswerBank",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subjectId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reviewCount",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastWrongAt",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

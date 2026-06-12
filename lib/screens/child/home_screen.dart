@@ -106,6 +106,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
+          SliverToBoxAdapter(
+            child: _MemoryChallengeBanner(childId: effectiveChildId),
+          ),
           SliverToBoxAdapter(child: _DailyGoalCard(childId: effectiveChildId)),
           subjectProgressAsync.when(
             data: (progressList) {
@@ -365,6 +368,88 @@ class _Header extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MemoryChallengeBanner extends ConsumerWidget {
+  const _MemoryChallengeBanner({required this.childId});
+
+  final String childId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final wrongAnswerCountAsync = ref.watch(wrongAnswerCountProvider(childId));
+
+    return wrongAnswerCountAsync.maybeWhen(
+      data: (count) {
+        if (count == 0) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Material(
+            color: AppColors.secondary,
+            borderRadius: AppRadius.r(AppRadius.lg),
+            child: InkWell(
+              onTap: () => context.push(
+                '${AppRouter.memory}?childId=$childId',
+              ),
+              borderRadius: AppRadius.r(AppRadius.lg),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.psychology_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Bear's Memory Challenge",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            "$count tricky questions to review!",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }
