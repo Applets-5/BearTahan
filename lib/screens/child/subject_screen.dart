@@ -22,8 +22,15 @@ class SubjectScreen extends ConsumerStatefulWidget {
 class _SubjectScreenState extends ConsumerState<SubjectScreen> {
   final ScrollController _scrollController = ScrollController();
   double _lastScrollOffset = 0;
+  double _upwardScrollIntent = 0;
   bool _didScroll = false;
-  bool _showStickyHeader = false;
+  bool _isStickyHeaderBuilt = false;
+  bool _isStickyHeaderVisible = false;
+
+  static const double _scrollDirectionThreshold = 3.0;
+  static const double _stickyRevealOffset = 150.0;
+  static const double _stickyRevealIntentDistance = 36.0;
+  static const Duration _stickyAnimationDuration = Duration(milliseconds: 420);
 
   @override
   void initState() {
@@ -43,41 +50,60 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
 
     final currentOffset = _scrollController.offset;
 
-    // Near the very top: hide sticky header because original is fully visible
     if (currentOffset <= 0) {
-      if (_showStickyHeader) {
-        setState(() => _showStickyHeader = false);
+      if (_isStickyHeaderBuilt || _isStickyHeaderVisible) {
+        setState(() {
+          _isStickyHeaderBuilt = false;
+          _isStickyHeaderVisible = false;
+        });
       }
-      _lastScrollOffset = 0;
+      _upwardScrollIntent = 0;
+      _lastScrollOffset = currentOffset;
       return;
     }
 
-    // Direction detection with threshold
     final delta = currentOffset - _lastScrollOffset;
     _lastScrollOffset = currentOffset;
 
-    if (delta.abs() < 5) return; // Ignore small jitters
+    if (delta.abs() < _scrollDirectionThreshold) return;
 
-    final isScrollingTowardsTop = delta < 0;
+    final isScrollingTowardTop = delta < 0;
 
-    if (isScrollingTowardsTop) {
-      // Show when scrolling UP (towards top), but only if original header is mostly gone
-      if (currentOffset > 150) {
-        if (!_showStickyHeader) {
-          setState(() => _showStickyHeader = true);
-        }
-      } else if (currentOffset < 80) {
-        // Hide when very close to top to reveal original header
-        if (_showStickyHeader) {
-          setState(() => _showStickyHeader = false);
-        }
+    if (isScrollingTowardTop) {
+      _upwardScrollIntent += -delta;
+      if (currentOffset > _stickyRevealOffset &&
+          _upwardScrollIntent >= _stickyRevealIntentDistance) {
+        _showStickyHeader();
       }
     } else {
-      // Hide immediately when scrolling DOWN (towards bottom)
-      if (_showStickyHeader) {
-        setState(() => _showStickyHeader = false);
-      }
+      _upwardScrollIntent = 0;
+      _hideStickyHeader();
     }
+  }
+
+  void _showStickyHeader() {
+    if (_isStickyHeaderBuilt && _isStickyHeaderVisible) return;
+
+    if (!_isStickyHeaderBuilt) {
+      setState(() => _isStickyHeaderBuilt = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_isStickyHeaderBuilt) return;
+        setState(() => _isStickyHeaderVisible = true);
+      });
+      return;
+    }
+
+    setState(() => _isStickyHeaderVisible = true);
+  }
+
+  void _hideStickyHeader() {
+    if (!_isStickyHeaderBuilt || !_isStickyHeaderVisible) return;
+
+    setState(() => _isStickyHeaderVisible = false);
+    Future<void>.delayed(_stickyAnimationDuration, () {
+      if (!mounted || _isStickyHeaderVisible) return;
+      setState(() => _isStickyHeaderBuilt = false);
+    });
   }
 
   void _scrollToActiveLevel({
@@ -312,29 +338,28 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
                             ),
                         ],
                       ),
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: AnimatedSlide(
-                          offset:
-                              _showStickyHeader
-                                  ? const Offset(0, 0)
-                                  : const Offset(0, -1.1),
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeInOutCubic,
-                          child: _StickySubjectBanner(
-                            subjectId: widget.subjectId,
-                            completedCount: completedCount,
-                            totalCount: totalPossibleLevels,
-                            progress: progress,
-                            onBack:
-                                () => context.go(
-                                  AppRouter.childHomeFor(widget.childId),
-                                ),
+                      if (_isStickyHeaderBuilt)
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: AnimatedSlide(
+                            offset: _isStickyHeaderVisible
+                                ? Offset.zero
+                                : const Offset(0, -1),
+                            duration: _stickyAnimationDuration,
+                            curve: Curves.easeOutQuart,
+                            child: _SubjectHeader(
+                              subjectId: widget.subjectId,
+                              completedCount: completedCount,
+                              totalCount: totalPossibleLevels,
+                              progress: progress,
+                              onBack: () => context.go(
+                                AppRouter.childHomeFor(widget.childId),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   );
                 },
@@ -350,70 +375,6 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
-      ),
-    );
-  }
-}
-
-class _StickySubjectBanner extends StatelessWidget {
-  const _StickySubjectBanner({
-    required this.subjectId,
-    required this.completedCount,
-    required this.totalCount,
-    required this.progress,
-    required this.onBack,
-  });
-
-  final String subjectId;
-  final int completedCount;
-  final int totalCount;
-  final double progress;
-  final VoidCallback onBack;
-
-  Color _getSubjectColor() {
-    switch (subjectId) {
-      case 'bm':
-        return AppColors.subjectBm;
-      case 'bi':
-        return AppColors.subjectEnglish;
-      case 'bc':
-        return AppColors.subjectMandarin;
-      case 'math':
-        return AppColors.subjectMath;
-      case 'sci':
-        return AppColors.subjectScience;
-      default:
-        return AppColors.primary;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _getSubjectColor(),
-        boxShadow: AppShadows.card,
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(AppRadius.xxl),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.xxl,
-            AppSpacing.lg,
-            AppSpacing.xxxl,
-          ),
-          child: _HeaderContent(
-            subjectId: subjectId,
-            completedCount: completedCount,
-            totalCount: totalCount,
-            progress: progress,
-            onBack: onBack,
-          ),
-        ),
       ),
     );
   }
@@ -459,11 +420,7 @@ class _HeaderContent extends StatelessWidget {
       children: [
         TextButton.icon(
           onPressed: onBack,
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.white,
-            size: 20,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
           label: const Text('Back', style: AppTextStyles.whiteSmall),
           style: TextButton.styleFrom(
             padding: EdgeInsets.zero,
@@ -472,10 +429,7 @@ class _HeaderContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Text(
-          _getSubjectName(),
-          style: AppTextStyles.whiteTitle,
-        ),
+        Text(_getSubjectName(), style: AppTextStyles.whiteTitle),
         Text(
           '$completedCount/$totalCount levels completed',
           style: AppTextStyles.whiteSmall,

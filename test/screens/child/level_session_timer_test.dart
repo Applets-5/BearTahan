@@ -75,6 +75,12 @@ void main() {
           mockFirestoreService.updateQuestionStats(any(), any(), any(), any()),
     ).thenAnswer((_) async {});
     when(
+      () => mockFirestoreService.updateReviewProgress(any(), any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => mockFirestoreService.removeFromWrongAnswerBank(any(), any(), any()),
+    ).thenAnswer((_) async {});
+    when(
       () => mockFirestoreService.flagWrongAnswer(
         any(),
         any(),
@@ -84,6 +90,19 @@ void main() {
         questionText: any(named: 'questionText'),
       ),
     ).thenAnswer((_) async {});
+
+    when(
+      () => mockFirestoreService.getReviewQuestions(
+        any(),
+        any(),
+        subjectId: any(named: 'subjectId'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => []);
+
+    when(
+      () => mockFirestoreService.getQuestionStatsForUser(any(), any(), any()),
+    ).thenAnswer((_) async => {});
   });
 
   Widget createTestableWidget() {

@@ -44,6 +44,7 @@ class StrokeTraceQuestionState extends State<StrokeTraceQuestion>
   @override
   void initState() {
     super.initState();
+    debugPrint('StrokeTraceQuestion: initState called');
     _feedbackController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 320),
@@ -124,15 +125,18 @@ class StrokeTraceQuestionState extends State<StrokeTraceQuestion>
   }
 
   void _handleWrongStroke(int strokeIndex) {
-    if (_isFeedbackPlaying || _completed) return;
+    debugPrint('StrokeTraceQuestion: _handleWrongStroke called, attempts: $_attemptsUsed, feedbackPlaying: $_isFeedbackPlaying, completed: $_completed');
+    if (!mounted || _isFeedbackPlaying || _completed) return;
 
     _isFeedbackPlaying = true;
     _attemptsUsed++;
+    debugPrint('StrokeTraceQuestion: Incrementing attempts to $_attemptsUsed');
     widget.onWrongAttempt();
     HapticFeedback.mediumImpact();
     _feedbackController.forward(from: 0);
 
     if (_attemptsUsed >= maxAttempts) {
+      debugPrint('StrokeTraceQuestion: Max attempts reached, calling onComplete(false)');
       _controller?.stopQuiz();
       _controller?.showFullCharacter();
       setState(() {

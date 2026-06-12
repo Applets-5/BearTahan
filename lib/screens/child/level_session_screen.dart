@@ -430,6 +430,36 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     }
   }
 
+  Future<void>? _initializationFuture;
+
+  Future<void> _initializeQuestions(List<Question> rawQuestions) async {
+    final isSummary = widget.levelId.toLowerCase().contains('summary');
+    final isRevision = widget.levelId.toLowerCase().contains('revision');
+    final needsPrioritization = isSummary || isRevision;
+
+    if (needsPrioritization) {
+      final stats = await ref.read(firestoreServiceProvider).getQuestionStatsForUser(
+            ref.read(parentIdProvider),
+            widget.childId ?? '',
+            rawQuestions.map((q) => q.id).toList(),
+          );
+      shuffledQuestions = _prioritizeQuestions(rawQuestions, stats, 15, isRevision);
+    } else {
+      final reviewQuestions = await ref.read(firestoreServiceProvider).getReviewQuestions(
+            ref.read(parentIdProvider),
+            widget.childId ?? '',
+            subjectId: widget.subjectId,
+            limit: 2,
+          );
+      final List<Question> pool = List.from(rawQuestions)..shuffle();
+      final mainQuestions = pool
+          .take((10 - reviewQuestions.length).clamp(0, 10))
+          .toList();
+      shuffledQuestions = [...mainQuestions, ...reviewQuestions]..shuffle();
+    }
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.reviewQuestions != null) {
@@ -463,82 +493,33 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               return _buildNoQuestionsPlaceholder(context);
             }
 
-            // If questions are ready, we need to fetch stats for prioritization
-            // (Only for Summary and Revision stages)
-            final isSummary = widget.levelId.toLowerCase().contains('summary');
-            final needsPrioritization = isSummary || isRevision;
-
-            if (shuffledQuestions == null ||
-                _lastRawQuestions != rawQuestions) {
+            // Check if raw questions changed to trigger re-initialization
+            if (_lastRawQuestions != rawQuestions) {
               _lastRawQuestions = rawQuestions;
+              shuffledQuestions = null;
+              _initializationFuture = _initializeQuestions(rawQuestions);
+            }
 
-              if (needsPrioritization) {
-                return FutureBuilder<Map<String, Map<String, int>>>(
-                  future: ref
-                      .read(firestoreServiceProvider)
-                      .getQuestionStatsForUser(
-                        ref.read(parentIdProvider),
-                        widget.childId ?? '',
-                        rawQuestions.map((q) => q.id).toList(),
-                      ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting &&
-                        shuffledQuestions == null) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    if (shuffledQuestions == null) {
-                      final stats = snapshot.data ?? {};
-                      shuffledQuestions = _prioritizeQuestions(
-                        rawQuestions,
-                        stats,
-                        15,
-                        isRevision,
-                      );
-                    }
-
-                    return _buildSession(shuffledQuestions!);
-                  },
-                );
-              } else {
-                // Regular session: mix in up to 2 review questions from same subject
-                return FutureBuilder<List<Question>>(
-                  future: ref
-                      .read(firestoreServiceProvider)
-                      .getReviewQuestions(
-                        ref.read(parentIdProvider),
-                        widget.childId ?? '',
-                        subjectId: widget.subjectId,
-                        limit: 2,
-                      ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting &&
-                        shuffledQuestions == null) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    if (shuffledQuestions == null) {
-                      final reviewQuestions = snapshot.data ?? [];
-                      final List<Question> pool = List.from(rawQuestions)
-                        ..shuffle();
-
-                      // Take 10 - reviewCount questions from pool
-                      final mainQuestions = pool.take(
-                        (10 - reviewQuestions.length).clamp(0, 10),
-                      ).toList();
-
-                      shuffledQuestions = [...mainQuestions, ...reviewQuestions]
-                        ..shuffle();
-                    }
-
-                    return _buildSession(shuffledQuestions!);
-                  },
-                );
-              }
+            if (shuffledQuestions == null) {
+              return FutureBuilder<void>(
+                future: _initializationFuture,
+                builder: (context, snapshot) {
+                  if (shuffledQuestions == null) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  return _buildSession(shuffledQuestions!);
+                },
+              );
             }
 
             return _buildSession(shuffledQuestions!);
           },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text('Error: $err')),
+        ),
+      ),
+    );
+  }
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(child: Text('Error: $err')),
         ),
