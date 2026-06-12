@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/data_providers.dart';
+import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/missing_child_profile.dart';
@@ -56,6 +57,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     final userProfileAsync = ref.watch(userProfileProvider(childId));
+    final soundEffectsAsync = ref.watch(soundEffectsProvider);
 
     return SafeArea(
       child: Stack(
@@ -151,6 +153,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: AppRadius.r(AppRadius.lg),
+                    boxShadow: AppShadows.card,
+                  ),
+                  child: SwitchListTile.adaptive(
+                    value: soundEffectsAsync.value ?? true,
+                    onChanged: soundEffectsAsync.isLoading
+                        ? null
+                        : (enabled) async {
+                            try {
+                              await ref
+                                  .read(soundEffectsProvider.notifier)
+                                  .setEnabled(enabled);
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Error updating sound effects: $e',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                    secondary: Icon(
+                      (soundEffectsAsync.value ?? true)
+                          ? Icons.volume_up_rounded
+                          : Icons.volume_off_rounded,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Sound effects',
+                      style: AppTextStyles.bodyBold,
+                    ),
+                    subtitle: const Text(
+                      'Quiz feedback and completion sounds',
+                      style: AppTextStyles.small,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 FilledButton.icon(

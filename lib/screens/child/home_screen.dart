@@ -404,9 +404,7 @@ class _MemoryChallengeBanner extends ConsumerWidget {
             color: AppColors.secondary,
             borderRadius: AppRadius.r(AppRadius.lg),
             child: InkWell(
-              onTap: () => context.push(
-                '${AppRouter.memory}?childId=$childId',
-              ),
+              onTap: () => context.push('${AppRouter.memory}?childId=$childId'),
               borderRadius: AppRadius.r(AppRadius.lg),
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
@@ -415,7 +413,7 @@ class _MemoryChallengeBanner extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.sm),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(

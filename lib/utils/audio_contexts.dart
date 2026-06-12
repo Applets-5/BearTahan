@@ -9,13 +9,10 @@ AudioContext promptAudioContext() {
 AudioContext soundEffectAudioContext() {
   return AudioContext(
     android: const AudioContextAndroid(
-      contentType: AndroidContentType.sonification,
-      usageType: AndroidUsageType.assistanceSonification,
+      contentType: AndroidContentType.music,
+      usageType: AndroidUsageType.media,
       audioFocus: AndroidAudioFocus.none,
     ),
-    iOS: AudioContextIOS(
-      category: AVAudioSessionCategory.playback,
-      options: const {AVAudioSessionOptions.mixWithOthers},
-    ),
+    iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
   );
 }

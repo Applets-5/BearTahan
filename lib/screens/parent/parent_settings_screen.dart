@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../models/user_profile.dart';
 import '../../providers/data_providers.dart';
+import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 
@@ -109,6 +110,17 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
     }
   }
 
+  Future<void> _updateSoundEffects(bool enabled) async {
+    try {
+      await ref.read(soundEffectsProvider.notifier).setEnabled(enabled);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating sound effects: $e')),
+      );
+    }
+  }
+
   Future<void> _logout(BuildContext logoutContext) async {
     try {
       ref.read(childIdProvider.notifier).update(null);
@@ -129,12 +141,13 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(parentSettingsProvider);
+    final soundEffectsAsync = ref.watch(soundEffectsProvider);
     final childrenAsync = ref.watch(childrenProvider);
 
     return SafeArea(
       child: settingsAsync.when(
         data: (settings) {
-          final sound = settings['soundEffects'] ?? true;
+          final sound = soundEffectsAsync.value ?? true;
           final claims = settings['rewardClaims'] ?? true;
           final dailyGoals = settings['dailyGoals'] ?? true;
           final streakAtRisk = settings['streakAtRisk'] ?? true;
@@ -252,7 +265,9 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                       showTopBorder: true,
                       trailing: Switch.adaptive(
                         value: sound,
-                        onChanged: (v) => _updateSetting('soundEffects', v),
+                        onChanged: soundEffectsAsync.isLoading
+                            ? null
+                            : _updateSoundEffects,
                         activeTrackColor: const Color(0xFF534AB7),
                       ),
                     ),

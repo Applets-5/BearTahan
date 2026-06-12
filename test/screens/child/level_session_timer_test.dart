@@ -75,10 +75,11 @@ void main() {
           mockFirestoreService.updateQuestionStats(any(), any(), any(), any()),
     ).thenAnswer((_) async {});
     when(
-      () => mockFirestoreService.updateReviewProgress(any(), any()),
-    ).thenAnswer((_) async {});
-    when(
-      () => mockFirestoreService.removeFromWrongAnswerBank(any(), any(), any()),
+      () => mockFirestoreService.recordReviewQuestionAnswered(
+        any(),
+        any(),
+        any(),
+      ),
     ).thenAnswer((_) async {});
     when(
       () => mockFirestoreService.flagWrongAnswer(
@@ -105,18 +106,19 @@ void main() {
     ).thenAnswer((_) async => {});
   });
 
-  Widget createTestableWidget() {
+  Widget createTestableWidget({List<Question>? reviewQuestions}) {
     final router = GoRouter(
       initialLocation: '/test-level',
       routes: [
         GoRoute(
           path: '/test-level',
-          builder: (context, state) => const LevelSessionScreen(
+          builder: (context, state) => LevelSessionScreen(
             childId: 'mock-child-id',
             subjectId: 'bm',
-            levelId: 'l1',
-            levelPrefix: 'bm_c1_l1_',
+            levelId: reviewQuestions == null ? 'l1' : 'review_session',
+            levelPrefix: reviewQuestions == null ? 'bm_c1_l1_' : 'review_',
             showFeedbackMascot: false,
+            reviewQuestions: reviewQuestions,
           ),
         ),
         GoRoute(
@@ -131,6 +133,9 @@ void main() {
       overrides: [
         firestoreServiceProvider.overrideWithValue(mockFirestoreService),
         parentIdProvider.overrideWithValue('mock-parent-id'),
+        parentSettingsProvider.overrideWith(
+          (ref) => Stream.value({'soundEffects': true}),
+        ),
       ],
       child: MaterialApp.router(routerConfig: router),
     );
@@ -203,5 +208,61 @@ void main() {
         ),
       ).called(1);
     });
+
+    testWidgets(
+      'review completion does not save level progress or an attempt',
+      (WidgetTester tester) async {
+        final reviewQuestion = Question(
+          id: 'bc_c1_l2_q01',
+          text: 'Review this question',
+          type: 'mcq',
+          options: ['Correct', 'Wrong'],
+          correctAnswerIndex: 0,
+        );
+
+        await tester.pumpWidget(
+          createTestableWidget(reviewQuestions: [reviewQuestion]),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Correct'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Finish'));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 6));
+        await tester.pump();
+
+        expect(find.text('Completion reached'), findsOneWidget);
+        verify(
+          () => mockFirestoreService.recordReviewQuestionAnswered(
+            'mock-parent-id',
+            'mock-child-id',
+            reviewQuestion.id,
+          ),
+        ).called(1);
+        verifyNever(
+          () => mockFirestoreService.updateLevelProgress(
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+          ),
+        );
+        verifyNever(
+          () => mockFirestoreService.recordAttempt(
+            any(),
+            any(),
+            subjectId: any(named: 'subjectId'),
+            levelId: any(named: 'levelId'),
+            score: any(named: 'score'),
+            total: any(named: 'total'),
+            stars: any(named: 'stars'),
+            timeInSeconds: any(named: 'timeInSeconds'),
+          ),
+        );
+      },
+    );
   });
 }

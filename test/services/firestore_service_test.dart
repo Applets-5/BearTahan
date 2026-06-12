@@ -577,6 +577,83 @@ void main() {
       expect(goal['todaySeconds'], 60);
     });
 
+    test(
+      'recordReviewQuestionAnswered awards milestone and removes bank entry atomically',
+      () async {
+        const parentId = 'p1';
+        const childId = 'c1';
+        const questionId = 'bc_c1_l2_q01';
+        final childRef = fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId);
+
+        await childRef.set({
+          'reviewQuestionCounter': 19,
+          'availableStars': 4,
+          'lifetimeStarsEarned': 7,
+        });
+        await childRef.collection('wrongAnswerBank').doc(questionId).set({
+          'questionId': questionId,
+          'subjectId': 'bc',
+          'reviewCount': 1,
+        });
+
+        await firestoreService.recordReviewQuestionAnswered(
+          parentId,
+          childId,
+          questionId,
+        );
+
+        final child = await childRef.get();
+        expect(child.data()?['reviewQuestionCounter'], 0);
+        expect(child.data()?['availableStars'], 5);
+        expect(child.data()?['lifetimeStarsEarned'], 8);
+
+        final bankEntry = await childRef
+            .collection('wrongAnswerBank')
+            .doc(questionId)
+            .get();
+        expect(bankEntry.exists, false);
+
+        final transactions = await childRef
+            .collection('starTransactions')
+            .get();
+        expect(transactions.docs, hasLength(1));
+        expect(transactions.docs.single.data()['type'], 'earn');
+        expect(transactions.docs.single.data()['source'], 'review_milestone');
+      },
+    );
+
+    test(
+      'recordReviewQuestionAnswered ignores an already removed question',
+      () async {
+        const parentId = 'p1';
+        const childId = 'c1';
+        final childRef = fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId);
+        await childRef.set({
+          'reviewQuestionCounter': 5,
+          'availableStars': 2,
+          'lifetimeStarsEarned': 2,
+        });
+
+        await firestoreService.recordReviewQuestionAnswered(
+          parentId,
+          childId,
+          'missing_question',
+        );
+
+        final child = await childRef.get();
+        expect(child.data()?['reviewQuestionCounter'], 5);
+        expect(child.data()?['availableStars'], 2);
+      },
+    );
+
     test('addChild should create a new child document', () async {
       const parentId = 'p1';
       final childData = {'name': 'Ali', 'age': 7, 'grade': 'Standard 1'};

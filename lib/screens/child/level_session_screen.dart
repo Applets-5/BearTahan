@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../models/question.dart';
 import '../../providers/data_providers.dart';
+import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/audio_contexts.dart';
@@ -54,6 +55,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   bool _numberSubmitted = false;
   List<Question>? shuffledQuestions;
   List<Question>? _lastRawQuestions;
+  final Set<String> _reviewQuestionIds = {};
   final AudioPlayer _audioPlayer = AudioPlayer();
   late final Future<void> _feedbackAudioContextReady;
   AudioPool? _correctAnswerPool;
@@ -78,7 +80,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   }
 
   bool get _soundEffectsEnabled {
-    return soundEffectsEnabled(ref.read(parentSettingsProvider).value);
+    return ref.read(soundEffectsProvider).value ?? true;
   }
 
   Future<void> _initializeSoundEffectAudio() async {
@@ -209,19 +211,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         isCorrect,
       );
 
-      final isReviewQuestion =
-          widget.reviewQuestions != null ||
-          // If it's a regular level but the question prefix doesn't match the level prefix,
-          // it's likely a mixed-in review question.
-          (!widget.levelId.contains('summary') &&
-              !widget.levelId.contains('revision') &&
-              !question.id.startsWith(widget.levelPrefix));
-
-      if (isReviewQuestion) {
-        // In review mode (dedicated or mixed), increment counter regardless of correctness
-        await firestore.updateReviewProgress(parentId, childId);
-        // Remove from bank once reviewed
-        await firestore.removeFromWrongAnswerBank(
+      if (_reviewQuestionIds.contains(question.id)) {
+        await firestore.recordReviewQuestionAnswered(
           parentId,
           childId,
           question.id,
@@ -231,7 +222,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           parentId,
           childId,
           questionId: question.id,
-          subjectId: widget.subjectId,
+          subjectId: _subjectIdForQuestion(question),
           levelId: widget.levelId,
           questionText: question.text,
         );
@@ -295,9 +286,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     bool isDailyBonus = false;
     final newlyUnlockedOutfits = <String>[];
 
+    final isReviewSession = _isDedicatedReviewSession;
+
     try {
       final parentId = ref.read(parentIdProvider);
-      if (widget.childId != null && parentId.isNotEmpty) {
+      if (!isReviewSession && widget.childId != null && parentId.isNotEmpty) {
         final firestore = ref.read(firestoreServiceProvider);
 
         final progressResult = await firestore.updateLevelProgress(
@@ -339,7 +332,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         } catch (error) {
           debugPrint('Progress saved but quest evaluation failed: $error');
         }
-      } else {
+      } else if (!isReviewSession) {
         performanceStars = StarUtils.calculateStars(
           score: score,
           total: totalQuestions,
@@ -362,7 +355,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     }
 
     // Play appropriate audio
-    final String audioPath = performanceStars > 0
+    final String audioPath = isReviewSession || performanceStars > 0
         ? 'audio/levelPassed.mp3'
         : 'audio/levelFailed.mp3';
 
@@ -432,47 +425,90 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
   Future<void>? _initializationFuture;
 
+  bool get _isDedicatedReviewSession =>
+      widget.reviewQuestions != null || widget.levelId == 'review_session';
+
+  String _subjectIdForQuestion(Question question) {
+    final prefix = question.id.split('_').first.toLowerCase();
+    const knownSubjects = {'bm', 'bi', 'bc', 'math', 'sci'};
+    return knownSubjects.contains(prefix) ? prefix : widget.subjectId;
+  }
+
   Future<void> _initializeQuestions(List<Question> rawQuestions) async {
     final isSummary = widget.levelId.toLowerCase().contains('summary');
     final isRevision = widget.levelId.toLowerCase().contains('revision');
     final needsPrioritization = isSummary || isRevision;
 
-    if (needsPrioritization) {
-      final stats = await ref.read(firestoreServiceProvider).getQuestionStatsForUser(
-            ref.read(parentIdProvider),
-            widget.childId ?? '',
-            rawQuestions.map((q) => q.id).toList(),
-          );
-      shuffledQuestions = _prioritizeQuestions(rawQuestions, stats, 15, isRevision);
-    } else {
-      final reviewQuestions = await ref.read(firestoreServiceProvider).getReviewQuestions(
-            ref.read(parentIdProvider),
-            widget.childId ?? '',
-            subjectId: widget.subjectId,
-            limit: 2,
-          );
-      final List<Question> pool = List.from(rawQuestions)..shuffle();
-      final mainQuestions = pool
-          .take((10 - reviewQuestions.length).clamp(0, 10))
-          .toList();
-      shuffledQuestions = [...mainQuestions, ...reviewQuestions]..shuffle();
+    try {
+      if (needsPrioritization) {
+        final stats = await ref
+            .read(firestoreServiceProvider)
+            .getQuestionStatsForUser(
+              ref.read(parentIdProvider),
+              widget.childId ?? '',
+              rawQuestions.map((q) => q.id).toList(),
+            );
+        shuffledQuestions = _prioritizeQuestions(
+          rawQuestions,
+          stats,
+          15,
+          isRevision,
+        );
+      } else {
+        final reviewQuestions = await ref
+            .read(firestoreServiceProvider)
+            .getReviewQuestions(
+              ref.read(parentIdProvider),
+              widget.childId ?? '',
+              subjectId: widget.subjectId,
+              limit: 2,
+            );
+        final reviewById = <String, Question>{
+          for (final question in reviewQuestions) question.id: question,
+        };
+        _reviewQuestionIds
+          ..clear()
+          ..addAll(reviewById.keys);
+
+        final List<Question> pool =
+            rawQuestions
+                .where((question) => !reviewById.containsKey(question.id))
+                .toList()
+              ..shuffle();
+        final mainQuestions = pool
+            .take((10 - reviewById.length).clamp(0, 10))
+            .toList();
+        shuffledQuestions = [...mainQuestions, ...reviewById.values]..shuffle();
+      }
+    } catch (error) {
+      debugPrint('Unable to prepare personalized questions: $error');
+      _reviewQuestionIds.clear();
+      final fallback = List<Question>.from(rawQuestions)..shuffle();
+      shuffledQuestions = fallback.take(needsPrioritization ? 15 : 10).toList();
     }
     if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(soundEffectsProvider);
+
     if (widget.reviewQuestions != null) {
       final rawQuestions = widget.reviewQuestions!;
       if (shuffledQuestions == null) {
-        shuffledQuestions = List.from(rawQuestions)..shuffle();
+        final questionsById = <String, Question>{
+          for (final question in rawQuestions) question.id: question,
+        };
+        _reviewQuestionIds
+          ..clear()
+          ..addAll(questionsById.keys);
+        shuffledQuestions = questionsById.values.toList()..shuffle();
       }
       return Scaffold(
         body: SafeArea(
-          child:
-              shuffledQuestions!.isEmpty
-                  ? _buildNoQuestionsPlaceholder(context)
-                  : _buildSession(shuffledQuestions!),
+          child: shuffledQuestions!.isEmpty
+              ? _buildNoQuestionsPlaceholder(context)
+              : _buildSession(shuffledQuestions!),
         ),
       );
     }
@@ -514,12 +550,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
             return _buildSession(shuffledQuestions!);
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text('Error: $err')),
-        ),
-      ),
-    );
-  }
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(child: Text('Error: $err')),
         ),
@@ -622,7 +652,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final progress = (currentQuestionIndex + 1) / questions.length;
 
     String getLanguage() {
-      switch (widget.subjectId.toLowerCase()) {
+      switch (_subjectIdForQuestion(question)) {
         case 'bm':
           return 'ms-MY';
         case 'bi':

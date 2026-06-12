@@ -575,8 +575,6 @@ class FirestoreService {
     for (var doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
       final questionId = data['questionId'];
-      final subjectId = data['subjectId'];
-
       // Fetch the actual question data from the global questions collection
       // Based on prefix logic in getQuestions
       final questionSnapshot = await _db
@@ -593,19 +591,30 @@ class FirestoreService {
     return questions;
   }
 
-  Future<void> updateReviewProgress(String parentId, String childId) async {
+  Future<void> recordReviewQuestionAnswered(
+    String parentId,
+    String childId,
+    String questionId,
+  ) async {
     final childRef = _db
         .collection('parents')
         .doc(parentId)
         .collection('children')
         .doc(childId);
+    final wrongAnswerRef = childRef
+        .collection('wrongAnswerBank')
+        .doc(questionId);
 
     await _db.runTransaction((transaction) async {
-      final snapshot = await transaction.get(childRef);
-      final data = snapshot.data() ?? {};
+      final childSnapshot = await transaction.get(childRef);
+      final wrongAnswerSnapshot = await transaction.get(wrongAnswerRef);
+      if (!wrongAnswerSnapshot.exists) return;
+
+      final data = childSnapshot.data() ?? {};
       int counter = (data['reviewQuestionCounter'] ?? 0).toInt();
       int availableStars = (data['availableStars'] ?? 0).toInt();
-      int lifetimeStars = (data['lifetimeStarsEarned'] ?? availableStars).toInt();
+      int lifetimeStars = (data['lifetimeStarsEarned'] ?? availableStars)
+          .toInt();
 
       counter += 1;
 
@@ -618,8 +627,8 @@ class FirestoreService {
         final starTxRef = childRef.collection('starTransactions').doc();
         transaction.set(starTxRef, {
           'amount': 1,
-          'type': 'earned',
-          'source': 'review_challenge',
+          'type': 'earn',
+          'source': 'review_milestone',
           'timestamp': FieldValue.serverTimestamp(),
           'description': 'Completed 20 review questions',
         });
@@ -630,22 +639,8 @@ class FirestoreService {
         'availableStars': availableStars,
         'lifetimeStarsEarned': lifetimeStars,
       });
+      transaction.delete(wrongAnswerRef);
     });
-  }
-
-  Future<void> removeFromWrongAnswerBank(
-    String parentId,
-    String childId,
-    String questionId,
-  ) async {
-    await _db
-        .collection('parents')
-        .doc(parentId)
-        .collection('children')
-        .doc(childId)
-        .collection('wrongAnswerBank')
-        .doc(questionId)
-        .delete();
   }
 
   Stream<List<UserProfile>> streamChildren(String parentId) {
@@ -886,6 +881,14 @@ class FirestoreService {
   }
 
   Future<void> deleteParentAccount(String parentId) async {
+    // TODO(account-deletion): Replace this placeholder with an authenticated
+    // callable Cloud Function. The server-side operation must verify that the
+    // caller owns parentId, recursively delete every child and all nested
+    // collections (attempts, starTransactions, wrongAnswerBank,
+    // questionStats, subjectProgress/levels, questProgress, rewardClaims and
+    // rewardClaimLocks), then delete parent rewards, notifications, the parent
+    // document, and finally the Firebase Auth user. Do not implement this as a
+    // client-side loop: partial deletion would leave personal data behind.
     throw UnsupportedError(
       'Account deletion requires the planned server-side recursive deletion flow.',
     );

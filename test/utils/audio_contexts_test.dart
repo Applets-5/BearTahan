@@ -9,12 +9,13 @@ void main() {
     expect(context.android.audioFocus, AndroidAudioFocus.none);
   });
 
-  test('sound effect audio context does not interrupt prompt audio', () {
+  test('sound effects use media volume and respect silent mode', () {
     final context = soundEffectAudioContext();
 
     expect(context.android.audioFocus, AndroidAudioFocus.none);
-    expect(context.android.contentType, AndroidContentType.sonification);
-    expect(context.android.usageType, AndroidUsageType.assistanceSonification);
-    expect(context.iOS.options, contains(AVAudioSessionOptions.mixWithOthers));
+    expect(context.android.contentType, AndroidContentType.music);
+    expect(context.android.usageType, AndroidUsageType.media);
+    expect(context.iOS.category, AVAudioSessionCategory.ambient);
+    expect(context.iOS.options, isEmpty);
   });
 }

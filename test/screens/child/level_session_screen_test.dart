@@ -35,11 +35,11 @@ void main() {
     ).thenAnswer((_) async {});
 
     when(
-      () => mockFirestoreService.updateReviewProgress(any(), any()),
-    ).thenAnswer((_) async {});
-
-    when(
-      () => mockFirestoreService.removeFromWrongAnswerBank(any(), any(), any()),
+      () => mockFirestoreService.recordReviewQuestionAnswered(
+        any(),
+        any(),
+        any(),
+      ),
     ).thenAnswer((_) async {});
 
     when(
@@ -113,6 +113,42 @@ void main() {
       expect(find.text('Option B Text'), findsOneWidget);
       expect(find.text('A'), findsOneWidget);
       expect(find.text('B'), findsOneWidget);
+    });
+
+    testWidgets('falls back to regular questions when review loading fails', (
+      tester,
+    ) async {
+      when(
+        () => mockFirestoreService.getReviewQuestions(
+          any(),
+          any(),
+          subjectId: any(named: 'subjectId'),
+          limit: any(named: 'limit'),
+        ),
+      ).thenThrow(Exception('Missing index'));
+
+      final questions = [
+        Question(
+          id: 'test_prefix_q1',
+          text: 'Fallback question',
+          type: 'mcq',
+          options: [
+            QuestionOption(text: 'Correct'),
+            QuestionOption(text: 'Wrong'),
+          ],
+          correctAnswerIndex: 0,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questions, key: const ValueKey('fallback')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Fallback question'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
     testWidgets(
@@ -346,7 +382,7 @@ void main() {
             await tester.pump();
             await tester.pump(const Duration(milliseconds: 200));
             await tester.pumpAndSettle();
-            
+
             if (attempt < 2) {
               await tester.pump(const Duration(milliseconds: 800));
               await tester.pumpAndSettle();

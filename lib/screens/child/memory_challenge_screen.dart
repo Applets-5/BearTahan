@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../models/question.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
@@ -51,9 +50,9 @@ class _MemoryChallengeScreenState extends ConsumerState<MemoryChallengeScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) {
@@ -102,7 +101,7 @@ class _MemoryChallengeScreenState extends ConsumerState<MemoryChallengeScreen> {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
-                    color: AppColors.secondaryLight.withOpacity(0.2),
+                    color: AppColors.secondaryLight.withValues(alpha: 0.2),
                     borderRadius: AppRadius.r(AppRadius.lg),
                   ),
                   child: Row(
