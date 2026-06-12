@@ -21,12 +21,63 @@ class SubjectScreen extends ConsumerStatefulWidget {
 
 class _SubjectScreenState extends ConsumerState<SubjectScreen> {
   final ScrollController _scrollController = ScrollController();
+  double _lastScrollOffset = 0;
   bool _didScroll = false;
+  bool _showStickyHeader = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_scrollListener);
+  }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollListener() {
+    if (!_scrollController.hasClients) return;
+
+    final currentOffset = _scrollController.offset;
+
+    // Near the very top: hide sticky header because original is fully visible
+    if (currentOffset <= 0) {
+      if (_showStickyHeader) {
+        setState(() => _showStickyHeader = false);
+      }
+      _lastScrollOffset = 0;
+      return;
+    }
+
+    // Direction detection with threshold
+    final delta = currentOffset - _lastScrollOffset;
+    _lastScrollOffset = currentOffset;
+
+    if (delta.abs() < 5) return; // Ignore small jitters
+
+    final isScrollingTowardsTop = delta < 0;
+
+    if (isScrollingTowardsTop) {
+      // Show when scrolling UP (towards top), but only if original header is mostly gone
+      if (currentOffset > 150) {
+        if (!_showStickyHeader) {
+          setState(() => _showStickyHeader = true);
+        }
+      } else if (currentOffset < 80) {
+        // Hide when very close to top to reveal original header
+        if (_showStickyHeader) {
+          setState(() => _showStickyHeader = false);
+        }
+      }
+    } else {
+      // Hide immediately when scrolling DOWN (towards bottom)
+      if (_showStickyHeader) {
+        setState(() => _showStickyHeader = false);
+      }
+    }
   }
 
   void _scrollToActiveLevel({
@@ -168,94 +219,122 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
                     allChaptersComplete: showRevision,
                   );
 
-                  return CustomScrollView(
-                    controller: _scrollController,
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: _SubjectHeader(
-                          completedCount: completedCount,
-                          totalCount: totalPossibleLevels,
-                          progress: progress,
-                          subjectId: widget.subjectId,
-                          onBack: () => context.go(
-                            AppRouter.childHomeFor(widget.childId),
-                          ),
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: LevelWindingPath(
-                          starMap: starMap,
-                          chapters: chapters,
-                          subjectId: widget.subjectId,
-                          childId: widget.childId,
-                          onLevelTap: (levelId, isBoss, chapterId) {
-                            // levelId is already namespaced with the chapter (e.g., 'c1_l4' or 'c1_summary')
-                            String prefix = '${widget.subjectId}_${levelId}_';
-
-                            // If it's a summary level, route to the Chapter intro screen instead of direct session
-                            if (levelId.toLowerCase().contains('summary')) {
-                              context.push(
-                                AppRouter.chapterFor(
-                                  widget.childId,
-                                  subjectId: widget.subjectId,
-                                  chapterId: chapterId,
-                                ),
-                              );
-                              return;
-                            }
-
-                            context.push(
-                              AppRouter.levelSessionFor(
-                                widget.childId,
-                                levelPrefix: prefix,
-                                subjectId: widget.subjectId,
-                                levelId:
-                                    levelId, // Pass the explicit levelId so progress saves under 'c1_summary', 'c1_l4', etc.
+                  return Stack(
+                    children: [
+                      CustomScrollView(
+                        controller: _scrollController,
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: _SubjectHeader(
+                              completedCount: completedCount,
+                              totalCount: totalPossibleLevels,
+                              progress: progress,
+                              subjectId: widget.subjectId,
+                              onBack: () => context.go(
+                                AppRouter.childHomeFor(widget.childId),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                      if (showRevision)
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.xl,
-                              0,
-                              AppSpacing.xl,
-                              AppSpacing.xxxl,
-                            ),
-                            child: Column(
-                              children: [
-                                const Divider(height: 40),
-                                const Text(
-                                  'CHALLENGE UNLOCKED!',
-                                  style: AppTextStyles.cardTitle,
-                                ),
-                                const Text(
-                                  'Mix and review everything you learned!',
-                                  style: AppTextStyles.small,
-                                ),
-                                const SizedBox(height: AppSpacing.lg),
-                                _RevisionNode(
-                                  levelId: revisionLevelId,
-                                  stars: starMap[revisionLevelId] ?? 0,
-                                  onTap: () {
-                                    context.push(
-                                      AppRouter.levelSessionFor(
-                                        widget.childId,
-                                        levelPrefix:
-                                            '${widget.subjectId}_', // Prefix for all subject questions
-                                        subjectId: widget.subjectId,
-                                        levelId: revisionLevelId,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
                             ),
                           ),
+                          SliverToBoxAdapter(
+                            child: LevelWindingPath(
+                              starMap: starMap,
+                              chapters: chapters,
+                              subjectId: widget.subjectId,
+                              childId: widget.childId,
+                              onLevelTap: (levelId, isBoss, chapterId) {
+                                // levelId is already namespaced with the chapter (e.g., 'c1_l4' or 'c1_summary')
+                                String prefix =
+                                    '${widget.subjectId}_${levelId}_';
+
+                                // If it's a summary level, route to the Chapter intro screen instead of direct session
+                                if (levelId.toLowerCase().contains('summary')) {
+                                  context.push(
+                                    AppRouter.chapterFor(
+                                      widget.childId,
+                                      subjectId: widget.subjectId,
+                                      chapterId: chapterId,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                context.push(
+                                  AppRouter.levelSessionFor(
+                                    widget.childId,
+                                    levelPrefix: prefix,
+                                    subjectId: widget.subjectId,
+                                    levelId:
+                                        levelId, // Pass the explicit levelId so progress saves under 'c1_summary', 'c1_l4', etc.
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          if (showRevision)
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSpacing.xl,
+                                  0,
+                                  AppSpacing.xl,
+                                  AppSpacing.xxxl,
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Divider(height: 40),
+                                    const Text(
+                                      'CHALLENGE UNLOCKED!',
+                                      style: AppTextStyles.cardTitle,
+                                    ),
+                                    const Text(
+                                      'Mix and review everything you learned!',
+                                      style: AppTextStyles.small,
+                                    ),
+                                    const SizedBox(height: AppSpacing.lg),
+                                    _RevisionNode(
+                                      levelId: revisionLevelId,
+                                      stars: starMap[revisionLevelId] ?? 0,
+                                      onTap: () {
+                                        context.push(
+                                          AppRouter.levelSessionFor(
+                                            widget.childId,
+                                            levelPrefix:
+                                                '${widget.subjectId}_', // Prefix for all subject questions
+                                            subjectId: widget.subjectId,
+                                            levelId: revisionLevelId,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: AnimatedSlide(
+                          offset:
+                              _showStickyHeader
+                                  ? const Offset(0, 0)
+                                  : const Offset(0, -1.1),
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeInOutCubic,
+                          child: _StickySubjectBanner(
+                            subjectId: widget.subjectId,
+                            completedCount: completedCount,
+                            totalCount: totalPossibleLevels,
+                            progress: progress,
+                            onBack:
+                                () => context.go(
+                                  AppRouter.childHomeFor(widget.childId),
+                                ),
+                          ),
                         ),
+                      ),
                     ],
                   );
                 },
@@ -272,6 +351,146 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
       ),
+    );
+  }
+}
+
+class _StickySubjectBanner extends StatelessWidget {
+  const _StickySubjectBanner({
+    required this.subjectId,
+    required this.completedCount,
+    required this.totalCount,
+    required this.progress,
+    required this.onBack,
+  });
+
+  final String subjectId;
+  final int completedCount;
+  final int totalCount;
+  final double progress;
+  final VoidCallback onBack;
+
+  Color _getSubjectColor() {
+    switch (subjectId) {
+      case 'bm':
+        return AppColors.subjectBm;
+      case 'bi':
+        return AppColors.subjectEnglish;
+      case 'bc':
+        return AppColors.subjectMandarin;
+      case 'math':
+        return AppColors.subjectMath;
+      case 'sci':
+        return AppColors.subjectScience;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _getSubjectColor(),
+        boxShadow: AppShadows.card,
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(AppRadius.xxl),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.xxl,
+            AppSpacing.lg,
+            AppSpacing.xxxl,
+          ),
+          child: _HeaderContent(
+            subjectId: subjectId,
+            completedCount: completedCount,
+            totalCount: totalCount,
+            progress: progress,
+            onBack: onBack,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderContent extends StatelessWidget {
+  const _HeaderContent({
+    required this.subjectId,
+    required this.completedCount,
+    required this.totalCount,
+    required this.progress,
+    required this.onBack,
+  });
+
+  final String subjectId;
+  final int completedCount;
+  final int totalCount;
+  final double progress;
+  final VoidCallback onBack;
+
+  String _getSubjectName() {
+    switch (subjectId) {
+      case 'bm':
+        return 'Bahasa Melayu';
+      case 'bi':
+        return 'English';
+      case 'bc':
+        return 'Mandarin';
+      case 'math':
+        return 'Mathematics';
+      case 'sci':
+        return 'Science';
+      default:
+        return 'Subject';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextButton.icon(
+          onPressed: onBack,
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+            size: 20,
+          ),
+          label: const Text('Back', style: AppTextStyles.whiteSmall),
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(50, 30),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          _getSubjectName(),
+          style: AppTextStyles.whiteTitle,
+        ),
+        Text(
+          '$completedCount/$totalCount levels completed',
+          style: AppTextStyles.whiteSmall,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        ClipRRect(
+          borderRadius: AppRadius.r(AppRadius.sm),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: AppSpacing.sm,
+            color: Colors.white70,
+            backgroundColor: Colors.white24,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -336,23 +555,6 @@ class _SubjectHeader extends StatelessWidget {
   final double progress;
   final String subjectId;
 
-  String _getSubjectName() {
-    switch (subjectId) {
-      case 'bm':
-        return 'Bahasa Melayu';
-      case 'bi':
-        return 'English';
-      case 'bc':
-        return 'Mandarin';
-      case 'math':
-        return 'Mathematics';
-      case 'sci':
-        return 'Science';
-      default:
-        return 'Subject';
-    }
-  }
-
   Color _getSubjectColor() {
     switch (subjectId) {
       case 'bm':
@@ -387,31 +589,12 @@ class _SubjectHeader extends StatelessWidget {
       ),
       child: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextButton.icon(
-              onPressed: onBack,
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              label: const Text('Back', style: AppTextStyles.whiteSmall),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(_getSubjectName(), style: AppTextStyles.whiteTitle),
-            Text(
-              '$completedCount/$totalCount levels completed',
-              style: AppTextStyles.whiteSmall,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            ClipRRect(
-              borderRadius: AppRadius.r(AppRadius.sm),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: AppSpacing.sm,
-                color: Colors.white70,
-                backgroundColor: Colors.white24,
-              ),
-            ),
-          ],
+        child: _HeaderContent(
+          subjectId: subjectId,
+          completedCount: completedCount,
+          totalCount: totalCount,
+          progress: progress,
+          onBack: onBack,
         ),
       ),
     );
