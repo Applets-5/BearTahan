@@ -107,12 +107,13 @@ class _MatchingWidgetState extends State<MatchingWidget> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left Column: Texts
+            // Left Column: Options
             Expanded(
               child: Column(
                 children: _leftOptions.map((option) {
                   return _buildMatchCard(
                     text: option.text,
+                    imageUrl: option.text.isEmpty ? option.imageUrl : null,
                     isSelected: _selectedLeft == option,
                     isMatched: _matchedOptions.contains(option),
                     isWrong: _isWrongFlash && _selectedLeft == option,
@@ -122,12 +123,13 @@ class _MatchingWidgetState extends State<MatchingWidget> {
               ),
             ),
             const SizedBox(width: AppSpacing.md),
-            // Right Column: Images
+            // Right Column: Pairs
             Expanded(
               child: Column(
                 children: _rightOptions.map((option) {
                   return _buildMatchCard(
-                    imageUrl: option.imageUrl,
+                    text: option.pairText,
+                    imageUrl: option.pairImageUrl ?? (option.pairText == null ? option.imageUrl : null),
                     isSelected: _selectedRight == option,
                     isMatched: _matchedOptions.contains(option),
                     isWrong: _isWrongFlash && _selectedRight == option,
