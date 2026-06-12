@@ -35,19 +35,21 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
               radarShape: RadarShape.polygon,
               radarTouchData: RadarTouchData(
                 enabled: true,
-                touchCallback: (FlTouchEvent event, RadarTouchResponse? response) {
-                  if (!event.isInterestedForInteractions ||
-                      response == null ||
-                      response.touchedSpot == null) {
-                    setState(() {
-                      _touchedIndex = -1;
-                    });
-                    return;
-                  }
-                  setState(() {
-                    _touchedIndex = response.touchedSpot!.touchedRadarEntryIndex;
-                  });
-                },
+                touchCallback:
+                    (FlTouchEvent event, RadarTouchResponse? response) {
+                      if (!event.isInterestedForInteractions ||
+                          response == null ||
+                          response.touchedSpot == null) {
+                        setState(() {
+                          _touchedIndex = -1;
+                        });
+                        return;
+                      }
+                      setState(() {
+                        _touchedIndex =
+                            response.touchedSpot!.touchedRadarEntryIndex;
+                      });
+                    },
               ),
               dataSets: [
                 _buildLayer(100, opacity: 0.04),
@@ -82,12 +84,23 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
               getTitle: (index, angle) {
                 String label;
                 switch (index) {
-                  case 0: label = 'BM'; break;
-                  case 1: label = 'EN'; break;
-                  case 2: label = 'MATH'; break;
-                  case 3: label = 'SCI'; break;
-                  case 4: label = 'BC'; break;
-                  default: return const RadarChartTitle(text: '');
+                  case 0:
+                    label = 'BM';
+                    break;
+                  case 1:
+                    label = 'EN';
+                    break;
+                  case 2:
+                    label = 'MATH';
+                    break;
+                  case 3:
+                    label = 'SCI';
+                    break;
+                  case 4:
+                    label = 'BC';
+                    break;
+                  default:
+                    return const RadarChartTitle(text: '');
                 }
                 return RadarChartTitle(text: label, angle: 0);
               },
@@ -105,10 +118,7 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
           ),
         ),
         if (_touchedIndex != -1)
-          Align(
-            alignment: Alignment.center,
-            child: _buildTooltipOverlay(),
-          ),
+          Align(alignment: Alignment.center, child: _buildTooltipOverlay()),
       ],
     );
   }
@@ -116,12 +126,23 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
   Widget _buildTooltipOverlay() {
     String subjectId;
     switch (_touchedIndex) {
-      case 0: subjectId = 'bm'; break;
-      case 1: subjectId = 'bi'; break;
-      case 2: subjectId = 'math'; break;
-      case 3: subjectId = 'sci'; break;
-      case 4: subjectId = 'bc'; break;
-      default: return const SizedBox();
+      case 0:
+        subjectId = 'bm';
+        break;
+      case 1:
+        subjectId = 'bi';
+        break;
+      case 2:
+        subjectId = 'math';
+        break;
+      case 3:
+        subjectId = 'sci';
+        break;
+      case 4:
+        subjectId = 'bc';
+        break;
+      default:
+        return const SizedBox();
     }
 
     final data = widget.subjectData[subjectId];

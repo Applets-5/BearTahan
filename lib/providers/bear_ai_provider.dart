@@ -43,7 +43,7 @@ class BearAiNotifier extends Notifier<BearAiState> {
       );
     } catch (e) {
       debugPrint("🐻 BearAI Insight Error: $e");
-      
+
       String errorText = "Couldn't load weekly insight.";
       if (e is FirebaseFunctionsException && e.code == 'resource-exhausted') {
         errorText = e.message ?? "Rate limit reached. Please wait.";
@@ -51,14 +51,15 @@ class BearAiNotifier extends Notifier<BearAiState> {
         errorText = e.message ?? "BearAI Insight Error: ${e.code}";
       }
 
-      state = state.copyWith(
-        isInsightLoading: false,
-        insightError: errorText,
-      );
+      state = state.copyWith(isInsightLoading: false, insightError: errorText);
     }
   }
 
-  Future<void> sendMessage(String childId, String text, {bool isRetry = false}) async {
+  Future<void> sendMessage(
+    String childId,
+    String text, {
+    bool isRetry = false,
+  }) async {
     if (text.trim().isEmpty || state.isChatLoading) return;
 
     // 1. Build history BEFORE potentially modifying state
@@ -75,7 +76,9 @@ class BearAiNotifier extends Notifier<BearAiState> {
     if (isRetry) {
       // Issue 10: Remove the previous error message before retrying
       state = state.copyWith(
-        messages: state.messages.where((m) => m.role != MessageRole.error).toList(),
+        messages: state.messages
+            .where((m) => m.role != MessageRole.error)
+            .toList(),
         isChatLoading: true,
       );
     } else {

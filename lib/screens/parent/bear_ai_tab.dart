@@ -51,7 +51,9 @@ class _BearAITabState extends ConsumerState<BearAITab> {
 
     // Listen to profile changes to trigger insight generation if needed
     ref.listen(userProfileProvider(widget.childId), (previous, next) {
-      if (next.hasValue && !aiState.hasGeneratedInsight && !aiState.isInsightLoading) {
+      if (next.hasValue &&
+          !aiState.hasGeneratedInsight &&
+          !aiState.isInsightLoading) {
         final profile = next.value!;
         ref
             .read(bearAiProvider.notifier)
@@ -70,7 +72,9 @@ class _BearAITabState extends ConsumerState<BearAITab> {
         aiState.insightError == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final profile = childProfileAsync.value!;
-        ref.read(bearAiProvider.notifier).generateInsightIfNeeded(
+        ref
+            .read(bearAiProvider.notifier)
+            .generateInsightIfNeeded(
               widget.childId,
               existingInsight: profile.lastAiInsight,
               lastDate: profile.lastAiInsightDate,

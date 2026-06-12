@@ -41,7 +41,9 @@ class BearAiState {
   }) {
     return BearAiState(
       insight: insight == _sentinel ? this.insight : (insight as String?),
-      insightError: insightError == _sentinel ? this.insightError : (insightError as String?),
+      insightError: insightError == _sentinel
+          ? this.insightError
+          : (insightError as String?),
       messages: messages ?? this.messages,
       isChatLoading: isChatLoading ?? this.isChatLoading,
       isInsightLoading: isInsightLoading ?? this.isInsightLoading,
