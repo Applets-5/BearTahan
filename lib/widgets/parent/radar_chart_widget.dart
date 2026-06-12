@@ -14,6 +14,7 @@ class SubjectRadarChart extends StatefulWidget {
 
 class _SubjectRadarChartState extends State<SubjectRadarChart> {
   int _touchedIndex = -1;
+  Offset? _touchPosition;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +27,6 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
     ];
 
     return Stack(
-      alignment: Alignment.center,
       children: [
         AspectRatio(
           aspectRatio: 1.3,
@@ -35,21 +35,21 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
               radarShape: RadarShape.polygon,
               radarTouchData: RadarTouchData(
                 enabled: true,
-                touchCallback:
-                    (FlTouchEvent event, RadarTouchResponse? response) {
-                      if (!event.isInterestedForInteractions ||
-                          response == null ||
-                          response.touchedSpot == null) {
-                        setState(() {
-                          _touchedIndex = -1;
-                        });
-                        return;
-                      }
-                      setState(() {
-                        _touchedIndex =
-                            response.touchedSpot!.touchedRadarEntryIndex;
-                      });
-                    },
+                touchCallback: (FlTouchEvent event, RadarTouchResponse? response) {
+                  if (!event.isInterestedForInteractions ||
+                      response == null ||
+                      response.touchedSpot == null) {
+                    setState(() {
+                      _touchedIndex = -1;
+                      _touchPosition = null;
+                    });
+                    return;
+                  }
+                  setState(() {
+                    _touchedIndex = response.touchedSpot!.touchedRadarEntryIndex;
+                    _touchPosition = event.localPosition;
+                  });
+                },
               ),
               dataSets: [
                 _buildLayer(100, opacity: 0.04),
@@ -117,8 +117,15 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
             ),
           ),
         ),
-        if (_touchedIndex != -1)
-          Align(alignment: Alignment.center, child: _buildTooltipOverlay()),
+        if (_touchedIndex != -1 && _touchPosition != null)
+          Positioned(
+            left: _touchPosition!.dx,
+            top: _touchPosition!.dy,
+            child: FractionalTranslation(
+              translation: const Offset(-0.5, -1.1),
+              child: _buildTooltipOverlay(),
+            ),
+          ),
       ],
     );
   }
