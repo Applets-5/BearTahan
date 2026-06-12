@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/bear_ai_message.dart';
 import '../../models/subject.dart';
+import '../../models/subject_weakness_info.dart';
 import '../../providers/bear_ai_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../providers/subject_strength_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/parent/radar_chart_widget.dart';
 import '../../widgets/parent/typing_indicator.dart';
@@ -44,6 +46,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
   Widget build(BuildContext context) {
     final aiState = ref.watch(bearAiProvider);
     final subjectsAsync = ref.watch(subjectProgressProvider(widget.childId));
+    final strengthAsync = ref.watch(subjectStrengthProvider(widget.childId));
     final childProfileAsync = ref.watch(userProfileProvider(widget.childId));
 
     // Listen to profile changes to trigger insight generation if needed
@@ -60,6 +63,21 @@ class _BearAITabState extends ConsumerState<BearAITab> {
       }
     });
 
+    // Also trigger if already loaded but not generated (Issue 2 fix)
+    if (childProfileAsync.hasValue &&
+        !aiState.hasGeneratedInsight &&
+        !aiState.isInsightLoading &&
+        aiState.insightError == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final profile = childProfileAsync.value!;
+        ref.read(bearAiProvider.notifier).generateInsightIfNeeded(
+              widget.childId,
+              existingInsight: profile.lastAiInsight,
+              lastDate: profile.lastAiInsightDate,
+            );
+      });
+    }
+
     return Column(
       children: [
         const SizedBox(height: AppSpacing.md), // Space below TabBar
@@ -69,7 +87,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
             controller: _scrollController,
             children: [
               // AI Insight Card
-              _buildInsightCard(aiState, subjectsAsync, childProfileAsync),
+              _buildInsightCard(aiState, strengthAsync, childProfileAsync),
               const SizedBox(height: AppSpacing.lg),
 
               // Chat Card
@@ -158,7 +176,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
 
   Widget _buildInsightCard(
     BearAiState aiState,
-    AsyncValue<List<Subject>> subjectsAsync,
+    AsyncValue<Map<String, SubjectWeaknessInfo>> strengthAsync,
     AsyncValue childProfileAsync,
   ) {
     final profile = childProfileAsync.value;
@@ -210,17 +228,13 @@ class _BearAITabState extends ConsumerState<BearAITab> {
 
           const SizedBox(height: AppSpacing.lg),
 
-          subjectsAsync.when(
-            data: (subjects) {
-              final Map<String, double> scores = {};
-              for (var s in subjects) {
-                scores[s.id] = s.progress.toDouble() / 100;
-              }
+          strengthAsync.when(
+            data: (strengthMap) {
               return Column(
                 children: [
-                  const Text('Weekly Progress', style: AppTextStyles.bodyBold),
+                  const Text('Subject Strength', style: AppTextStyles.bodyBold),
                   const SizedBox(height: AppSpacing.sm),
-                  SubjectRadarChart(subjectScores: scores),
+                  SubjectRadarChart(subjectData: strengthMap),
                 ],
               );
             },

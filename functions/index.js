@@ -489,11 +489,12 @@ async function assembleBearAiContext(parentId, childId, last7DaysOnly = false) {
   const attempts = attemptsSnap.docs.map(doc => {
     const data = doc.data();
     const score = Number(data.score || 0);
-    const total = Number(data.totalQuestions || 10);
+    const total = Number(data.total || data.totalQuestions || 10);
     const percentage = ((score / total) * 100).toFixed(0);
     return {
       subjectId: data.subjectId,
       score: `${score}/${total} (${percentage}%)`,
+      timeInSeconds: data.timeInSeconds || 0,
       completedAt: timestampToMalaysiaDateKey(data.completedAt),
     };
   });

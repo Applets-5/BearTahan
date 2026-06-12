@@ -1368,6 +1368,21 @@ class FirestoreService {
         });
   }
 
+  Stream<List<Map<String, dynamic>>> streamAttempts(
+    String parentId,
+    String childId,
+  ) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('attempts')
+        .orderBy('completedAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+  }
+
   Future<void> recordAttempt(
     String parentId,
     String childId, {

@@ -32,16 +32,16 @@ class BearAiState {
   });
 
   BearAiState copyWith({
-    String? insight,
-    String? insightError,
+    Object? insight = _sentinel,
+    Object? insightError = _sentinel,
     List<BearAiMessage>? messages,
     bool? isChatLoading,
     bool? isInsightLoading,
     bool? hasGeneratedInsight,
   }) {
     return BearAiState(
-      insight: insight ?? this.insight,
-      insightError: insightError ?? this.insightError,
+      insight: insight == _sentinel ? this.insight : (insight as String?),
+      insightError: insightError == _sentinel ? this.insightError : (insightError as String?),
       messages: messages ?? this.messages,
       isChatLoading: isChatLoading ?? this.isChatLoading,
       isInsightLoading: isInsightLoading ?? this.isInsightLoading,
@@ -49,3 +49,5 @@ class BearAiState {
     );
   }
 }
+
+const _sentinel = Object();
