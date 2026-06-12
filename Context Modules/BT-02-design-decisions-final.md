@@ -160,7 +160,7 @@ The feature has two components:
 - An AI insight card that auto-generates a 2–3 sentence summary of the child's recent activity after each session
 - A chat interface where parents ask free-form questions or tap suggestion chips
 
-BearAI uses the Claude API (Anthropic) with the child's Firestore data passed as context in the system prompt. The model is not fine-tuned — prompt engineering is used to constrain it to the child learning consultation role. Responses are grounded in real data (subject progress, session history, streak, star balance, wrong-answer patterns by subject).
+BearAI uses the Gemini API (Google) with the child's Firestore data passed as context in the system prompt. The model is not fine-tuned — prompt engineering is used to constrain it to the child learning consultation role. Responses are grounded in real data (subject progress, session history, streak, star balance, wrong-answer patterns by subject).
 
 Conversation history is not persisted across sessions in V1. This simplifies implementation and avoids storing sensitive conversational data under PDPA.
 

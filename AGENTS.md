@@ -7,7 +7,7 @@ Do not duplicate detailed product requirements here. Load them from the relevant
 file in `Context Modules/` only when the task needs them.
 
 Codex is the primary repository investigator, builder, debugger, and verifier.
-Claude may be used as a planning and independent-review partner. During
+Gemini may be used as a planning and independent-review partner. During
 technical discussion, treat both as engineering peers.
 
 ## Context Routing
@@ -98,10 +98,10 @@ preparation, project cleanup, or similar management work.
 - Surface uncertainty and weak assumptions clearly instead of presenting them
   as facts.
 
-## Claude Collaboration
+## Gemini Collaboration
 
-When Samy asks to discuss with Claude, report to Claude, ask Claude, or get
-Claude's opinion, produce a self-contained prompt that includes:
+When Samy asks to discuss with Gemini, report to Gemini, ask Gemini, or get
+Gemini's opinion, produce a self-contained prompt that includes:
 
 - the current goal and relevant story or acceptance criteria
 - the existing implementation and constraints
@@ -118,7 +118,7 @@ Include an instruction with this intent:
 > appropriate. The goal is to widen our combined perspective and cover each
 > other's misses, not to establish authority or force agreement.
 
-Phrase the prompt as an open technical discussion, not an order. After Claude
+Phrase the prompt as an open technical discussion, not an order. After Gemini
 responds, evaluate its suggestions against the repository, package behavior,
 project decisions, and observed results. Do not accept or reject feedback based
 only on which agent proposed it.

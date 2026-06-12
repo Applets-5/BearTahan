@@ -112,7 +112,7 @@ The Grand Finale is a **live pitching session** on the UTM campus. Unlike the vi
 | Pitch / Video Submission | Clarity of explanation, Demo quality, Team presentation |
 
 ### Key things to say for each criterion
-- **AI Integration:** Name all three — stroke tracing validation, Bear's Den adaptive weighting, BearAI parent consultation via Claude API
+- **AI Integration:** Name all three — stroke tracing validation, Bear's Den adaptive weighting, BearAI parent consultation via Gemini API
 - **National Agenda:** Say "KSSR Standard 1" and "Malaysia's national education agenda" explicitly
 - **Wow Factor:** Show the mascot reacting, show the parent reward approval loop — these are the moments that land
 - **Originality:** "No competitor combines daily gamified learning with a parent real-world reward system and AI-driven gap targeting in one KSSR-aligned app"

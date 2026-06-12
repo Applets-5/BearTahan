@@ -14,7 +14,7 @@ class BearAiNotifier extends Notifier<BearAiState> {
     String? existingInsight,
     DateTime? lastDate,
   }) async {
-    if (state.hasGeneratedInsight || state.isLoading) return;
+    if (state.hasGeneratedInsight || state.isInsightLoading) return;
 
     // If we have a fresh insight (less than 7 days old), use it directly
     if (existingInsight != null && lastDate != null) {
@@ -29,7 +29,7 @@ class BearAiNotifier extends Notifier<BearAiState> {
       }
     }
 
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isInsightLoading: true);
 
     try {
       final result = await FirebaseFunctions.instanceFor(
@@ -38,41 +38,49 @@ class BearAiNotifier extends Notifier<BearAiState> {
 
       state = state.copyWith(
         insight: result.data['insight'] as String,
-        isLoading: false,
+        isInsightLoading: false,
         hasGeneratedInsight: true,
       );
     } catch (e) {
       debugPrint("🐻 BearAI Insight Error: $e");
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(isInsightLoading: false);
     }
   }
 
-  Future<void> sendMessage(String childId, String text) async {
-    if (text.trim().isEmpty || state.isLoading) return;
+  Future<void> sendMessage(String childId, String text, {bool isRetry = false}) async {
+    if (text.trim().isEmpty || state.isChatLoading) return;
 
-    final userMessage = BearAiMessage(content: text, role: MessageRole.user);
+    // 1. Build history BEFORE potentially modifying state
+    final history = state.messages
+        .where((m) => m.role != MessageRole.error)
+        .map(
+          (m) => {
+            'role': m.role.name == 'assistant' ? 'model' : 'user',
+            'content': m.content,
+          },
+        )
+        .toList();
 
-    state = state.copyWith(
-      messages: [...state.messages, userMessage],
-      isLoading: true,
-    );
+    if (isRetry) {
+      // Issue 10: Remove the previous error message before retrying
+      state = state.copyWith(
+        messages: state.messages.where((m) => m.role != MessageRole.error).toList(),
+        isChatLoading: true,
+      );
+    } else {
+      final userMessage = BearAiMessage(content: text, role: MessageRole.user);
+      state = state.copyWith(
+        messages: [...state.messages, userMessage],
+        isChatLoading: true,
+      );
+    }
 
     try {
-      final history = state.messages
-          .where((m) => m.role != MessageRole.error)
-          .map(
-            (m) => {
-              'role': m.role.name == 'assistant' ? 'model' : 'user',
-              'content': m.content,
-            },
-          )
-          .toList();
-
-      // NEW CORRECT WAY
       final result =
           await FirebaseFunctions.instanceFor(region: 'asia-southeast1')
               .httpsCallable('askBearAi')
               .call({'childId': childId, 'message': text, 'history': history});
+
       final assistantMessage = BearAiMessage(
         content: result.data['text'] as String,
         role: MessageRole.assistant,
@@ -80,18 +88,24 @@ class BearAiNotifier extends Notifier<BearAiState> {
 
       state = state.copyWith(
         messages: [...state.messages, assistantMessage],
-        isLoading: false,
+        isChatLoading: false,
       );
     } catch (e) {
       debugPrint("🐻 BearAI Error: $e");
+
+      String errorText = "Couldn't reach BearAI. Tap to try again.";
+      if (e is FirebaseFunctionsException && e.code == 'resource-exhausted') {
+        errorText = e.message ?? "Please wait a bit before asking again.";
+      }
+
       final errorMessage = BearAiMessage(
-        content: "Couldn't reach BearAI. Tap to try again.",
+        content: errorText,
         role: MessageRole.error,
         retryData: text,
       );
       state = state.copyWith(
         messages: [...state.messages, errorMessage],
-        isLoading: false,
+        isChatLoading: false,
       );
     }
   }

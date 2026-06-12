@@ -301,7 +301,7 @@ BearAI is an AI-powered consultation feature accessible from the parent dashboar
 - Learning pattern observations (e.g. child rushes Mandarin, spends longer on Maths)
 
 ### Implementation approach
-- BearAI calls the Claude API (Anthropic) with a structured context payload containing the child's Firestore data
+- BearAI calls the Gemini API (Google) with a structured context payload containing the child's Firestore data
 - The system prompt instructs the model to act as a child learning consultant for a Malaysian Standard 1 parent
 - Child data sent as context: subject progress %, session history (last 14 days), star balance, streak, daily goal, wrong-answer bank summary by subject
 - Responses are displayed in the chat UI

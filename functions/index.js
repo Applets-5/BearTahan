@@ -322,26 +322,67 @@ exports.askBearAi = onCall({secrets: [geminiKey]}, async (request) => {
     throw new HttpsError("invalid-argument", "Missing childId or message.");
   }
 
+  // 1. Input Validation (Issue 7)
+  if (message.length > 1000) {
+    throw new HttpsError("invalid-argument", "Message too long (max 1000 chars).");
+  }
+
   const parentId = request.auth.uid;
-  
-  // 1. Assemble context payload from Firestore
+
+  // 1. Rate Limiting (6s cooldown, 50 daily cap)
+  const cooldownMs = 6000;
+  const dailyCap = 50;
+  const today = getTodayKey();
+  const rateRef = db.collection("parents").doc(parentId).collection("rateLimits").doc("bearAiChat");
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(rateRef);
+    const now = Date.now();
+    const data = snap.exists ? snap.data() : {};
+
+    const nextAllowedAt = data.nextAllowedAt || 0;
+    if (now < nextAllowedAt) {
+      throw new HttpsError(
+          "resource-exhausted",
+          "Please wait a few seconds before asking BearAI again.",
+      );
+    }
+
+    const dailyCount = (data.lastResetDate === today) ? (data.dailyCount || 0) : 0;
+    if (dailyCount >= dailyCap) {
+      throw new HttpsError(
+          "resource-exhausted",
+          "Daily limit of 50 BearAI messages reached.",
+      );
+    }
+
+    tx.set(rateRef, {
+      nextAllowedAt: now + cooldownMs,
+      dailyCount: dailyCount + 1,
+      lastResetDate: today,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  });
+
+  // 2. Assemble context
   const context = await assembleBearAiContext(parentId, childId);
-  
-  // 2. Initialize Gemini API
-  // In a real project, the API key is stored in Firebase Secret Manager
+
+  // 3. Initialize Gemini API (Issue 13: Use stable model)
   const genAI = new GoogleGenerativeAI(geminiKey.value());
   const model = genAI.getGenerativeModel({
-    model: "gemini-3.1-flash-lite",
+    model: "gemini-1.5-flash",
     systemInstruction: buildBearAiSystemPrompt(context),
   });
 
   try {
-    // 3. Start chat with session history
+    // 4. Start chat with truncated history (Issue 7: max 10 latest messages)
+    const truncatedHistory = (history || []).slice(-10).map((m) => ({
+      role: m.role === "user" ? "user" : "model",
+      parts: [{text: m.content}],
+    }));
+
     const chat = model.startChat({
-      history: (history || []).map(m => ({
-        role: m.role === "user" ? "user" : "model",
-        parts: [{text: m.content}],
-      })),
+      history: truncatedHistory,
     });
 
     const result = await chat.sendMessage(message);
@@ -349,7 +390,11 @@ exports.askBearAi = onCall({secrets: [geminiKey]}, async (request) => {
     return {text: response.text()};
   } catch (error) {
     logger.error("BearAI Chat Error", error);
-    throw new HttpsError("internal", "BearAI failed to respond.");
+    if (error.message && error.message.includes("429")) {
+      throw new HttpsError("resource-exhausted", "BearAI is currently busy. Please wait a bit.");
+    }
+    const errorMsg = error.message || "BearAI failed to respond.";
+    throw new HttpsError("internal", errorMsg);
   }
 });
 
@@ -388,7 +433,7 @@ exports.getBearAiInsight = onCall({secrets: [geminiKey]}, async (request) => {
   const context = await assembleBearAiContext(parentId, childId, true);
 
   const genAI = new GoogleGenerativeAI(geminiKey.value());
-  const model = genAI.getGenerativeModel({model: "gemini-3.1-flash-lite"});
+  const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
 
   const prompt = `In exactly 2-3 sentences, summarise ${context.child.name}'s activity for the past 7 days. ` +
     "Mention their most active subject and one specific area for encouragement. Ground in data below.";
@@ -418,11 +463,19 @@ exports.getBearAiInsight = onCall({secrets: [geminiKey]}, async (request) => {
 async function assembleBearAiContext(parentId, childId, last7DaysOnly = false) {
   const childRef = db.collection("parents").doc(parentId).collection("children").doc(childId);
   const childSnap = await childRef.get();
+  
+  // Issue 6: Consistent child handling
+  if (!childSnap.exists) {
+    throw new HttpsError("not-found", "Child profile not found.");
+  }
   const child = childSnap.data();
 
-  // Fetch subject progress
+  // Issue 3: Include subject IDs
   const subjectsSnap = await childRef.collection("subjectProgress").get();
-  const subjects = subjectsSnap.docs.map(doc => doc.data());
+  const subjects = subjectsSnap.docs.map(doc => ({
+    subjectId: doc.id,
+    ...doc.data(),
+  }));
 
   // Fetch recent attempts
   let attemptsQuery = childRef.collection("attempts").orderBy("completedAt", "desc");
@@ -431,11 +484,16 @@ async function assembleBearAiContext(parentId, childId, last7DaysOnly = false) {
     attemptsQuery = attemptsQuery.where("completedAt", ">=", sevenDaysAgo);
   }
   const attemptsSnap = await attemptsQuery.limit(10).get();
+  
+  // Issue 4: Percentage scores
   const attempts = attemptsSnap.docs.map(doc => {
     const data = doc.data();
+    const score = Number(data.score || 0);
+    const total = Number(data.totalQuestions || 10);
+    const percentage = ((score / total) * 100).toFixed(0);
     return {
       subjectId: data.subjectId,
-      score: data.score,
+      score: `${score}/${total} (${percentage}%)`,
       completedAt: timestampToMalaysiaDateKey(data.completedAt),
     };
   });
@@ -448,27 +506,60 @@ async function assembleBearAiContext(parentId, childId, last7DaysOnly = false) {
     wrongAnswers[data.subjectId] = (wrongAnswers[data.subjectId] || 0) + 1;
   });
 
+  // Issue 11: Label lifetime vs 7-day data
   return {
     child: {
       name: child.name,
       streak: child.streakCount,
       stars: child.availableStars,
-      totalStars: child.lifetimeStarsEarned,
+      lifetimeStars: child.lifetimeStarsEarned,
       dailyGoal: child.dailyGoal,
     },
-    subjects,
+    lifetimeSubjectProgress: subjects,
     recentAttempts: attempts,
-    wrongAnswerCountBySubject: wrongAnswers,
+    pendingReviewCountBySubject: wrongAnswers,
+    isSevenDayScoped: last7DaysOnly,
   };
 }
 
 function buildBearAiSystemPrompt(context) {
+  // Issue 5: Comprehensive prompt structure
+  const progressStr = context.lifetimeSubjectProgress
+      .map(s => `- ${s.subjectId}: ${s.progress}% complete, ${s.lessonsCompleted} lessons done`)
+      .join("\n");
+  
+  const attemptsStr = context.recentAttempts
+      .map(a => `- ${a.subjectId}: ${a.score} on ${a.completedAt}`)
+      .join("\n");
+
+  const reviewStr = Object.entries(context.pendingReviewCountBySubject)
+      .map(([id, count]) => `- ${id}: ${count} questions pending`)
+      .join("\n");
+
   return `You are BearAI, a personal learning consultant inside the BearTahan app.
 You help Malaysian parents understand their Standard 1 child's learning progress.
 Always be warm, concise, and actionable. Ground every response in the data provided.
-Respond in 3-5 sentences maximum unless asked for more detail.
-CHILD: ${context.child.name}, Streak: ${context.child.streak} days, Stars: ${context.child.stars}
-PROGRESS: ${context.subjects.map(s => `${s.subjectId}: ${s.progress}%`).join(", ")}
-PENDING REVIEW: ${JSON.stringify(context.wrongAnswerCountBySubject)}`;
+
+CHILD PROFILE:
+- Name: ${context.child.name}
+- Current Streak: ${context.child.streak} days
+- Available Stars: ${context.child.stars}
+- Lifetime Stars Earned: ${context.child.lifetimeStars}
+- Daily Goal: ${context.child.dailyGoal} lessons/day
+
+LIFETIME PROGRESS:
+${progressStr || "No progress recorded yet."}
+
+RECENT ACTIVITY:
+${attemptsStr || "No recent attempts."}
+
+PENDING REVIEWS (Wrong Answers):
+${reviewStr || "All caught up! No pending reviews."}
+
+GUIDELINES:
+- Use Standard 1 context (BM, English, Math, Science, Mandarin).
+- Encourage the parent based on streaks and star milestones.
+- If a subject has many pending reviews, suggest focusing there.
+- Keep responses to 3-5 sentences unless detailed analysis is requested.`;
 }
 

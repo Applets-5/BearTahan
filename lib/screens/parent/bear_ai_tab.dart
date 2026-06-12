@@ -48,7 +48,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
 
     // Listen to profile changes to trigger insight generation if needed
     ref.listen(userProfileProvider(widget.childId), (previous, next) {
-      if (next.hasValue && !aiState.hasGeneratedInsight && !aiState.isLoading) {
+      if (next.hasValue && !aiState.hasGeneratedInsight && !aiState.isInsightLoading) {
         final profile = next.value!;
         ref
             .read(bearAiProvider.notifier)
@@ -105,11 +105,12 @@ class _BearAITabState extends ConsumerState<BearAITab> {
                             .sendMessage(
                               widget.childId,
                               msg.retryData as String,
+                              isRetry: true,
                             ),
                       ),
                     ),
 
-                    if (aiState.isLoading && aiState.hasGeneratedInsight)
+                    if (aiState.isChatLoading)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
                         child: Align(
@@ -121,7 +122,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
                     const SizedBox(height: AppSpacing.md),
 
                     // Suggestion Chips
-                    if (!aiState.isLoading)
+                    if (!aiState.isChatLoading)
                       _buildSuggestionChips(childProfileAsync, subjectsAsync),
 
                     const SizedBox(height: AppSpacing.lg),
@@ -134,10 +135,11 @@ class _BearAITabState extends ConsumerState<BearAITab> {
                     childProfileAsync.when(
                       data: (child) => Center(
                         child: Text(
-                          "BearAI uses ${child.name}'s in-app activity data only.",
+                          "BearAI analyzes ${child.name}'s activity data using secure AI processing. No names or private IDs are shared.",
                           style: AppTextStyles.tiny.copyWith(
                             color: AppColors.mutedText,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                       loading: () => const SizedBox(),
@@ -182,7 +184,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
               const SizedBox(width: AppSpacing.sm),
               const Text('AI Insight', style: AppTextStyles.bodyBold),
               const Spacer(),
-              if (aiState.isLoading && !aiState.hasGeneratedInsight)
+              if (aiState.isInsightLoading)
                 const SizedBox(
                   width: 14,
                   height: 14,
@@ -193,12 +195,12 @@ class _BearAITabState extends ConsumerState<BearAITab> {
           const SizedBox(height: AppSpacing.md),
           if (displayInsight != null)
             Text(displayInsight, style: AppTextStyles.body),
-          if (displayInsight == null && !aiState.isLoading)
+          if (displayInsight == null && !aiState.isInsightLoading)
             const Text(
               'Generating weekly insight...',
               style: AppTextStyles.body,
             ),
-          if (displayInsight == null && aiState.isLoading)
+          if (displayInsight == null && aiState.isInsightLoading)
             const Text('Connecting to BearAI...', style: AppTextStyles.body),
 
           const SizedBox(height: AppSpacing.lg),
@@ -269,15 +271,18 @@ class _BearAITabState extends ConsumerState<BearAITab> {
   List<String> _generateDynamicChips(dynamic child, List<Subject> subjects) {
     final chips = <String>[];
 
-    // Sort to find weakest
-    final sorted = List<Subject>.from(subjects)
-      ..sort((a, b) => a.progress.compareTo(b.progress));
-    final weakest = sorted.first;
-
     chips.add("📊 This week's summary");
 
-    if (weakest.progress < 50) {
-      chips.add("⚠️ Why is ${weakest.id.toUpperCase()} low?");
+    // Issue 9: Empty check to prevent crash
+    if (subjects.isNotEmpty) {
+      // Sort to find weakest
+      final sorted = List<Subject>.from(subjects)
+        ..sort((a, b) => a.progress.compareTo(b.progress));
+      final weakest = sorted.first;
+
+      if (weakest.progress < 50) {
+        chips.add("⚠️ Why is ${weakest.id.toUpperCase()} low?");
+      }
     }
 
     chips.add("🎯 Suggest a daily goal");
@@ -326,7 +331,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
           ),
           IconButton(
             icon: const Icon(Icons.send, color: AppColors.primary),
-            onPressed: aiState.isLoading
+            onPressed: aiState.isChatLoading
                 ? null
                 : () {
                     ref

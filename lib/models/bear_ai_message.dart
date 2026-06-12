@@ -17,26 +17,30 @@ class BearAiMessage {
 class BearAiState {
   final String? insight;
   final List<BearAiMessage> messages;
-  final bool isLoading;
+  final bool isChatLoading;
+  final bool isInsightLoading;
   final bool hasGeneratedInsight;
 
   BearAiState({
     this.insight,
     this.messages = const [],
-    this.isLoading = false,
+    this.isChatLoading = false,
+    this.isInsightLoading = false,
     this.hasGeneratedInsight = false,
   });
 
   BearAiState copyWith({
     String? insight,
     List<BearAiMessage>? messages,
-    bool? isLoading,
+    bool? isChatLoading,
+    bool? isInsightLoading,
     bool? hasGeneratedInsight,
   }) {
     return BearAiState(
       insight: insight ?? this.insight,
       messages: messages ?? this.messages,
-      isLoading: isLoading ?? this.isLoading,
+      isChatLoading: isChatLoading ?? this.isChatLoading,
+      isInsightLoading: isInsightLoading ?? this.isInsightLoading,
       hasGeneratedInsight: hasGeneratedInsight ?? this.hasGeneratedInsight,
     );
   }

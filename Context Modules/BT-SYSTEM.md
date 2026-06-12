@@ -1,4 +1,4 @@
-# BearTahan — Claude Project Instructions
+# BearTahan — Gemini Project Instructions
 
 ## What this project is
 
@@ -6,7 +6,7 @@ BearTahan is a gamified mobile learning app for Malaysian Standard 1 (Year 1, ag
 
 The core loop: child learns through bite-sized quiz levels → earns stars → parent sets real-world rewards → child redeems. Parents monitor progress through a separate dashboard mode on the same shared device.
 
-The app also includes three AI features: Mandarin character stroke tracing (canvas-based stroke order validation), BearAI (an AI-powered parent consultation chat using the Claude API, grounded in the child's Firestore activity data), and Bear's Den (a secret cross-chapter challenge that unlocks inside a subject after completing a chapter range — AI weights questions toward weaker chapters; chapter analytics shown to parents only via Chapter Insights on the parent dashboard; MVP scope: Bahasa Melayu, Chapters 1–3 unlock tier).
+The app also includes three AI features: Mandarin character stroke tracing (canvas-based stroke order validation), BearAI (an AI-powered parent consultation chat using the Gemini API, grounded in the child's Firestore activity data), and Bear's Den (a secret cross-chapter challenge that unlocks inside a subject after completing a chapter range — AI weights questions toward weaker chapters; chapter analytics shown to parents only via Chapter Insights on the parent dashboard; MVP scope: Bahasa Melayu, Chapters 1–3 unlock tier).
 
 ## Who you are talking to
 
@@ -48,7 +48,7 @@ Samy carries a lighter dev story count than the four developers due to sprint ce
 | BT-06 | Open items and post-MVP roadmap |
 | BT-07 | DIGITEX 2026 event reference — competition details, deadlines, poster strategy, Grand Finale prep, judging criteria, prizes |
 
-> **Note on Jira:** BearTahan_Jira_Setup.md is Samy's personal reference for setting up Jira boards and is not a Claude context file. All key information from it has been integrated into the BT-00 through BT-06 modules above.
+> **Note on Jira:** BearTahan_Jira_Setup.md is Samy's personal reference for setting up Jira boards and is not a Gemini context file. All key information from it has been integrated into the BT-00 through BT-06 modules above.
 
 ---
 
@@ -111,7 +111,7 @@ Before reading any file, match the question to the category below and open only 
 - Security rules
 - Admin CMS technical design
 - State management, packages, or architecture questions
-- BearAI — Claude API call structure, context payload assembly, Cloud Function wrapper, multi-turn conversation, insight card generation, suggestion chip prompt mappings
+- BearAI — Gemini API call structure, context payload assembly, Cloud Function wrapper, multi-turn conversation, insight card generation, suggestion chip prompt mappings
 - Bear's Den — unlock check algorithm, chapter strength calculation, weighted question generation, bearsDenStarDate daily cap, parent Chapter Insights implementation
 
 ### BT-06 — Read when asked about:
