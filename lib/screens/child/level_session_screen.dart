@@ -817,17 +817,20 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       return _buildFillBlankSentence(question, language);
     }
 
+    final bool isDragDropSpelling = type == 'dragdropspelling';
+
     return Text.rich(
       TextSpan(
         children: [
-          TextSpan(
-            text: question.text,
-            style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
-          ),
+          if (!isDragDropSpelling)
+            TextSpan(
+              text: question.text,
+              style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+            ),
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.sm),
+              padding: EdgeInsets.only(left: isDragDropSpelling ? 0 : AppSpacing.sm),
               child: SizedBox(
                 width: 28,
                 height: 28,
@@ -1150,40 +1153,63 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     return Column(
       children: [
-        SizedBox(
-          width: 180,
+        Container(
+          width: 200,
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: AppRadius.r(AppRadius.xl),
+            boxShadow: AppShadows.card,
+          ),
           child: TextField(
             key: const ValueKey('numeric_answer_input'),
             controller: _numberController,
             enabled: !_numberSubmitted,
+            autofocus: true,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             textAlign: TextAlign.center,
-            decoration: const InputDecoration(
-              labelText: 'Your answer',
-              border: OutlineInputBorder(),
+            style: AppTextStyles.title.copyWith(fontSize: 32, color: AppColors.primary),
+            decoration: InputDecoration(
+              hintText: '?',
+              hintStyle: AppTextStyles.title.copyWith(
+                fontSize: 32,
+                color: AppColors.mutedText.withValues(alpha: 0.3),
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              fillColor: Colors.transparent,
+              contentPadding: EdgeInsets.zero,
             ),
+            onSubmitted: (_) {
+              if (!_numberSubmitted && _numberController.text.isNotEmpty) {
+                _checkNumberAnswer(question);
+              }
+            },
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.xl),
         if (!_numberSubmitted)
           PrimaryButton(
             label: 'Check Answer',
-            onPressed: () {
-              final answer = int.tryParse(_numberController.text);
-              if (answer == null) return;
-              final isCorrect = answer == correctNumber;
-              setState(() {
-                _numberSubmitted = true;
-                selected = isCorrect ? question.correctAnswerIndex : -1;
-                if (isCorrect) score++;
-              });
-              unawaited(_playQuestionFeedback(question, isCorrect));
-              unawaited(_recordQuestionResult(question, isCorrect));
-            },
+            onPressed: () => _checkNumberAnswer(question),
           ),
       ],
     );
+  }
+
+  void _checkNumberAnswer(Question question) {
+    final answer = int.tryParse(_numberController.text);
+    if (answer == null) return;
+    final isCorrect = answer == question.correctNumber;
+    setState(() {
+      _numberSubmitted = true;
+      selected = isCorrect ? question.correctAnswerIndex : -1;
+      if (isCorrect) score++;
+    });
+    unawaited(_playQuestionFeedback(question, isCorrect));
+    unawaited(_recordQuestionResult(question, isCorrect));
   }
 
   String _answerFeedbackText(Question question) {

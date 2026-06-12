@@ -139,24 +139,8 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final showImage = widget.question.imageUrl != null;
-
     return Column(
       children: [
-        if (showImage) ...[
-          Container(
-            height: 150,
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.r(AppRadius.lg),
-              image: DecorationImage(
-                image: NetworkImage(widget.question.imageUrl!),
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-        ],
-
         // Prompt Row
         Wrap(
           alignment: WrapAlignment.center,
