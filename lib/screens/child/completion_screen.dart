@@ -125,6 +125,57 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
     );
   }
 
+  String _getFeedbackMessage({
+    required bool isReview,
+    required bool passed,
+    required int totalAwarded,
+    required bool isSummaryOrRevision,
+    required int performanceStars,
+    required bool isEscalated,
+  }) {
+    if (isReview) {
+      return 'Each question you reviewed helps you earn stars and master subjects!';
+    }
+
+    if (isSummaryOrRevision) {
+      if (performanceStars == 3 && !isEscalated) {
+        return "Well done for doing revision! You've already mastered this stage!";
+      }
+
+      if (isEscalated) {
+        if (performanceStars == 1) {
+          return "You earned your 1st star! Get 90% next time for the 2nd star!";
+        }
+        if (performanceStars == 2) {
+          return "You earned your 2nd star! Get 100% next time for the 3rd star!";
+        }
+        if (performanceStars == 3) {
+          return "Fantastic! You've mastered this stage with 3 stars!";
+        }
+      } else {
+        // Didn't reach a NEW star
+        if (performanceStars == 0) {
+          return "Summary stages need at least 80% to earn a star. Keep practicing!";
+        }
+        if (performanceStars == 1) {
+          return "Summary stages need at least 90% to earn your 2nd star. Keep practicing!";
+        }
+        if (performanceStars == 2) {
+          return "Summary stages need 100% to earn your 3rd star. Keep practicing!";
+        }
+      }
+    }
+
+    // Fallback for regular stages or if logic above didn't return
+    if (passed) {
+      return totalAwarded > 0
+          ? '+$totalAwarded stars added to your wallet!'
+          : 'Stage complete. No new wallet stars this time.';
+    } else {
+      return 'You need at least 50% to earn a star. Don\'t give up!';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final performanceStars =
@@ -137,6 +188,9 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
     final passed = performanceStars > 0;
     final totalAwarded = widget.newStarsAwarded + widget.dailyBonusStars;
     final isReview = widget.levelId == 'review_session';
+    final isSummaryOrRevision =
+        widget.levelId.toLowerCase().contains('summary') ||
+        widget.levelId.toLowerCase().contains('revision');
     final replayPrefix =
         widget.levelPrefix ??
         DataContracts.levelPrefix(widget.subjectId, widget.levelId);
@@ -166,9 +220,11 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
               Text(
                 isReview
                     ? 'Review Complete!'
-                    : passed
-                    ? 'Stage Clear!'
-                    : 'Try Again!',
+                    : (isSummaryOrRevision && performanceStars == 3 && !widget.isEscalated)
+                        ? 'Mastery Revision!'
+                        : passed
+                            ? 'Stage Clear!'
+                            : 'Try Again!',
                 style: AppTextStyles.title,
                 textAlign: TextAlign.center,
               ),
@@ -221,13 +277,14 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                   borderRadius: AppRadius.r(AppRadius.lg),
                 ),
                 child: Text(
-                  isReview
-                      ? 'Each question you reviewed helps you earn stars and master subjects!'
-                      : passed
-                      ? totalAwarded > 0
-                          ? '+$totalAwarded stars added to your wallet!'
-                          : 'Stage complete. No new wallet stars this time.'
-                      : 'You need at least 50% to earn a star. Don\'t give up!',
+                  _getFeedbackMessage(
+                    isReview: isReview,
+                    passed: passed,
+                    totalAwarded: totalAwarded,
+                    isSummaryOrRevision: isSummaryOrRevision,
+                    performanceStars: performanceStars,
+                    isEscalated: widget.isEscalated,
+                  ),
                   style: AppTextStyles.bodyBold,
                   textAlign: TextAlign.center,
                 ),

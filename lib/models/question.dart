@@ -191,11 +191,16 @@ class Question {
       } else {
         finalIndex = int.tryParse(upper) ?? 0;
       }
-    } else if (type == 'fillblank' && correctBlank != null) {
-      // Find index of correctBlank in options
+    }
+
+    // For fillblank, correctBlank is a more reliable source of truth than a potentially stale index
+    if ((normalizedType == 'fillblank' ||
+            normalizedType == 'fillblanklistening') &&
+        correctBlank != null) {
       final rawOptions = data['options'] as List? ?? [];
       for (int i = 0; i < rawOptions.length; i++) {
-        if (extractText(rawOptions[i]) == correctBlank) {
+        if (extractText(rawOptions[i]).trim().toLowerCase() ==
+            correctBlank.trim().toLowerCase()) {
           finalIndex = i;
           break;
         }

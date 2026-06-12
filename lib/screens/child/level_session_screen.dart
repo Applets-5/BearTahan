@@ -1190,10 +1190,19 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     if (type == 'keyinnumber' && question.correctNumber != null) {
       return 'Not quite! The answer is ${question.correctNumber}.';
     }
-    if (question.correctAnswerIndex >= 0 &&
+
+    String? answer;
+    if ((type == 'fillblank' || type == 'fillblanklistening') &&
+        question.correctBlank != null &&
+        question.correctBlank!.isNotEmpty) {
+      answer = question.correctBlank;
+    } else if (question.correctAnswerIndex >= 0 &&
         question.correctAnswerIndex < question.options.length) {
-      final answer = question.options[question.correctAnswerIndex].text;
-      if (answer.isNotEmpty) return 'Not quite! The answer is "$answer".';
+      answer = question.options[question.correctAnswerIndex].text;
+    }
+
+    if (answer != null && answer.isNotEmpty) {
+      return 'Not quite! The answer is "$answer".';
     }
     return 'Not quite. Try again next time.';
   }
@@ -1219,7 +1228,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 opacity: 0.3,
                 child: _draggableOption(index, question, false),
               ),
-              child: isUsed && !_fillBlankSubmitted
+              child: isUsed
                   ? const SizedBox(width: 80, height: 40)
                   : _draggableOption(index, question, false),
             );
