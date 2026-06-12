@@ -12,6 +12,7 @@ import '../screens/child/profile_screen.dart';
 import '../screens/child/quests_screen.dart';
 import '../screens/child/reward_list_screen.dart';
 import '../screens/child/star_history_screen.dart';
+import '../screens/shared/streak_screen.dart';
 import '../screens/child/subject_screen.dart';
 import '../screens/child/mascot_selection_screen.dart';
 import '../screens/parent/dashboard_screen.dart';
@@ -143,6 +144,7 @@ class AppRouter {
   static const rewards = '/rewards';
   static const profile = '/profile';
   static const starHistory = '/star-history';
+  static const streak = '/streak';
   static const memory = '/memory-challenge';
   static const parentDashboard = '/parent-dashboard';
   static const parentRewards = '/parent-rewards';
@@ -266,6 +268,13 @@ class AppRouter {
                 state,
                 StarHistoryScreen(childId: childId),
               );
+            },
+          ),
+          GoRoute(
+            path: streak,
+            pageBuilder: (context, state) {
+              final childId = state.uri.queryParameters['childId'] ?? '';
+              return _noTransitionPage(state, StreakScreen(childId: childId));
             },
           ),
 

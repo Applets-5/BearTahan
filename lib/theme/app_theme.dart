@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   static const background = Color(0xFFFFFBF0);
@@ -127,8 +128,9 @@ class AppShadows {
 
 class AppTheme {
   static ThemeData get lightTheme {
-    return ThemeData(
+    final baseTheme = ThemeData(
       useMaterial3: true,
+      fontFamily: GoogleFonts.notoSansSc().fontFamily,
       scaffoldBackgroundColor: AppColors.background,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
@@ -136,6 +138,18 @@ class AppTheme {
         secondary: AppColors.secondary,
         surface: AppColors.card,
         error: AppColors.destructive,
+      ),
+    );
+
+    // Use GoogleFonts to handle Mandarin and other characters globally
+    return baseTheme.copyWith(
+      textTheme: GoogleFonts.notoSansScTextTheme(baseTheme.textTheme).apply(
+        bodyColor: AppColors.foreground,
+        displayColor: AppColors.foreground,
+      ),
+      // Also set it as the default font family for widgets that don't use the text theme correctly
+      primaryTextTheme: GoogleFonts.notoSansScTextTheme(
+        baseTheme.primaryTextTheme,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.background,

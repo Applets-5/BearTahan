@@ -8,6 +8,7 @@ import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/progress_bar_card.dart';
 import '../../widgets/parent/stat_card.dart';
+import 'bear_ai_tab.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -17,14 +18,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  final List<Map<String, dynamic>> _defaultSubjects = [
-    {'id': 'bm', 'name': 'Bahasa Melayu', 'color': AppColors.subjectBm},
-    {'id': 'bi', 'name': 'English', 'color': AppColors.subjectEnglish},
-    {'id': 'math', 'name': 'Mathematics', 'color': AppColors.subjectMath},
-    {'id': 'sci', 'name': 'Science', 'color': AppColors.subjectScience},
-    {'id': 'bc', 'name': 'Mandarin', 'color': AppColors.subjectMandarin},
-  ];
-
   @override
   Widget build(BuildContext context) {
     final childrenAsync = ref.watch(childrenProvider);
@@ -51,26 +44,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           orElse: () => children.first,
         );
 
-        final childProfileAsync = ref.watch(
-          userProfileProvider(selectedChildId),
-        );
-        final subjectsAsync = ref.watch(
-          subjectProgressProvider(selectedChildId),
-        );
-
-        return SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            children: [
-              Row(
+        return DefaultTabController(
+          length: 2,
+          child: Scaffold(
+            backgroundColor: AppColors.background,
+            appBar: AppBar(
+              toolbarHeight: 70,
+              backgroundColor: AppColors.background,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              title: Row(
                 children: [
                   const Expanded(
                     child: Text('Dashboard', style: AppTextStyles.screenTitle),
-                  ),
-                  IconButton(
-                    tooltip: 'Daily goals',
-                    onPressed: () => context.go(AppRouter.parentGoals),
-                    icon: const Icon(Icons.flag_rounded),
                   ),
                   PopupMenuButton<String>(
                     onSelected: (id) {
@@ -140,173 +126,282 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
-              childProfileAsync.when(
-                data: (profile) {
-                  return subjectsAsync.when(
-                    data: (subjects) {
-                      // Merge real data with default subjects to ensure all are shown
-                      final List<Map<String, dynamic>>
-                      displaySubjects = _defaultSubjects.map((defaultSub) {
-                        final realSub = subjects.cast<Subject?>().firstWhere(
-                          (s) => s?.id == defaultSub['id'],
-                          orElse: () => null,
-                        );
-
-                        return {
-                          'name': defaultSub['name'],
-                          'progress': realSub != null ? realSub.progress : 0,
-                          'completedLevels': realSub != null
-                              ? realSub.completedLevels
-                              : 0,
-                          'totalStars': realSub != null
-                              ? realSub.totalStars
-                              : 0,
-                          'color': defaultSub['color'],
-                        };
-                      }).toList();
-
-                      int totalProgress = displaySubjects.fold(
-                        0,
-                        (sum, s) => sum + (s['progress'] as int),
-                      );
-                      int avgProgress = (totalProgress / displaySubjects.length)
-                          .round();
-
-                      // Aggregated stats for top cards
-                      int totalCompletedLevels = displaySubjects.fold(
-                        0,
-                        (sum, s) => sum + (s['completedLevels'] as int),
-                      );
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: StatCard(
-                                  icon: Icons.auto_awesome,
-                                  label: 'Stars Earned',
-                                  value: profile.lifetimeStarsEarned.toString(),
-                                  color: AppColors.star,
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: StatCard(
-                                  icon: Icons.menu_book,
-                                  label: 'Lessons',
-                                  value: totalCompletedLevels.toString(),
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: StatCard(
-                                  icon: Icons.trending_up,
-                                  label: 'Streak',
-                                  value: '${profile.streakCount}d',
-                                  color: AppColors.accent,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.lg,
-                                    vertical: AppSpacing.sm,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.secondaryLight,
-                                    borderRadius: AppRadius.r(AppRadius.lg),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.star,
-                                        color: AppColors.star,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: AppSpacing.sm),
-                                      Text(
-                                        'Available: ${profile.availableStars} stars',
-                                        style: AppTextStyles.bodyBold,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          ProgressBarCard(
-                            title: 'Overall Progress',
-                            subtitle: '$avgProgress% of all subjects completed',
-                            progress: avgProgress / 100,
-                            icon: Icons.flag_rounded,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          Container(
-                            padding: const EdgeInsets.all(AppSpacing.lg),
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              borderRadius: AppRadius.r(AppRadius.xl),
-                              boxShadow: AppShadows.card,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Subject Progress',
-                                  style: AppTextStyles.bodyBold,
-                                ),
-                                const SizedBox(height: AppSpacing.md),
-                                ...displaySubjects.map(
-                                  (s) => _SubjectProgress(
-                                    label: s['name'],
-                                    score: (s['progress'] as int) / 100,
-                                    completedLevels: s['completedLevels'],
-                                    totalStars: s['totalStars'],
-                                    color: s['color'],
-                                    isLast: displaySubjects.last == s,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                    loading: () => const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(AppSpacing.xl),
-                        child: CircularProgressIndicator(),
-                      ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(50),
+                child: Container(
+                  height: 44,
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.muted,
+                    borderRadius: AppRadius.r(AppRadius.lg),
+                  ),
+                  child: TabBar(
+                    isScrollable: false,
+                    dividerColor: Colors.transparent,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    indicatorPadding: const EdgeInsets.all(4),
+                    indicator: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: AppRadius.r(AppRadius.md),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    error: (e, st) => Text('Error loading subjects: $e'),
-                  );
-                },
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.xl),
-                    child: CircularProgressIndicator(),
+                    labelColor: AppColors.primary,
+                    unselectedLabelColor: AppColors.mutedText,
+                    labelStyle: AppTextStyles.bodyBold,
+                    unselectedLabelStyle: AppTextStyles.body,
+                    tabs: const [
+                      Tab(text: 'Overview'),
+                      Tab(text: 'BearAI'),
+                    ],
                   ),
                 ),
-                error: (e, st) => Text('Error loading profile: $e'),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              _RecentActivity(childId: selectedChildId),
-            ],
+            ),
+            body: TabBarView(
+              children: [
+                _OverviewTab(selectedChildId: selectedChildId),
+                BearAITab(childId: selectedChildId),
+              ],
+            ),
           ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, st) => Center(child: Text('Error loading children: $e')),
+    );
+  }
+}
+
+class _OverviewTab extends ConsumerWidget {
+  final String selectedChildId;
+
+  const _OverviewTab({required this.selectedChildId});
+
+  Widget _buildDailyGoalCard(dynamic profile) {
+    final goal = profile.dailyGoal;
+    if (goal == null || !goal.isValid) {
+      return ProgressBarCard(
+        title: 'Daily Goal',
+        subtitle: 'No daily goal set for ${profile.name}',
+        progress: 0,
+        icon: Icons.flag_outlined,
+      );
+    }
+
+    final double progress = (goal.todayProgress / goal.target).clamp(0.0, 1.0);
+    final bool isComplete = goal.todayProgress >= goal.target;
+    final int remaining = (goal.target - goal.todayProgress).clamp(
+      0,
+      goal.target,
+    );
+
+    return ProgressBarCard(
+      title: 'Daily Goal',
+      subtitle: isComplete ? 'Goal completed!' : '$remaining more to go today',
+      progress: progress,
+      icon: isComplete ? Icons.stars_rounded : Icons.flag_rounded,
+      color: isComplete ? AppColors.star : AppColors.primary,
+    );
+  }
+
+  final List<Map<String, dynamic>> _defaultSubjects = const [
+    {'id': 'bm', 'name': 'Bahasa Melayu', 'color': AppColors.subjectBm},
+    {'id': 'bi', 'name': 'English', 'color': AppColors.subjectEnglish},
+    {'id': 'math', 'name': 'Mathematics', 'color': AppColors.subjectMath},
+    {'id': 'sci', 'name': 'Science', 'color': AppColors.subjectScience},
+    {'id': 'bc', 'name': 'Mandarin', 'color': AppColors.subjectMandarin},
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final childProfileAsync = ref.watch(userProfileProvider(selectedChildId));
+    final subjectsAsync = ref.watch(subjectProgressProvider(selectedChildId));
+
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        childProfileAsync.when(
+          data: (profile) {
+            return subjectsAsync.when(
+              data: (subjects) {
+                // Merge real data with default subjects to ensure all are shown
+                final List<Map<String, dynamic>>
+                displaySubjects = _defaultSubjects.map((defaultSub) {
+                  final realSub = subjects.cast<Subject?>().firstWhere(
+                    (s) => s?.id == defaultSub['id'],
+                    orElse: () => null,
+                  );
+
+                  // Self-healing: if the subject exists but is missing aggregation, trigger a sync
+                  if (realSub != null &&
+                      (realSub.totalStars == 0 && realSub.progress > 0)) {
+                    debugPrint(
+                      'DEBUG: Self-healing triggered for ${realSub.id} on dashboard',
+                    );
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      final parentId = ref.read(parentIdProvider);
+                      ref
+                          .read(firestoreServiceProvider)
+                          .syncSubjectAggregation(
+                            parentId,
+                            selectedChildId,
+                            realSub.id,
+                          );
+                    });
+                  }
+
+                  return {
+                    'name': defaultSub['name'],
+                    'progress': realSub != null ? realSub.progress : 0,
+                    'completedLevels': realSub != null
+                        ? realSub.completedLevels
+                        : 0,
+                    'totalStars': realSub != null ? realSub.totalStars : 0,
+                    'color': defaultSub['color'],
+                  };
+                }).toList();
+
+                // Aggregated stats for top cards
+                int totalCompletedLevels = displaySubjects.fold(
+                  0,
+                  (sum, s) => sum + (s['completedLevels'] as int),
+                );
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: StatCard(
+                            icon: Icons.auto_awesome,
+                            label: 'Stars Earned',
+                            value: profile.lifetimeStarsEarned.toString(),
+                            color: AppColors.star,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: StatCard(
+                            icon: Icons.menu_book,
+                            label: 'Lessons',
+                            value: totalCompletedLevels.toString(),
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: StatCard(
+                            icon: Icons.trending_up,
+                            label: 'Streak',
+                            value: '${profile.streakCount}d',
+                            color: AppColors.accent,
+                            onTap: () {
+                              context.push(
+                                Uri(
+                                  path: AppRouter.streak,
+                                  queryParameters: {'childId': selectedChildId},
+                                ).toString(),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg,
+                              vertical: AppSpacing.sm,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondaryLight,
+                              borderRadius: AppRadius.r(AppRadius.lg),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.star,
+                                  color: AppColors.star,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Text(
+                                  'Available: ${profile.availableStars} stars',
+                                  style: AppTextStyles.bodyBold,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _buildDailyGoalCard(profile),
+                    const SizedBox(height: AppSpacing.lg),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: AppRadius.r(AppRadius.xl),
+                        boxShadow: AppShadows.card,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Subject Progress',
+                            style: AppTextStyles.bodyBold,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          ...displaySubjects.map(
+                            (s) => _SubjectProgress(
+                              label: s['name'],
+                              score: (s['progress'] as int) / 100,
+                              completedLevels: s['completedLevels'],
+                              totalStars: s['totalStars'],
+                              color: s['color'],
+                              isLast: displaySubjects.last == s,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(AppSpacing.xl),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (e, st) => Text('Error loading subjects: $e'),
+            );
+          },
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(AppSpacing.xl),
+              child: CircularProgressIndicator(),
+            ),
+          ),
+          error: (e, st) => Text('Error loading profile: $e'),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _RecentActivity(childId: selectedChildId),
+      ],
     );
   }
 }
