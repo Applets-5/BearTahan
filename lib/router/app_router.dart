@@ -111,6 +111,7 @@ class AppRouter {
     int? score,
     int? total,
     int? performanceStars,
+    int? bestStars,
     int? newStarsAwarded,
     int? dailyBonusStars,
     String? levelId,
@@ -126,6 +127,9 @@ class AppRouter {
     if (total != null) params['total'] = total.toString();
     if (performanceStars != null) {
       params['performanceStars'] = performanceStars.toString();
+    }
+    if (bestStars != null) {
+      params['bestStars'] = bestStars.toString();
     }
     if (newStarsAwarded != null) {
       params['newStarsAwarded'] = newStarsAwarded.toString();
@@ -404,6 +408,9 @@ class AppRouter {
                 state.uri.queryParameters['stars'] ??
                 '',
           );
+          final bestStars = int.tryParse(
+            state.uri.queryParameters['bestStars'] ?? '',
+          );
           final newStarsAwarded =
               int.tryParse(
                 state.uri.queryParameters['newStarsAwarded'] ?? '',
@@ -435,6 +442,7 @@ class AppRouter {
               score: score,
               total: total,
               performanceStars: performanceStars,
+              bestStars: bestStars,
               newStarsAwarded: newStarsAwarded ?? 0,
               dailyBonusStars: dailyBonusStars,
               levelId: levelId,

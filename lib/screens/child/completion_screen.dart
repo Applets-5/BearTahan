@@ -20,6 +20,7 @@ class CompletionScreen extends ConsumerStatefulWidget {
     this.levelId = 'l1',
     this.subjectId = 'bm',
     this.performanceStars,
+    this.bestStars,
     this.newStarsAwarded = 0,
     this.dailyBonusStars = 0,
     this.levelPrefix,
@@ -34,6 +35,7 @@ class CompletionScreen extends ConsumerStatefulWidget {
   final String levelId;
   final String subjectId;
   final int? performanceStars;
+  final int? bestStars;
   final int newStarsAwarded;
   final int dailyBonusStars;
   final String? levelPrefix;
@@ -131,6 +133,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
     required int totalAwarded,
     required bool isSummaryOrRevision,
     required int performanceStars,
+    required int bestStars,
     required bool isEscalated,
   }) {
     if (isReview) {
@@ -138,30 +141,33 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
     }
 
     if (isSummaryOrRevision) {
-      if (performanceStars == 3 && !isEscalated) {
+      if (bestStars == 3 && !isEscalated) {
         return "Well done for doing revision! You've already mastered this stage!";
       }
 
       if (isEscalated) {
-        if (performanceStars == 1) {
+        if (bestStars == 1) {
           return "You earned your 1st star! Get 90% next time for the 2nd star!";
         }
-        if (performanceStars == 2) {
+        if (bestStars == 2) {
           return "You earned your 2nd star! Get 100% next time for the 3rd star!";
         }
-        if (performanceStars == 3) {
+        if (bestStars == 3) {
           return "Fantastic! You've mastered this stage with 3 stars!";
         }
       } else {
-        // Didn't reach a NEW star
-        if (performanceStars == 0) {
+        // Didn't reach a NEW star or was a reattempt
+        if (bestStars == 0) {
           return "Summary stages need at least 80% to earn a star. Keep practicing!";
         }
-        if (performanceStars == 1) {
+        if (bestStars == 1) {
           return "Summary stages need at least 90% to earn your 2nd star. Keep practicing!";
         }
-        if (performanceStars == 2) {
+        if (bestStars == 2) {
           return "Summary stages need 100% to earn your 3rd star. Keep practicing!";
+        }
+        if (bestStars == 3) {
+          return "Fantastic! You've already mastered this stage with 3 stars!";
         }
       }
     }
@@ -185,6 +191,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
           total: widget.total,
           levelId: widget.levelId,
         );
+    final bestStars = widget.bestStars ?? performanceStars;
     final passed = performanceStars > 0;
     final totalAwarded = widget.newStarsAwarded + widget.dailyBonusStars;
     final isReview = widget.levelId == 'review_session';
@@ -220,7 +227,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
               Text(
                 isReview
                     ? 'Review Complete!'
-                    : (isSummaryOrRevision && performanceStars == 3 && !widget.isEscalated)
+                    : (isSummaryOrRevision && bestStars == 3 && !widget.isEscalated)
                         ? 'Mastery Revision!'
                         : passed
                             ? 'Stage Clear!'
@@ -283,6 +290,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                     totalAwarded: totalAwarded,
                     isSummaryOrRevision: isSummaryOrRevision,
                     performanceStars: performanceStars,
+                    bestStars: bestStars,
                     isEscalated: widget.isEscalated,
                   ),
                   style: AppTextStyles.bodyBold,

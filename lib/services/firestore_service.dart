@@ -1101,6 +1101,8 @@ class FirestoreService {
         normalizedLevelId.contains('revision');
     bool shouldForceSync = false;
 
+    int bestStars = 0;
+
     await _db.runTransaction((transaction) async {
       final levelSnapshot = await transaction.get(normalizedLevelDocRef);
       final legacyLevelSnapshot = legacyLevelDocRef == null
@@ -1185,6 +1187,7 @@ class FirestoreService {
         bool earnedDailyStar = result['earnedDailyStar'];
         int newThreshold = result['newThreshold'];
         didEscalate = newThreshold > currentThreshold;
+        bestStars = newThreshold;
 
         levelUpdates['summaryThreshold'] = newThreshold;
         if (earnedDailyStar) {
@@ -1198,6 +1201,9 @@ class FirestoreService {
           total: total,
           levelId: normalizedLevelId,
         );
+        bestStars = calculatedStars > previousBestStars
+            ? calculatedStars
+            : previousBestStars;
       }
 
       performanceStars = calculatedStars;
@@ -1281,6 +1287,7 @@ class FirestoreService {
       dailyBonusStars: dailyBonusStars,
       didImprove: didImprove,
       didEscalate: didEscalate,
+      bestStars: bestStars,
     );
   }
 

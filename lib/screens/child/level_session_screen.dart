@@ -280,6 +280,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     setState(() => _isSaving = true);
 
     int performanceStars = 0;
+    int bestStars = 0;
     int newStarsAwarded = 0;
     int dailyBonusStars = 0;
     bool isEscalated = false;
@@ -302,6 +303,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           totalQuestions,
         );
         performanceStars = progressResult.performanceStars;
+        bestStars = progressResult.bestStars;
         newStarsAwarded = progressResult.newStarsAwarded;
         dailyBonusStars = progressResult.dailyBonusStars;
         isEscalated = progressResult.didEscalate;
@@ -338,6 +340,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           total: totalQuestions,
           levelId: widget.levelId,
         );
+        bestStars = performanceStars;
       }
     } catch (e) {
       debugPrint('Unable to save level progress: $e');
@@ -377,6 +380,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         'levelId': widget.levelId,
         'subjectId': widget.subjectId,
         'performanceStars': performanceStars.toString(),
+        'bestStars': bestStars.toString(),
         'newStarsAwarded': newStarsAwarded.toString(),
         'dailyBonusStars': dailyBonusStars.toString(),
         'levelPrefix': widget.levelPrefix,
@@ -960,12 +964,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     switch (type) {
       case 'rearrange':
-        return _buildRearrangeQuestion(question);
+        return _buildRearrangeQuestion(question, key: ValueKey('rearrange_${question.id}'));
       case 'fillblank':
       case 'fillblanklistening':
-        return _buildFillBlankQuestion(question);
+        return _buildFillBlankQuestion(question, key: ValueKey('fillblank_${question.id}'));
       case 'dragdropspelling':
         return DragDropSpellingWidget(
+          key: ValueKey('dragdrop_${question.id}'),
           question: question,
           onCompleted: (isCorrect) {
             setState(() {
@@ -979,6 +984,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         );
       case 'matching':
         return MatchingWidget(
+          key: ValueKey('matching_${question.id}'),
           question: question,
           onCompleted: (isCorrect) {
             setState(() {
@@ -1009,7 +1015,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   List<int>? _rearrangeOrder;
   bool _rearrangeSubmitted = false;
 
-  Widget _buildRearrangeQuestion(Question question) {
+  Widget _buildRearrangeQuestion(Question question, {Key? key}) {
     if (_rearrangeOrder == null) {
       _rearrangeOrder = List.generate(question.options.length, (i) => i);
       // Shuffle initially until it DOESN'T match the correct order (if possible)
@@ -1244,7 +1250,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     return 'Not quite. Try again next time.';
   }
 
-  Widget _buildFillBlankQuestion(Question question) {
+  Widget _buildFillBlankQuestion(Question question, {Key? key}) {
     return Column(
       children: [
         const Text(
