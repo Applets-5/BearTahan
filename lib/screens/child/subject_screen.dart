@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/subject.dart';
+import '../../models/chapter_data.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
@@ -28,32 +29,77 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
     super.dispose();
   }
 
-  void _scrollToActiveLevel(Map<String, int> starMap) {
-    if (_didScroll) return;
+  void _scrollToActiveLevel({
+    required Map<String, int> starMap,
+    required List<ChapterData> chapters,
+    required bool allChaptersComplete,
+  }) {
+    if (_didScroll || chapters.isEmpty) return;
     _didScroll = true;
 
-    int activeIndex = 0;
-    for (int i = 0; i < 8; i++) {
-      final levelId = 'l${i + 1}';
-      final stars = starMap[levelId] ?? 0;
-      bool isUnlocked = i == 0 || (starMap['l$i'] ?? 0) > 0;
-      bool isCompleted = stars > 0;
+    int activeVisualIndex = 0;
+    int currentVisualIndex = 0;
+    bool foundActive = false;
 
-      if (isUnlocked && !isCompleted) {
-        activeIndex = i;
-        break;
+    for (var chapter in chapters) {
+      // Each chapter starts with a divider (takes 1 visual index)
+      currentVisualIndex++;
+
+      for (int i = 0; i < chapter.levelIds.length; i++) {
+        final levelId = chapter.levelIds[i];
+        final stars = starMap[levelId] ?? 0;
+
+        bool isUnlocked;
+        if (chapters.first == chapter && i == 0) {
+          isUnlocked = true;
+        } else {
+          String? prevLevelId;
+          if (i > 0) {
+            prevLevelId = chapter.levelIds[i - 1];
+          } else {
+            final chapterIdx = chapters.indexOf(chapter);
+            if (chapterIdx > 0) {
+              final prevChapter = chapters[chapterIdx - 1];
+              prevLevelId = prevChapter.levelIds.last;
+            }
+          }
+          isUnlocked = prevLevelId != null && (starMap[prevLevelId] ?? 0) > 0;
+        }
+
+        bool isCompleted = stars > 0;
+
+        if (isUnlocked && !isCompleted) {
+          activeVisualIndex = currentVisualIndex;
+          foundActive = true;
+          break;
+        }
+        currentVisualIndex++;
       }
+      if (foundActive) break;
     }
 
-    // Rough estimate of scroll offset
-    double offset = (activeIndex * 160.0);
+    // Rough estimate of scroll offset matching LevelWindingPath's verticalStep
+    const double verticalStep = 160.0;
+    const double headerHeight = 220.0; // Estimate of _SubjectHeader height
+    double offset;
+
+    if (!foundActive && allChaptersComplete) {
+      // All levels complete, scroll to revision section at bottom
+      offset = (currentVisualIndex * verticalStep) + headerHeight + 100;
+    } else {
+      offset = (activeVisualIndex * verticalStep) + headerHeight - 100;
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
+        // Clamp offset to scroll bounds
+        double maxScroll = _scrollController.position.maxScrollExtent;
+        double targetOffset = offset.clamp(0.0, maxScroll);
+
         _scrollController.animateTo(
-          offset,
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOut,
+          targetOffset,
+          duration: const Duration(milliseconds: 1000),
+          curve: Curves.easeOutCubic,
         );
       }
     });
@@ -81,6 +127,7 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
             data: (chapters) {
               return subjectProgressAsync.when(
                 data: (progressList) {
+                  // ... (rest of data logic)
                   final dbSubject = progressList.firstWhere(
                     (s) => s.id == widget.subjectId,
                     orElse: () => Subject(
@@ -115,7 +162,11 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
                       : 0;
 
                   // Trigger auto-scroll once
-                  _scrollToActiveLevel(starMap);
+                  _scrollToActiveLevel(
+                    starMap: starMap,
+                    chapters: chapters,
+                    allChaptersComplete: showRevision,
+                  );
 
                   return CustomScrollView(
                     controller: _scrollController,
