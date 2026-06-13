@@ -45,6 +45,26 @@ function timestampToMalaysiaDateKey(value) {
   return null;
 }
 
+function getEffectiveStreak(storedStreak, lastActivityDate) {
+  if (!lastActivityDate || !storedStreak) return 0;
+
+  const lastActivityKey = timestampToMalaysiaDateKey(lastActivityDate);
+  const today = getTodayKey();
+
+  if (lastActivityKey === today) return storedStreak;
+
+  // Calculate yesterday's key in Malaysia time
+  const now = new Date();
+  const klTime = now.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
+  const klNow = new Date(klTime);
+  klNow.setDate(klNow.getDate() - 1);
+  const yesterday = getTodayKey(klNow);
+
+  if (lastActivityKey === yesterday) return storedStreak;
+
+  return 0;
+}
+
 async function getParentData(parentId) {
   const parentSnapshot = await db.collection("parents").doc(parentId).get();
   return parentSnapshot.exists ? parentSnapshot.data() : {};
@@ -207,17 +227,24 @@ exports.sendStreakRiskNotifications = onSchedule(
 
           const child = childDoc.data() || {};
           const childId = childDoc.id;
-          const currentStreak = Number(child.streakCount || 0);
-          const lastActivityKey = timestampToMalaysiaDateKey(
-              child.lastActivityDate,
-          );
+          const lastActivityDate = child.lastActivityDate;
+          const currentStreak = getEffectiveStreak(Number(child.streakCount || 0), lastActivityDate);
+          
+          const lastActivityKey = timestampToMalaysiaDateKey(lastActivityDate);
           const lastStreakRiskNotifiedDate =
             child.lastStreakRiskNotifiedDate || null;
 
+          // Only notify if they have a streak AND they haven't played today AND it's not already broken
+          // A streak is "at risk" only if they played yesterday but not today.
+          const klTime = new Date().toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
+          const klNow = new Date(klTime);
+          klNow.setDate(klNow.getDate() - 1);
+          const yesterday = getTodayKey(klNow);
+
           if (
             currentStreak <= 0 ||
-          lastActivityKey === today ||
-          lastStreakRiskNotifiedDate === today
+            lastActivityKey !== yesterday ||
+            lastStreakRiskNotifiedDate === today
           ) {
             continue;
           }
@@ -488,7 +515,7 @@ exports.askBearAi = onCall({secrets: [geminiKey]}, async (request) => {
   const chatSystemPrompt = `${BEARTAHAN_SYSTEM_PROMPT}
 
 You are currently helping the parent of ${child.name}.
-Quick stats: ${child.streakCount || 0} day streak, 
+Quick stats: ${getEffectiveStreak(Number(child.streakCount || 0), child.lastActivityDate)} day streak, 
 ${child.availableStars || 0} available stars, 
 ${child.lifetimeStarsEarned || 0} lifetime stars.
 Active outfit: ${child.activeOutfitID || "scholar_bear"}.
@@ -634,7 +661,7 @@ exports.getBearAiInsight = onCall({secrets: [geminiKey]}, async (request) => {
 CHILD PROFILE
 Name: ${childData.name}
 Active outfit: ${childData.activeOutfitID || 'scholar_bear'}
-Current streak: ${childData.streakCount || 0} days
+Current streak: ${getEffectiveStreak(Number(childData.streakCount || 0), childData.lastActivityDate)} days
 Available stars: ${childData.availableStars || 0}
 Lifetime stars: ${childData.lifetimeStarsEarned || 0}
 Daily goal: ${JSON.stringify(childData.dailyGoal || {})}
