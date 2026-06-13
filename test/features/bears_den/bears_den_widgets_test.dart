@@ -9,6 +9,8 @@ import 'package:bear_tahan/providers/sound_effects_provider.dart';
 import 'package:bear_tahan/screens/child/completion_screen.dart';
 import 'package:bear_tahan/screens/child/level_session_screen.dart';
 import 'package:bear_tahan/services/firestore_service.dart';
+import 'package:bear_tahan/services/session_asset_preloader.dart';
+import 'package:bear_tahan/services/tts_service.dart';
 import 'package:bear_tahan/widgets/common/level_winding_path.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +21,28 @@ import 'package:mocktail/mocktail.dart';
 class MockFirestoreService extends Mock implements FirestoreService {}
 
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
+
+class MockTtsService extends Mock implements TtsService {}
+
+class ImmediateSessionAssetPreloader extends SessionAssetPreloader {
+  ImmediateSessionAssetPreloader() : super(ttsService: MockTtsService());
+
+  @override
+  Future<SessionPreparationReport> preload({
+    required BuildContext context,
+    required List<Question> questions,
+    required String Function(Question question) languageForQuestion,
+    Duration timeout = const Duration(seconds: 10),
+    PreparationProgressCallback? onProgress,
+  }) async {
+    return const SessionPreparationReport(
+      completedAssets: 0,
+      totalAssets: 0,
+      failedAssets: 0,
+      timedOut: false,
+    );
+  }
+}
 
 Question question(String id) => Question(
   id: id,
@@ -107,6 +131,9 @@ void main() {
           ),
           soundEffectsProvider.overrideWith(
             () => _DisabledSoundEffectsNotifier(),
+          ),
+          sessionAssetPreloaderProvider.overrideWithValue(
+            ImmediateSessionAssetPreloader(),
           ),
         ],
         child: const MaterialApp(

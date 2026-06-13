@@ -120,7 +120,7 @@ void main() {
       remoteAudioPreloader: (_) async {},
     );
 
-    final report = await preloader.preload(
+    final reportFuture = preloader.preload(
       context: context,
       questions: [
         Question(
@@ -133,6 +133,8 @@ void main() {
       languageForQuestion: (_) => 'ms-MY',
       timeout: const Duration(milliseconds: 20),
     );
+    await tester.pump(const Duration(milliseconds: 21));
+    final report = await reportFuture;
 
     expect(report.timedOut, isTrue);
     expect(report.completedAssets, 0);
