@@ -44,7 +44,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
 
   @override
   Widget build(BuildContext context) {
-    final aiState = ref.watch(bearAiProvider);
+    final aiState = ref.watch(bearAiChildProvider(widget.childId));
     final subjectsAsync = ref.watch(subjectProgressProvider(widget.childId));
     final strengthAsync = ref.watch(subjectStrengthProvider(widget.childId));
     final childProfileAsync = ref.watch(userProfileProvider(widget.childId));

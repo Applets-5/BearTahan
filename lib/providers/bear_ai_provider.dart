@@ -3,10 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/bear_ai_message.dart';
 import 'package:flutter/foundation.dart';
 
-class BearAiNotifier extends Notifier<BearAiState> {
+class BearAiNotifier extends Notifier<Map<String, BearAiState>> {
   @override
-  BearAiState build() {
-    return BearAiState();
+  Map<String, BearAiState> build() {
+    return {};
+  }
+
+  BearAiState _getState(String childId) => state[childId] ?? BearAiState();
+
+  void _updateState(String childId, BearAiState newState) {
+    state = {...state, childId: newState};
   }
 
   Future<void> generateInsightIfNeeded(
@@ -14,32 +20,44 @@ class BearAiNotifier extends Notifier<BearAiState> {
     String? existingInsight,
     DateTime? lastDate,
   }) async {
-    if (state.hasGeneratedInsight || state.isInsightLoading) return;
-
+    final currentState = _getState(childId);
+    if (currentState.hasGeneratedInsight || currentState.isInsightLoading){
+      return;
+    }
     // If we have a fresh insight (less than 7 days old), use it directly
     if (existingInsight != null && lastDate != null) {
       final now = DateTime.now();
       final difference = now.difference(lastDate).inDays;
       if (difference < 7) {
-        state = state.copyWith(
-          insight: existingInsight,
-          hasGeneratedInsight: true,
+        _updateState(
+          childId,
+          currentState.copyWith(
+            insight: existingInsight,
+            hasGeneratedInsight: true,
+          ),
         );
         return;
       }
     }
 
-    state = state.copyWith(isInsightLoading: true, insightError: null);
+    _updateState(
+      childId,
+      currentState.copyWith(isInsightLoading: true, insightError: null),
+    );
 
     try {
       final result = await FirebaseFunctions.instanceFor(
         region: 'asia-southeast1',
       ).httpsCallable('getBearAiInsight').call({'childId': childId});
 
-      state = state.copyWith(
-        insight: result.data['insight'] as String,
-        isInsightLoading: false,
-        hasGeneratedInsight: true,
+      final updatedState = _getState(childId);
+      _updateState(
+        childId,
+        updatedState.copyWith(
+          insight: result.data['insight'] as String,
+          isInsightLoading: false,
+          hasGeneratedInsight: true,
+        ),
       );
     } catch (e) {
       debugPrint("🐻 BearAI Insight Error: $e");
@@ -51,7 +69,11 @@ class BearAiNotifier extends Notifier<BearAiState> {
         errorText = e.message ?? "BearAI Insight Error: ${e.code}";
       }
 
-      state = state.copyWith(isInsightLoading: false, insightError: errorText);
+      final updatedState = _getState(childId);
+      _updateState(
+        childId,
+        updatedState.copyWith(isInsightLoading: false, insightError: errorText),
+      );
     }
   }
 
@@ -60,10 +82,11 @@ class BearAiNotifier extends Notifier<BearAiState> {
     String text, {
     bool isRetry = false,
   }) async {
-    if (text.trim().isEmpty || state.isChatLoading) return;
+    final currentState = _getState(childId);
+    if (text.trim().isEmpty || currentState.isChatLoading) return;
 
     // 1. Build history BEFORE potentially modifying state
-    final history = state.messages
+    final history = currentState.messages
         .where((m) => m.role != MessageRole.error)
         .map(
           (m) => {
@@ -75,17 +98,23 @@ class BearAiNotifier extends Notifier<BearAiState> {
 
     if (isRetry) {
       // Issue 10: Remove the previous error message before retrying
-      state = state.copyWith(
-        messages: state.messages
-            .where((m) => m.role != MessageRole.error)
-            .toList(),
-        isChatLoading: true,
+      _updateState(
+        childId,
+        currentState.copyWith(
+          messages: currentState.messages
+              .where((m) => m.role != MessageRole.error)
+              .toList(),
+          isChatLoading: true,
+        ),
       );
     } else {
       final userMessage = BearAiMessage(content: text, role: MessageRole.user);
-      state = state.copyWith(
-        messages: [...state.messages, userMessage],
-        isChatLoading: true,
+      _updateState(
+        childId,
+        currentState.copyWith(
+          messages: [...currentState.messages, userMessage],
+          isChatLoading: true,
+        ),
       );
     }
 
@@ -100,9 +129,13 @@ class BearAiNotifier extends Notifier<BearAiState> {
         role: MessageRole.assistant,
       );
 
-      state = state.copyWith(
-        messages: [...state.messages, assistantMessage],
-        isChatLoading: false,
+      final updatedState = _getState(childId);
+      _updateState(
+        childId,
+        updatedState.copyWith(
+          messages: [...updatedState.messages, assistantMessage],
+          isChatLoading: false,
+        ),
       );
     } catch (e) {
       debugPrint("🐻 BearAI Error: $e");
@@ -117,14 +150,26 @@ class BearAiNotifier extends Notifier<BearAiState> {
         role: MessageRole.error,
         retryData: text,
       );
-      state = state.copyWith(
-        messages: [...state.messages, errorMessage],
-        isChatLoading: false,
+      final updatedState = _getState(childId);
+      _updateState(
+        childId,
+        updatedState.copyWith(
+          messages: [...updatedState.messages, errorMessage],
+          isChatLoading: false,
+        ),
       );
     }
   }
 }
 
-final bearAiProvider = NotifierProvider<BearAiNotifier, BearAiState>(
-  BearAiNotifier.new,
-);
+final bearAiProvider =
+    NotifierProvider<BearAiNotifier, Map<String, BearAiState>>(
+      BearAiNotifier.new,
+    );
+
+final bearAiChildProvider = Provider.family<BearAiState, String>((
+  ref,
+  childId,
+) {
+  return ref.watch(bearAiProvider)[childId] ?? BearAiState();
+});

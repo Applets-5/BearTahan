@@ -35,21 +35,23 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
               radarShape: RadarShape.polygon,
               radarTouchData: RadarTouchData(
                 enabled: true,
-                touchCallback: (FlTouchEvent event, RadarTouchResponse? response) {
-                  if (!event.isInterestedForInteractions ||
-                      response == null ||
-                      response.touchedSpot == null) {
-                    setState(() {
-                      _touchedIndex = -1;
-                      _touchPosition = null;
-                    });
-                    return;
-                  }
-                  setState(() {
-                    _touchedIndex = response.touchedSpot!.touchedRadarEntryIndex;
-                    _touchPosition = event.localPosition;
-                  });
-                },
+                touchCallback:
+                    (FlTouchEvent event, RadarTouchResponse? response) {
+                      if (!event.isInterestedForInteractions ||
+                          response == null ||
+                          response.touchedSpot == null) {
+                        setState(() {
+                          _touchedIndex = -1;
+                          _touchPosition = null;
+                        });
+                        return;
+                      }
+                      setState(() {
+                        _touchedIndex =
+                            response.touchedSpot!.touchedRadarEntryIndex;
+                        _touchPosition = event.localPosition;
+                      });
+                    },
               ),
               dataSets: [
                 _buildLayer(100, opacity: 0.04),
