@@ -85,72 +85,67 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Row(
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.md,
+                  childAspectRatio: 1.3,
                   children: [
-                    Expanded(
-                      child: StatCard(
-                        icon: Icons.star,
-                        label: 'Available',
-                        value: profile.availableStars.toString(),
-                        color: AppColors.star,
-                      ),
+                    StatCard(
+                      icon: Icons.star,
+                      label: 'Available',
+                      value: profile.availableStars.toString(),
+                      color: AppColors.star,
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: StatCard(
-                        icon: Icons.auto_awesome,
-                        label: 'Total Earned',
-                        value: profile.lifetimeStarsEarned.toString(),
-                        color: AppColors.star,
-                      ),
+                    StatCard(
+                      icon: Icons.auto_awesome,
+                      label: 'Total Earned',
+                      value: profile.lifetimeStarsEarned.toString(),
+                      color: AppColors.star,
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Consumer(
-                        builder: (context, ref, child) {
-                          final progressAsync = ref.watch(
-                            subjectProgressProvider(childId),
-                          );
-                          return progressAsync.maybeWhen(
-                            data: (list) {
-                              final totalProgress = list.fold(
-                                0,
-                                (sum, s) => sum + s.progress,
-                              );
-                              return StatCard(
-                                icon: Icons.menu_book,
-                                label: 'Progress',
-                                value:
-                                    '${totalProgress ~/ (list.isEmpty ? 1 : list.length)}%',
-                                color: AppColors.primary,
-                              );
-                            },
-                            orElse: () => const StatCard(
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final progressAsync = ref.watch(
+                          subjectProgressProvider(childId),
+                        );
+                        return progressAsync.maybeWhen(
+                          data: (list) {
+                            final totalProgress = list.fold(
+                              0,
+                              (sum, s) => sum + s.progress,
+                            );
+                            return StatCard(
                               icon: Icons.menu_book,
                               label: 'Progress',
-                              value: '0%',
+                              value:
+                                  '${totalProgress ~/ (list.isEmpty ? 1 : list.length)}%',
                               color: AppColors.primary,
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                          orElse: () => const StatCard(
+                            icon: Icons.menu_book,
+                            label: 'Progress',
+                            value: '0%',
+                            color: AppColors.primary,
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: StatCard(
-                        icon: Icons.local_fire_department,
-                        label: 'Streak',
-                        value: '${profile.streakCount}d',
-                        color: AppColors.destructive,
-                        onTap: () {
-                          context.push(
-                            Uri(
-                              path: AppRouter.streak,
-                              queryParameters: {'childId': childId},
-                            ).toString(),
-                          );
-                        },
-                      ),
+                    StatCard(
+                      icon: Icons.local_fire_department,
+                      label: 'Streak',
+                      value: '${profile.streakCount}d',
+                      color: AppColors.destructive,
+                      onTap: () {
+                        context.push(
+                          Uri(
+                            path: AppRouter.streak,
+                            queryParameters: {'childId': childId},
+                          ).toString(),
+                        );
+                      },
                     ),
                   ],
                 ),

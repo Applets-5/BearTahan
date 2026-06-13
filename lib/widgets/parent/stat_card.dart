@@ -49,11 +49,15 @@ class StatCard extends StatelessWidget {
                 Text(
                   value,
                   style: AppTextStyles.cardTitle.copyWith(color: titleColor),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   label,
                   style: AppTextStyles.tiny.copyWith(color: subtitleColor),
                   textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

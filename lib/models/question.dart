@@ -187,10 +187,58 @@ class Question {
           .map((e) => e.toString())
           .toList();
     } else if (data['correctOrder'] is String) {
-      correctOrder = (data['correctOrder'] as String)
-          .split(',')
+      final String str = data['correctOrder'] as String;
+
+      // Robust matching against actual options to preserve punctuation
+      final rawOptions = data['options'] as List? ?? [];
+      final List<QuestionOption> availableOptions = rawOptions.map((e) {
+        return QuestionOption(
+          text: extractText(e),
+          imageUrl: extractImageUrl(e),
+          pairText: extractPairText(e),
+          pairImageUrl: extractPairImageUrl(e),
+        );
+      }).toList();
+
+      String normalize(String s) {
+        // Remove common punctuation and spaces for comparison
+        return s.toLowerCase().replaceAll(RegExp(r'[ ,.!?;:|，。！？；：]'), '');
+      }
+
+      // Split by common delimiters
+      final segments = str
+          .split(RegExp(r'\s*[,;|]\s*'))
           .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
           .toList();
+
+      final List<String> resolvedOrder = [];
+      final List<QuestionOption> optionsPool = List.from(availableOptions);
+
+      for (final segment in segments) {
+        final normSegment = normalize(segment);
+        if (normSegment.isEmpty) continue;
+
+        // Try exact match first
+        int matchIndex = optionsPool.indexWhere(
+          (o) => o.text.trim() == segment,
+        );
+
+        // Fallback to normalized match
+        if (matchIndex == -1) {
+          matchIndex = optionsPool.indexWhere(
+            (o) => normalize(o.text) == normSegment,
+          );
+        }
+
+        if (matchIndex != -1) {
+          resolvedOrder.add(optionsPool[matchIndex].text);
+          optionsPool.removeAt(matchIndex);
+        } else {
+          resolvedOrder.add(segment);
+        }
+      }
+      correctOrder = resolvedOrder;
     }
 
     // correctBlank for fillblank

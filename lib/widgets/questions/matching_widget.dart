@@ -20,7 +20,8 @@ class MatchingWidget extends StatefulWidget {
   State<MatchingWidget> createState() => _MatchingWidgetState();
 }
 
-class _MatchingWidgetState extends State<MatchingWidget> with SingleTickerProviderStateMixin {
+class _MatchingWidgetState extends State<MatchingWidget>
+    with SingleTickerProviderStateMixin {
   static const int maxAttempts = 3;
   late List<QuestionOption> _leftOptions;
   late List<QuestionOption> _rightOptions;
@@ -184,7 +185,9 @@ class _MatchingWidgetState extends State<MatchingWidget> with SingleTickerProvid
                   children: _rightOptions.map((option) {
                     return _buildMatchCard(
                       text: option.pairText,
-                      imageUrl: option.pairImageUrl ?? (option.pairText == null ? option.imageUrl : null),
+                      imageUrl:
+                          option.pairImageUrl ??
+                          (option.pairText == null ? option.imageUrl : null),
                       isSelected: _selectedRight == option,
                       isMatched: _matchedOptions.contains(option),
                       isWrong: _isWrongFlash && _selectedRight == option,
@@ -204,21 +207,22 @@ class _MatchingWidgetState extends State<MatchingWidget> with SingleTickerProvid
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
-          'Attempts',
-          style: AppTextStyles.tiny,
-        ),
+        const Text('Attempts', style: AppTextStyles.tiny),
         const SizedBox(height: AppSpacing.xs),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(maxAttempts, (index) {
             final failed = index < _attemptsUsed;
             final current = !_completed && !failed && index == _attemptsUsed;
-            final successful = _completed && _attemptsUsed < maxAttempts && _matchedOptions.length == widget.question.options.length;
+            final successful =
+                _completed &&
+                _attemptsUsed < maxAttempts &&
+                _matchedOptions.length == widget.question.options.length;
 
             final color = failed
                 ? AppColors.destructive
-                : (successful && index == _attemptsUsed.clamp(0, maxAttempts - 1))
+                : (successful &&
+                      index == _attemptsUsed.clamp(0, maxAttempts - 1))
                 ? AppColors.accent
                 : current
                 ? AppColors.primary
@@ -231,14 +235,20 @@ class _MatchingWidgetState extends State<MatchingWidget> with SingleTickerProvid
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: failed || (successful && index == _attemptsUsed.clamp(0, maxAttempts - 1)) ? color : AppColors.card,
+                  color:
+                      failed ||
+                          (successful &&
+                              index == _attemptsUsed.clamp(0, maxAttempts - 1))
+                      ? color
+                      : AppColors.card,
                   shape: BoxShape.circle,
                   border: Border.all(color: color, width: current ? 2 : 1),
                 ),
                 child: Icon(
                   failed
                       ? Icons.close_rounded
-                      : (successful && index == _attemptsUsed.clamp(0, maxAttempts - 1))
+                      : (successful &&
+                            index == _attemptsUsed.clamp(0, maxAttempts - 1))
                       ? Icons.check_rounded
                       : Icons.circle,
                   size: failed || successful ? 12 : 6,

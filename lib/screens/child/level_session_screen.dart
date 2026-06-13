@@ -1269,6 +1269,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         return DragDropSpellingWidget(
           key: ValueKey('dragdrop_${question.id}'),
           question: question,
+          onCorrectAttempt: () {
+            unawaited(_playStrokeCorrect(0));
+          },
+          onWrongAttempt: () {
+            unawaited(_playStrokeWrong());
+            _strokeHadWrongAttempt = true;
+          },
           onCompleted: (isCorrect) {
             setState(() {
               _dragDropSpellingSubmitted = true;
@@ -1387,10 +1394,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               bool isCorrect = true;
               if (question.correctOrder != null) {
                 for (int i = 0; i < _rearrangeOrder!.length; i++) {
-                  final currentText =
-                      question.options[_rearrangeOrder![i]].text;
+                  final currentText = question.options[_rearrangeOrder![i]].text
+                      .trim();
                   if (i >= question.correctOrder!.length ||
-                      currentText != question.correctOrder![i]) {
+                      currentText != question.correctOrder![i].trim()) {
                     isCorrect = false;
                     break;
                   }
@@ -1552,6 +1559,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final type = question.type?.toLowerCase();
     if (type == 'matching') {
       return 'Oh no, better luck next time!';
+    }
+    if (type == 'dragdropspelling') {
+      return 'Not quite! Remember to check the letter order.';
     }
     if (type == 'stroke_trace') {
       return 'Not quite. Watch the stroke order and try again later.';
