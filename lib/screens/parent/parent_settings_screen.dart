@@ -228,8 +228,8 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                       icon: Icons.emoji_events_rounded,
                       iconBgColor: const Color(0xFFE1F5EE),
                       iconColor: const Color(0xFF0F6E56),
-                      title: 'Daily goals',
-                      subtitle: 'Alert when goal is completed',
+                      title: 'Daily quests',
+                      subtitle: 'Alert when quest is completed',
                       trailing: Switch.adaptive(
                         value: dailyGoals,
                         onChanged: (v) => _updateSetting('dailyGoals', v),
@@ -682,7 +682,7 @@ class _ChildGoalCardState extends ConsumerState<_ChildGoalCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Daily goal type',
+                    'Daily quest type',
                     style: TextStyle(fontSize: 12, color: AppColors.mutedText),
                   ),
                   const SizedBox(height: 8),

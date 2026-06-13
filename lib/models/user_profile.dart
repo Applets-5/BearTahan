@@ -39,6 +39,9 @@ class DailyGoal {
       'lastNotifiedDate': lastNotifiedDate,
     };
   }
+
+  @override
+  String toString() => '$todayProgress/$target $unitLabel';
 }
 
 class UserProfile {

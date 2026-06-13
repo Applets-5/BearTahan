@@ -8,6 +8,7 @@ import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/progress_bar_card.dart';
 import '../../widgets/parent/stat_card.dart';
+import '../../widgets/parent/daily_goal_ring_card.dart';
 import 'bear_ai_tab.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -187,8 +188,9 @@ class _OverviewTab extends ConsumerWidget {
     final goal = profile.dailyGoal;
     if (goal == null || !goal.isValid) {
       return ProgressBarCard(
-        title: 'Daily Goal',
-        subtitle: 'No daily goal set for ${profile.name}',
+        title: 'Daily Quest',
+        subtitle:
+            'Start a daily quest to help ${profile.name} build a learning habit!',
         progress: 0,
         icon: Icons.flag_outlined,
       );
@@ -198,12 +200,15 @@ class _OverviewTab extends ConsumerWidget {
     final String unit = goal.unitLabel;
     final bool isComplete = goal.todayProgress >= goal.target;
 
-    return ProgressBarCard(
-      title: 'Daily Goal',
+    return DailyGoalRingCard(
+      title: 'Daily Quest',
       subtitle: isComplete
-          ? 'Goal completed! ${goal.todayProgress}/$goal.target $unit'
-          : '${profile.name} has completed ${goal.todayProgress} of $goal.target $unit today',
+          ? "Amazing! ${profile.name} has completed today's quest!"
+          : "${profile.name} is making great progress on today's quest (${goal.todayProgress}/$goal.target $unit).",
       progress: progress,
+      target: goal.target,
+      current: goal.todayProgress,
+      unit: unit,
       icon: isComplete ? Icons.stars_rounded : Icons.flag_rounded,
       color: isComplete ? AppColors.star : AppColors.primary,
     );
@@ -261,16 +266,14 @@ class _OverviewTab extends ConsumerWidget {
                     'completedLevels': realSub != null
                         ? realSub.completedLevels
                         : 0,
+                    'completedChapters': realSub != null
+                        ? realSub.completedChapters
+                        : 0,
                     'totalStars': realSub != null ? realSub.totalStars : 0,
                     'color': defaultSub['color'],
                   };
                 }).toList();
 
-                // Aggregated stats for top cards
-                int totalCompletedLevels = displaySubjects.fold(
-                  0,
-                  (sum, s) => sum + (s['completedLevels'] as int),
-                );
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -288,8 +291,14 @@ class _OverviewTab extends ConsumerWidget {
                         Expanded(
                           child: StatCard(
                             icon: Icons.menu_book,
-                            label: 'Lessons',
-                            value: totalCompletedLevels.toString(),
+                            label: 'Chapters Done',
+                            value: displaySubjects
+                                .fold(
+                                  0,
+                                  (sum, s) =>
+                                      sum + (s['completedChapters'] as int),
+                                )
+                                .toString(),
                             color: AppColors.primary,
                           ),
                         ),
@@ -366,7 +375,7 @@ class _OverviewTab extends ConsumerWidget {
                             (s) => _SubjectProgress(
                               label: s['name'],
                               score: (s['progress'] as int) / 100,
-                              completedLevels: s['completedLevels'],
+                              completedChapters: s['completedChapters'],
                               totalStars: s['totalStars'],
                               color: s['color'],
                               isLast: displaySubjects.last == s,
@@ -406,14 +415,14 @@ class _SubjectProgress extends StatelessWidget {
   const _SubjectProgress({
     required this.label,
     required this.score,
-    required this.completedLevels,
+    required this.completedChapters,
     required this.totalStars,
     required this.color,
     this.isLast = false,
   });
   final String label;
   final double score;
-  final int completedLevels;
+  final int completedChapters;
   final int totalStars;
   final Color color;
   final bool isLast;
@@ -431,7 +440,10 @@ class _SubjectProgress extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('$completedLevels lessons', style: AppTextStyles.tiny),
+                  Text(
+                    '$completedChapters chapters',
+                    style: AppTextStyles.tiny,
+                  ),
                   const Text(' • ', style: AppTextStyles.tiny),
                   Text('$totalStars '),
                   const Icon(Icons.star, size: 10, color: AppColors.star),

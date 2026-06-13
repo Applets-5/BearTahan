@@ -9,6 +9,7 @@ class Subject {
   final Color color;
   final int progress;
   final int completedLevels;
+  final int completedChapters;
   final int totalStars;
   final bool allChaptersComplete;
 
@@ -20,6 +21,7 @@ class Subject {
     required this.color,
     required this.progress,
     this.completedLevels = 0,
+    this.completedChapters = 0,
     this.totalStars = 0,
     this.allChaptersComplete = false,
   });
@@ -33,6 +35,7 @@ class Subject {
       color: _getColor(data['color'] ?? ''),
       progress: (data['progress'] ?? 0).toInt(),
       completedLevels: (data['completedLevels'] ?? 0).toInt(),
+      completedChapters: (data['completedChapters'] ?? 0).toInt(),
       totalStars: (data['totalStars'] ?? 0).toInt(),
       allChaptersComplete: data['allChaptersComplete'] ?? false,
     );

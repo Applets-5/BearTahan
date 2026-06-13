@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/progress_bar_card.dart';
+import '../../widgets/parent/daily_goal_ring_card.dart';
 
 class GoalSettingScreen extends ConsumerStatefulWidget {
   const GoalSettingScreen({super.key});
@@ -83,11 +83,11 @@ class _GoalSettingScreenState extends ConsumerState<GoalSettingScreen> {
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               const Text(
-                'Daily Learning Goal',
+                'Daily Learning Quest',
                 style: AppTextStyles.screenTitle,
               ),
               const Text(
-                'Choose a lightweight target for each day.',
+                'Set a daily mission to help your child stay consistent.',
                 style: AppTextStyles.small,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -159,12 +159,15 @@ class _GoalSettingScreenState extends ConsumerState<GoalSettingScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      ProgressBarCard(
-                        title: 'Today',
+                      DailyGoalRingCard(
+                        title: 'Mission Progress',
                         subtitle: goal == null || !goal.isValid
-                            ? 'No goal set for ${profile.name}'
-                            : '${goal.todayProgress} of ${goal.target} $unit completed',
+                            ? "Set a quest for ${profile.name} today!"
+                            : "${profile.name} has finished ${goal.todayProgress}/${goal.target} $unit so far.",
                         progress: progress,
+                        target: goal?.target ?? 0,
+                        current: goal?.todayProgress ?? 0,
+                        unit: unit,
                         icon: Icons.today,
                       ),
                       const SizedBox(height: AppSpacing.xl),
@@ -181,7 +184,7 @@ class _GoalSettingScreenState extends ConsumerState<GoalSettingScreen> {
                                 ),
                               )
                             : const Icon(Icons.save),
-                        label: const Text('Save Goal'),
+                        label: const Text('Save Quest'),
                       ),
                     ],
                   );

@@ -868,50 +868,163 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
     final children = childrenAsync.value ?? [];
     return AlertDialog(
       title: Text(widget.reward == null ? 'New Reward' : 'Edit Reward'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Reward name'),
-              ),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedChildId,
-                hint: const Text('All Children'),
-                items: [
-                  const DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('All Children'),
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.r(AppRadius.xl)),
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: 24,
+      ),
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Reward Name',
+                    hintText: 'e.g. 30 mins Screen Time',
                   ),
-                  ...children.map(
-                    (c) => DropdownMenuItem(value: c.uid, child: Text(c.name)),
+                  validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    hintText: 'Optional details...',
                   ),
-                ],
-                onChanged: (v) => setState(() => _selectedChildId = v),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _CostBtn(icon: Icons.remove, onTap: () => _adjustCost(-1)),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _costController,
-                      textAlign: TextAlign.center,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLines: 2,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const Text('Target Child', style: AppTextStyles.small),
+                const SizedBox(height: AppSpacing.xs),
+                PopupMenuButton<String?>(
+                  onSelected: (v) => setState(() => _selectedChildId = v),
+                  offset: const Offset(0, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadius.r(AppRadius.lg),
+                  ),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem<String?>(
+                      value: null,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.people,
+                            size: 20,
+                            color: AppColors.mutedText,
+                          ),
+                          SizedBox(width: AppSpacing.sm),
+                          Text('All Children', style: AppTextStyles.bodyBold),
+                        ],
+                      ),
+                    ),
+                    ...children.map((child) {
+                      return PopupMenuItem<String?>(
+                        value: child.uid,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.face,
+                              size: 20,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(child.name, style: AppTextStyles.bodyBold),
+                                Text(
+                                  'Streak: ${child.streakCount} days',
+                                  style: AppTextStyles.tiny,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.muted,
+                      borderRadius: AppRadius.r(AppRadius.md),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              _selectedChildId == null
+                                  ? Icons.people
+                                  : Icons.face,
+                              size: 18,
+                              color: _selectedChildId == null
+                                  ? AppColors.mutedText
+                                  : AppColors.primary,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              _selectedChildId == null
+                                  ? 'All Children'
+                                  : children
+                                        .firstWhere(
+                                          (c) => c.uid == _selectedChildId,
+                                        )
+                                        .name,
+                              style: AppTextStyles.bodyBold.copyWith(
+                                color: _selectedChildId == null
+                                    ? AppColors.mutedText
+                                    : AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Icon(
+                          Icons.arrow_drop_down,
+                          color: AppColors.mutedText,
+                        ),
+                      ],
                     ),
                   ),
-                  _CostBtn(icon: Icons.add, onTap: () => _adjustCost(1)),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const Text('Star Cost', style: AppTextStyles.small),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    _CostBtn(icon: Icons.remove, onTap: () => _adjustCost(-5)),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _costController,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyBold.copyWith(fontSize: 18),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        decoration: const InputDecoration(
+                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    _CostBtn(icon: Icons.add, onTap: () => _adjustCost(5)),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -922,7 +1035,16 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
         ),
         FilledButton(
           onPressed: _isLoading ? null : _save,
-          child: const Text('Save'),
+          child: _isLoading
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Save Reward'),
         ),
       ],
     );

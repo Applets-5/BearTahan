@@ -11,6 +11,7 @@ import '../../widgets/common/mascot_widget.dart';
 import '../../widgets/common/progress_bar_card.dart';
 import '../../widgets/common/star_balance_chip.dart';
 import '../../widgets/common/subject_card.dart';
+import '../../widgets/parent/daily_goal_ring_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, this.childId});
@@ -272,6 +273,7 @@ class _DailyGoalCard extends ConsumerWidget {
         final progress = (todayProgress / goal.target)
             .clamp(0.0, 1.0)
             .toDouble();
+        final isComplete = todayProgress >= goal.target;
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -280,12 +282,17 @@ class _DailyGoalCard extends ConsumerWidget {
             AppSpacing.lg,
             AppSpacing.sm,
           ),
-          child: ProgressBarCard(
-            title: 'Daily Goal',
-            subtitle:
-                '$todayProgress of ${goal.target} ${goal.unitLabel} completed today',
+          child: DailyGoalRingCard(
+            title: 'Daily Quest',
+            subtitle: isComplete
+                ? "Amazing! Mission completed!"
+                : "Mission: $todayProgress/${goal.target} ${goal.unitLabel}",
             progress: progress,
-            icon: goal.type == 'minutes' ? Icons.timer : Icons.flag_rounded,
+            target: goal.target,
+            current: todayProgress,
+            unit: goal.unitLabel,
+            icon: isComplete ? Icons.stars_rounded : Icons.flag_rounded,
+            color: isComplete ? AppColors.star : AppColors.primary,
           ),
         );
       },

@@ -1069,6 +1069,7 @@ class FirestoreService {
       // Force a full sync if aggregation fields are missing OR look suspicious
       if (!subjectData.containsKey('totalStars') ||
           !subjectData.containsKey('completedLevels') ||
+          !subjectData.containsKey('completedChapters') ||
           (subjectData['completedLevels'] ?? 0) > totalLevels ||
           (subjectData['completedLevels'] ?? 0) < 0 ||
           (subjectData['totalStars'] ?? 0) > (totalLevels * 3) ||
@@ -1151,6 +1152,9 @@ class FirestoreService {
           currentTotalStars += improvement;
           if (previousBestStars == 0) {
             currentCompletedLevels++;
+            // When a level is first completed, we might need a full sync to update completedChapters
+            // accurately without re-calculating everything here.
+            shouldForceSync = true;
           }
 
           final int progressPercentage = totalLevels > 0
@@ -1326,6 +1330,22 @@ class FirestoreService {
       totalStarsCount += starsEarned;
     }
 
+    int completedChapters = 0;
+    for (var chapter in chapters) {
+      bool chapterDone = true;
+      if (chapter.levelIds.isEmpty) {
+        chapterDone = false;
+      } else {
+        for (var lvlId in chapter.levelIds) {
+          if ((starsByLevel[lvlId] ?? 0) <= 0) {
+            chapterDone = false;
+            break;
+          }
+        }
+      }
+      if (chapterDone) completedChapters++;
+    }
+
     final bool allChaptersComplete =
         totalLevels > 0 && completedLevels >= totalLevels;
 
@@ -1336,6 +1356,7 @@ class FirestoreService {
     await subjectDocRef.set({
       'progress': progressPercentage,
       'completedLevels': completedLevels,
+      'completedChapters': completedChapters,
       'totalStars': totalStarsCount,
       'allChaptersComplete': allChaptersComplete,
       'updatedAt': FieldValue.serverTimestamp(),

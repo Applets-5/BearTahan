@@ -49,12 +49,14 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   mocktail: ^1.0.4
   fake_cloud_firestore: ^4.1.1
-  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
-  android: "launcher_icon"
+  android: true
   ios: true
-  image_path: "assets/images/beartahan.png"
+  image_path: "assets/images/app_icon.jpg"
+  adaptive_icon_background: "assets/images/app_icon.jpg"
+  adaptive_icon_foreground: "assets/images/app_icon.jpg"
   min_sdk_android: 21
   remove_alpha_ios: true
 
