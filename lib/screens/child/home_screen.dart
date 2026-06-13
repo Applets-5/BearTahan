@@ -247,11 +247,12 @@ class _ForestHero extends ConsumerWidget {
             Positioned(
               left: 0,
               right: 0,
-              bottom: -30,
+              bottom: -1,
               child: Image.asset(
                 'assets/images/grass.png',
-                fit: BoxFit.fitWidth,
-                alignment: Alignment.bottomCenter,
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                height: 80,
               ),
             ),
             // Column is the sizing child
@@ -399,7 +400,7 @@ class _ForestHero extends ConsumerWidget {
                   ),
                 ),
                 // Padding bottom for the column to keep content above grass visually
-                const SizedBox(height: 36),
+                const SizedBox(height: 60),
               ],
             ),
           ],
