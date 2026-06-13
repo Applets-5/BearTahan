@@ -242,6 +242,14 @@ class _ForestHero extends ConsumerWidget {
               top: 48,
               child: Image.asset('assets/images/cloud2.png', width: 65),
             ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 10,
+              child: Center(
+                child: Image.asset('assets/images/cloud1.png', width: 70, opacity: const AlwaysStoppedAnimation(0.8)),
+              ),
+            ),
             const Positioned(right: 34, bottom: 52, child: _Sparkle(size: 18)),
             // Grass background positioned behind the content
             Positioned(
