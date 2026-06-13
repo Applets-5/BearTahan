@@ -163,10 +163,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     if (isCorrect) {
       await _stopCorrectAnswer?.call();
-      _stopCorrectAnswer = await pool.start(volume: 0.70);
+      _stopCorrectAnswer = await pool.start(volume: 1.0);
     } else {
       await _stopWrongAnswer?.call();
-      _stopWrongAnswer = await pool.start(volume: 0.70);
+      _stopWrongAnswer = await pool.start(volume: 1.0);
     }
   }
 
@@ -986,6 +986,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         return MatchingWidget(
           key: ValueKey('matching_${question.id}'),
           question: question,
+          onCorrectMatch: () {
+            unawaited(_playStrokeCorrect(0)); // Use stroke correct sound for individual matches
+          },
+          onWrongAttempt: () {
+            unawaited(_playStrokeWrong());
+            _strokeHadWrongAttempt = true; // Use same flag to track if any mistake happened
+          },
           onCompleted: (isCorrect) {
             setState(() {
               _matchingSubmitted = true;
@@ -993,7 +1000,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               if (isCorrect) score++;
               _playQuestionFeedback(question, isCorrect);
             });
-            unawaited(_recordQuestionResult(question, isCorrect));
+            unawaited(
+              _recordQuestionResult(question, isCorrect && !_strokeHadWrongAttempt),
+            );
           },
         );
       case 'stroke_trace':

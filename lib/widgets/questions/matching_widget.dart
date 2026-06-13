@@ -5,11 +5,15 @@ import '../../theme/app_theme.dart';
 class MatchingWidget extends StatefulWidget {
   final Question question;
   final Function(bool isCorrect) onCompleted;
+  final VoidCallback? onCorrectMatch;
+  final VoidCallback? onWrongAttempt;
 
   const MatchingWidget({
     super.key,
     required this.question,
     required this.onCompleted,
+    this.onCorrectMatch,
+    this.onWrongAttempt,
   });
 
   @override
@@ -17,12 +21,15 @@ class MatchingWidget extends StatefulWidget {
 }
 
 class _MatchingWidgetState extends State<MatchingWidget> {
+  static const int maxAttempts = 3;
   late List<QuestionOption> _leftOptions;
   late List<QuestionOption> _rightOptions;
   QuestionOption? _selectedLeft;
   QuestionOption? _selectedRight;
   final Set<QuestionOption> _matchedOptions = {};
   bool _isWrongFlash = false;
+  int _attemptsUsed = 0;
+  bool _completed = false;
 
   @override
   void initState() {
@@ -37,10 +44,12 @@ class _MatchingWidgetState extends State<MatchingWidget> {
     _selectedRight = null;
     _matchedOptions.clear();
     _isWrongFlash = false;
+    _attemptsUsed = 0;
+    _completed = false;
   }
 
   void _handleLeftTap(QuestionOption option) {
-    if (_matchedOptions.contains(option) || _isWrongFlash) return;
+    if (_matchedOptions.contains(option) || _isWrongFlash || _completed) return;
 
     setState(() {
       if (_selectedLeft == option) {
@@ -53,7 +62,7 @@ class _MatchingWidgetState extends State<MatchingWidget> {
   }
 
   void _handleRightTap(QuestionOption option) {
-    if (_matchedOptions.contains(option) || _isWrongFlash) return;
+    if (_matchedOptions.contains(option) || _isWrongFlash || _completed) return;
 
     setState(() {
       if (_selectedRight == option) {
@@ -69,6 +78,7 @@ class _MatchingWidgetState extends State<MatchingWidget> {
     if (_selectedLeft != null && _selectedRight != null) {
       if (_selectedLeft == _selectedRight) {
         // Success
+        widget.onCorrectMatch?.call();
         setState(() {
           _matchedOptions.add(_selectedLeft!);
           _selectedLeft = null;
@@ -76,10 +86,23 @@ class _MatchingWidgetState extends State<MatchingWidget> {
         });
 
         if (_matchedOptions.length == widget.question.options.length) {
+          _completed = true;
           widget.onCompleted(true);
         }
       } else {
         // Wrong
+        _attemptsUsed++;
+        widget.onWrongAttempt?.call();
+
+        if (_attemptsUsed >= maxAttempts) {
+          setState(() {
+            _completed = true;
+            _isWrongFlash = true;
+          });
+          widget.onCompleted(false);
+          return;
+        }
+
         setState(() {
           _isWrongFlash = true;
         });
@@ -102,8 +125,10 @@ class _MatchingWidgetState extends State<MatchingWidget> {
       children: [
         if (widget.question.text.isNotEmpty) ...[
           Text(widget.question.text, style: AppTextStyles.bodyBold),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.sm),
         ],
+        _buildAttemptProgress(),
+        const SizedBox(height: AppSpacing.md),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -139,6 +164,62 @@ class _MatchingWidgetState extends State<MatchingWidget> {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAttemptProgress() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text(
+          'Attempts',
+          style: AppTextStyles.tiny,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(maxAttempts, (index) {
+            final failed = index < _attemptsUsed;
+            final current = !_completed && !failed && index == _attemptsUsed;
+            final successful = _completed && _attemptsUsed < maxAttempts && _matchedOptions.length == widget.question.options.length;
+
+            final color = failed
+                ? AppColors.destructive
+                : (successful && index == _attemptsUsed.clamp(0, maxAttempts - 1))
+                ? AppColors.accent
+                : current
+                ? AppColors.primary
+                : AppColors.border;
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: failed || (successful && index == _attemptsUsed.clamp(0, maxAttempts - 1)) ? color : AppColors.card,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: color, width: current ? 2 : 1),
+                ),
+                child: Icon(
+                  failed
+                      ? Icons.close_rounded
+                      : (successful && index == _attemptsUsed.clamp(0, maxAttempts - 1))
+                      ? Icons.check_rounded
+                      : Icons.circle,
+                  size: failed || successful ? 12 : 6,
+                  color: failed || successful
+                      ? Colors.white
+                      : current
+                      ? AppColors.primary
+                      : AppColors.border,
+                ),
+              ),
+            );
+          }),
         ),
       ],
     );
