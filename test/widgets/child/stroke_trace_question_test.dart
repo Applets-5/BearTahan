@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:bear_tahan/models/question.dart';
 import 'package:bear_tahan/theme/app_theme.dart';
 import 'package:bear_tahan/widgets/child/stroke_trace_question.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:stroke_order_animator/stroke_order_animator.dart';
 
 void main() {
   Question createQuestion({String? strokeOrderDataJson}) {
@@ -181,4 +185,43 @@ void main() {
     expect(StrokeTraceQuestionState.usesStrokeMarkers(6), isTrue);
     expect(StrokeTraceQuestionState.usesStrokeMarkers(7), isFalse);
   });
+
+  for (final character in ['一', '丨', '丿', '㇏']) {
+    testWidgets('loads repaired L3 stroke asset for $character', (
+      tester,
+    ) async {
+      final rawData = await rootBundle.loadString(
+        'assets/hanzi/$character.json',
+      );
+      final parsed = jsonDecode(rawData) as Map<String, dynamic>;
+      final strokeOrder = StrokeOrder(rawData);
+
+      expect(parsed['strokes'], hasLength(1));
+      expect(parsed['medians'], hasLength(1));
+      expect(strokeOrder.nStrokes, 1);
+
+      await loadWidget(
+        tester,
+        createWidget(
+          question: Question(
+            id: 'trace_$character',
+            text: '写一写',
+            type: 'stroke_trace',
+            options: const [],
+            correctAnswerIndex: 0,
+            characterUnicode: character,
+          ),
+        ),
+      );
+
+      expect(
+        find.byKey(ValueKey('stroke_animator_trace_$character')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Tracing data unavailable for this character.'),
+        findsNothing,
+      );
+    });
+  }
 }

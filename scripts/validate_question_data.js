@@ -52,6 +52,37 @@ for (const root of roots) {
       if (type === "stroke_trace" && !question.characterUnicode) {
         errors.push(`${id}: stroke_trace requires characterUnicode`);
       }
+      if (type === "stroke_trace" && question.characterUnicode) {
+        const assetPath = path.join(
+            __dirname,
+            "..",
+            "assets",
+            "hanzi",
+            `${question.characterUnicode}.json`,
+        );
+        if (!fs.existsSync(assetPath)) {
+          errors.push(
+              `${id}: missing Hanzi asset for ${question.characterUnicode}`,
+          );
+        } else {
+          const strokeData = JSON.parse(fs.readFileSync(assetPath, "utf8"));
+          const hasValidStrokes =
+            Array.isArray(strokeData.strokes) &&
+            strokeData.strokes.length > 0 &&
+            strokeData.strokes.every(
+                (stroke) => typeof stroke === "string" && stroke.length > 0,
+            );
+          const hasValidMedians =
+            Array.isArray(strokeData.medians) &&
+            strokeData.medians.length === strokeData.strokes?.length &&
+            strokeData.medians.every(
+                (median) => Array.isArray(median) && median.length >= 2,
+            );
+          if (!hasValidStrokes || !hasValidMedians) {
+            errors.push(`${id}: invalid stroke geometry`);
+          }
+        }
+      }
     }
   }
 }

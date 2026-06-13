@@ -28,6 +28,35 @@ void main() {
       expect(question.strokeOrderDataJson, jsonEncode(strokeData));
     });
 
+    test('fromFirestore parses each repaired L3 stroke question', () {
+      for (final entry in {
+        'bc_c1_l3_q01': '一',
+        'bc_c1_l3_q02': '丨',
+        'bc_c1_l3_q03': '丿',
+        'bc_c1_l3_q04': '㇏',
+      }.entries) {
+        final question = Question.fromFirestore(entry.key, {
+          'prompt': '写一写',
+          'questionType': 'stroke_trace',
+          'type': 'stroke_trace',
+          'characterUnicode': entry.value,
+          'strokeOrderData': {
+            'strokes': ['M 0 0 L 10 10'],
+            'medians': [
+              [
+                [0, 0],
+                [10, 10],
+              ],
+            ],
+          },
+        });
+
+        expect(question.type, 'stroke_trace');
+        expect(question.characterUnicode, entry.value);
+        expect(question.strokeOrderDataJson, isNotEmpty);
+      }
+    });
+
     test('fromFirestore parses numeric answer metadata', () {
       final question = Question.fromFirestore('math_q1', {
         'questionText': 'How many apples?',
