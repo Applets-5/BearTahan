@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/question.dart';
+import '../models/bears_den_result.dart';
+import '../models/session_mode.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/child/chapter_screen.dart';
 import '../screens/child/completion_screen.dart';
@@ -30,6 +33,16 @@ import '../screens/auth/profile_selection_screen.dart';
 import '../screens/auth/create_profile_screen.dart';
 import '../screens/auth/forgot_password_screen.dart';
 import 'go_router_refresh_stream.dart';
+
+List<Question>? parseReviewQuestionsExtra(
+  Object? extra, {
+  required bool isReviewSession,
+}) {
+  if (extra is List && extra.every((item) => item is Question)) {
+    return extra.cast<Question>();
+  }
+  return isReviewSession ? <Question>[] : null;
+}
 
 class AppRouter {
   static const splash = '/';
@@ -100,6 +113,7 @@ class AppRouter {
     int? score,
     int? total,
     int? performanceStars,
+    int? bestStars,
     int? newStarsAwarded,
     int? dailyBonusStars,
     String? levelId,
@@ -115,6 +129,9 @@ class AppRouter {
     if (total != null) params['total'] = total.toString();
     if (performanceStars != null) {
       params['performanceStars'] = performanceStars.toString();
+    }
+    if (bestStars != null) {
+      params['bestStars'] = bestStars.toString();
     }
     if (newStarsAwarded != null) {
       params['newStarsAwarded'] = newStarsAwarded.toString();
@@ -371,6 +388,16 @@ class AppRouter {
               explicitLevelId ??
               (parts.length >= 3 && parts[2].isNotEmpty ? parts[2] : 'l1');
 
+          final reviewQuestions = parseReviewQuestionsExtra(
+            state.extra,
+            isReviewSession: levelId == 'review_session',
+          );
+          final sessionMode = switch (levelId) {
+            'review_session' => SessionMode.review,
+            'bears_den' => SessionMode.bearsDen,
+            _ => SessionMode.standard,
+          };
+
           return _noTransitionPage(
             state,
             LevelSessionScreen(
@@ -378,6 +405,8 @@ class AppRouter {
               levelPrefix: levelPrefix,
               subjectId: subjectId,
               levelId: levelId,
+              reviewQuestions: reviewQuestions,
+              sessionMode: sessionMode,
             ),
           );
         },
@@ -394,6 +423,9 @@ class AppRouter {
             state.uri.queryParameters['performanceStars'] ??
                 state.uri.queryParameters['stars'] ??
                 '',
+          );
+          final bestStars = int.tryParse(
+            state.uri.queryParameters['bestStars'] ?? '',
           );
           final newStarsAwarded =
               int.tryParse(
@@ -418,6 +450,15 @@ class AppRouter {
                   .where((id) => id.isNotEmpty)
                   .toList() ??
               const <String>[];
+          final sessionMode = SessionMode.values.firstWhere(
+            (mode) => mode.name == state.uri.queryParameters['sessionMode'],
+            orElse: () => SessionMode.standard,
+          );
+          final bearsDenAwardStatus = BearsDenAwardStatus.values.firstWhere(
+            (status) =>
+                status.name == state.uri.queryParameters['bearsDenAwardStatus'],
+            orElse: () => BearsDenAwardStatus.notEarned,
+          );
 
           return _noTransitionPage(
             state,
@@ -426,6 +467,7 @@ class AppRouter {
               score: score,
               total: total,
               performanceStars: performanceStars,
+              bestStars: bestStars,
               newStarsAwarded: newStarsAwarded ?? 0,
               dailyBonusStars: dailyBonusStars,
               levelId: levelId,
@@ -434,6 +476,8 @@ class AppRouter {
               isEscalated: isEscalated,
               isDailyBonus: isDailyBonus,
               unlockedOutfits: unlockedOutfits,
+              sessionMode: sessionMode,
+              bearsDenAwardStatus: bearsDenAwardStatus,
             ),
           );
         },

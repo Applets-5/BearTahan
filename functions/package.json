@@ -14,6 +14,10 @@
     "assets:hanzi:apply": "node ../tool/download_hanzi_assets.js --apply",
     "audio:mandarin-tracing:dry-run": "node scripts/generate_mandarin_tracing_audio.js --dry-run",
     "audio:mandarin-tracing:apply": "node scripts/generate_mandarin_tracing_audio.js --apply",
+    "repair:mandarin-strokes:inspect": "node scripts/repair_mandarin_strokes.js --inspect",
+    "repair:mandarin-strokes:dry-run": "node scripts/repair_mandarin_strokes.js --dry-run",
+    "repair:mandarin-strokes:apply": "node scripts/repair_mandarin_strokes.js --apply",
+    "test:mandarin-stroke-repair": "node --test test/mandarin_stroke_repair_test.js",
     "migrate:sprint3:inspect": "node scripts/migrate_sprint3_data.js --inspect",
     "migrate:sprint3:dry-run": "node scripts/migrate_sprint3_data.js --dry-run",
     "migrate:sprint3:apply": "node scripts/migrate_sprint3_data.js --apply"

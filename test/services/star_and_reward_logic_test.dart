@@ -242,6 +242,52 @@ void main() {
       expect(doc.data()?['totalStars'], 3);
       expect(doc.data()?['completedLevels'], 1);
     });
+
+    test('final English level sets allChaptersComplete', () async {
+      const englishSubjectId = 'bi';
+      final subjectRef = fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .collection('subjectProgress')
+          .doc(englishSubjectId);
+      final chapters = await firestoreService.getSubjectChapters(
+        englishSubjectId,
+      );
+      final levelIds = chapters.expand((chapter) => chapter.levelIds).toList();
+      final finalLevelId = levelIds.last;
+
+      await fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .set({'availableStars': 0, 'lifetimeStarsEarned': 0});
+      await subjectRef.set({
+        'completedLevels': levelIds.length - 1,
+        'totalStars': levelIds.length - 1,
+        'progress': 94,
+        'allChaptersComplete': false,
+      });
+      for (final levelId in levelIds.take(levelIds.length - 1)) {
+        await subjectRef.collection('levels').doc(levelId).set({'stars': 1});
+      }
+
+      await firestoreService.updateLevelProgress(
+        parentId,
+        childId,
+        englishSubjectId,
+        finalLevelId,
+        8,
+        10,
+      );
+
+      final subject = await subjectRef.get();
+      expect(subject.data()?['completedLevels'], levelIds.length);
+      expect(subject.data()?['progress'], 100);
+      expect(subject.data()?['allChaptersComplete'], isTrue);
+    });
   });
 
   group('Reward Logic Tests', () {

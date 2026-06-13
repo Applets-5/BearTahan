@@ -58,6 +58,7 @@ class UserProfile {
   final String? phoneNumber;
   final String? avatarPath;
   final int? passwordLength;
+  final int reviewQuestionCounter;
   final String? lastAiInsight;
   final DateTime? lastAiInsightDate;
 
@@ -78,6 +79,7 @@ class UserProfile {
     this.phoneNumber,
     this.avatarPath,
     this.passwordLength,
+    this.reviewQuestionCounter = 0,
     this.lastAiInsight,
     this.lastAiInsightDate,
   });
@@ -125,6 +127,7 @@ class UserProfile {
       passwordLength: data['passwordLength'] != null
           ? (data['passwordLength'] as num).toInt()
           : null,
+      reviewQuestionCounter: (data['reviewQuestionCounter'] ?? 0).toInt(),
       lastAiInsight: data['lastAiInsight']?.toString(),
       lastAiInsightDate: data['lastAiInsightDate'] != null
           ? (data['lastAiInsightDate'] as Timestamp).toDate()

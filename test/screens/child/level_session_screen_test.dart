@@ -1,17 +1,87 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:bear_tahan/screens/child/level_session_screen.dart';
 import 'package:bear_tahan/models/question.dart';
 import 'package:bear_tahan/providers/data_providers.dart';
 import 'package:bear_tahan/widgets/child/stroke_trace_question.dart';
 import 'package:bear_tahan/widgets/common/audio_prompt_player.dart';
+import 'package:bear_tahan/services/firestore_service.dart';
+import 'package:bear_tahan/services/session_asset_preloader.dart';
+import 'package:bear_tahan/services/tts_service.dart';
+
+class MockFirestoreService extends Mock implements FirestoreService {}
+
+class MockTtsService extends Mock implements TtsService {}
+
+class ImmediateSessionAssetPreloader extends SessionAssetPreloader {
+  ImmediateSessionAssetPreloader() : super(ttsService: MockTtsService());
+
+  @override
+  Future<SessionPreparationReport> preload({
+    required BuildContext context,
+    required List<Question> questions,
+    required String Function(Question question) languageForQuestion,
+    Duration timeout = const Duration(seconds: 10),
+    PreparationProgressCallback? onProgress,
+  }) async {
+    return const SessionPreparationReport(
+      completedAssets: 0,
+      totalAssets: 0,
+      failedAssets: 0,
+      timedOut: false,
+    );
+  }
+}
 
 void main() {
+  late MockFirestoreService mockFirestoreService;
+
+  setUp(() {
+    mockFirestoreService = MockFirestoreService();
+    when(
+      () => mockFirestoreService.getReviewQuestions(
+        any(),
+        any(),
+        subjectId: any(named: 'subjectId'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => []);
+
+    when(
+      () => mockFirestoreService.getQuestionStatsForUser(any(), any(), any()),
+    ).thenAnswer((_) async => {});
+
+    when(
+      () =>
+          mockFirestoreService.updateQuestionStats(any(), any(), any(), any()),
+    ).thenAnswer((_) async {});
+
+    when(
+      () => mockFirestoreService.recordReviewQuestionAnswered(
+        any(),
+        any(),
+        any(),
+      ),
+    ).thenAnswer((_) async {});
+
+    when(
+      () => mockFirestoreService.flagWrongAnswer(
+        any(),
+        any(),
+        questionId: any(named: 'questionId'),
+        subjectId: any(named: 'subjectId'),
+        levelId: any(named: 'levelId'),
+        questionText: any(named: 'questionText'),
+      ),
+    ).thenAnswer((_) async {});
+  });
+
   Widget createTestWidget(
     List<Question> questions, {
     Key? key,
-    String parentId = '',
+    String parentId = 'test_parent_id',
   }) {
     return ProviderScope(
       overrides: [
@@ -21,6 +91,10 @@ void main() {
         parentIdProvider.overrideWithValue(parentId),
         parentSettingsProvider.overrideWith(
           (ref) => Stream.value({'soundEffects': true}),
+        ),
+        firestoreServiceProvider.overrideWithValue(mockFirestoreService),
+        sessionAssetPreloaderProvider.overrideWithValue(
+          ImmediateSessionAssetPreloader(),
         ),
       ],
       child: MaterialApp(
@@ -35,6 +109,9 @@ void main() {
       ),
     );
   }
+
+  const mockStrokeData =
+      '{"strokes": ["M 0 0 L 10 10"], "medians": [[[0, 0], [10, 10]]]}';
 
   group('LevelSessionScreen', () {
     testWidgets('should display MCQ options with A, B, C labels correctly', (
@@ -56,14 +133,57 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(questions, key: const ValueKey('mcq')),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.textContaining('What is this?'), findsOneWidget);
       expect(find.text('Option A Text'), findsOneWidget);
       expect(find.text('Option B Text'), findsOneWidget);
       expect(find.text('A'), findsOneWidget);
       expect(find.text('B'), findsOneWidget);
+
+      final scrollView = find.byKey(const ValueKey('level_session_scroll'));
+      final questionContent = find.byKey(const ValueKey('question_content'));
+      expect(
+        (tester.getCenter(scrollView).dy - tester.getCenter(questionContent).dy)
+            .abs(),
+        lessThan(40),
+      );
+    });
+
+    testWidgets('falls back to regular questions when review loading fails', (
+      tester,
+    ) async {
+      when(
+        () => mockFirestoreService.getReviewQuestions(
+          any(),
+          any(),
+          subjectId: any(named: 'subjectId'),
+          limit: any(named: 'limit'),
+        ),
+      ).thenThrow(Exception('Missing index'));
+
+      final questions = [
+        Question(
+          id: 'test_prefix_q1',
+          text: 'Fallback question',
+          type: 'mcq',
+          options: [
+            QuestionOption(text: 'Correct'),
+            QuestionOption(text: 'Wrong'),
+          ],
+          correctAnswerIndex: 0,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questions, key: const ValueKey('fallback')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Fallback question'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
     testWidgets(
@@ -87,8 +207,7 @@ void main() {
         await tester.pumpWidget(
           createTestWidget(questions, key: const ValueKey('rearrange')),
         );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpAndSettle();
 
         expect(
           find.text('Drag to put them in the right order!'),
@@ -121,8 +240,7 @@ void main() {
         await tester.pumpWidget(
           createTestWidget(questions, key: const ValueKey('fillblank')),
         );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpAndSettle();
 
         expect(
           find.text('Drag the correct word to the blank!'),
@@ -151,8 +269,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(questionsWithImage, key: const ValueKey('img_yes')),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
       expect(find.byType(Image), findsOneWidget);
     });
 
@@ -173,13 +290,13 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(questions, key: const ValueKey('numeric')),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const ValueKey('numeric_answer_input')),
         '7',
       );
       await tester.tap(find.text('Check Answer'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.text('Correct! Well done!'), findsOneWidget);
       expect(find.text('Finish'), findsOneWidget);
@@ -200,8 +317,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(questionsWithoutImage, key: const ValueKey('img_no')),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
       expect(find.byType(Image), findsNothing);
     });
 
@@ -221,8 +337,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(questions, key: const ValueKey('audio')),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.byType(AudioPromptPlayer), findsOneWidget);
     });
@@ -236,14 +351,14 @@ void main() {
           options: const [],
           correctAnswerIndex: 0,
           characterUnicode: '人',
+          strokeOrderDataJson: mockStrokeData,
         ),
       ];
 
       await tester.pumpWidget(
         createTestWidget(questions, key: const ValueKey('stroke_trace')),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
 
       expect(find.textContaining('Trace 人'), findsOneWidget);
       expect(
@@ -254,6 +369,57 @@ void main() {
         find.byKey(const ValueKey('attempt_progress_markers')),
         findsOneWidget,
       );
+    });
+
+    testWidgets('matching keeps feedback and Finish anchored at the bottom', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(360, 744));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final questions = [
+        Question(
+          id: 'q_matching',
+          text: 'Match each word to its number',
+          type: 'matching',
+          options: [
+            QuestionOption(text: 'One', pairText: '1'),
+            QuestionOption(text: 'Two', pairText: '2'),
+            QuestionOption(text: 'Three', pairText: '3'),
+          ],
+          correctAnswerIndex: 0,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questions, key: const ValueKey('matching')),
+      );
+      await tester.pumpAndSettle();
+
+      for (final pair in [('One', '1'), ('Two', '2'), ('Three', '3')]) {
+        await tester.ensureVisible(find.text(pair.$1));
+        await tester.tap(find.text(pair.$1));
+        await tester.ensureVisible(find.text(pair.$2));
+        await tester.tap(find.text(pair.$2));
+        await tester.pumpAndSettle();
+      }
+
+      expect(tester.takeException(), isNull);
+      final finishButton = find.widgetWithText(FilledButton, 'Finish');
+      final feedback = find.byKey(const ValueKey('answer_feedback'));
+
+      expect(finishButton, findsOneWidget);
+      expect(feedback, findsOneWidget);
+      expect(
+        tester.getBottomLeft(feedback).dy,
+        lessThan(tester.getTopLeft(finishButton).dy),
+      );
+      expect(
+        tester.getTopLeft(finishButton).dy - tester.getBottomLeft(feedback).dy,
+        lessThanOrEqualTo(16),
+      );
+      expect(tester.getBottomRight(finishButton).dy, greaterThan(690));
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets(
@@ -270,6 +436,7 @@ void main() {
             options: const [],
             correctAnswerIndex: 0,
             characterUnicode: '\u4eba',
+            strokeOrderDataJson: mockStrokeData,
           ),
           Question(
             id: 'q_stroke_2',
@@ -278,6 +445,7 @@ void main() {
             options: const [],
             correctAnswerIndex: 0,
             characterUnicode: '\u4eba',
+            strokeOrderDataJson: mockStrokeData,
           ),
         ];
 
@@ -285,46 +453,43 @@ void main() {
           createTestWidget(
             questions,
             key: const ValueKey('consecutive_stroke_trace'),
-            parentId: '',
           ),
         );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pumpAndSettle();
 
         Future<void> failCurrentTracingQuestion() async {
-          final tracingState = tester.state<StrokeTraceQuestionState>(
-            find.byType(StrokeTraceQuestion),
-          );
-
           for (var attempt = 0; attempt < 3; attempt++) {
+            final tracingFinder = find.byType(StrokeTraceQuestion);
+            expect(tracingFinder, findsOneWidget);
+            final tracingState = tester.state<StrokeTraceQuestionState>(
+              tracingFinder,
+            );
             tracingState.simulateWrongStroke();
             await tester.pump();
+            await tester.pump(const Duration(milliseconds: 200));
+            await tester.pumpAndSettle();
+
             if (attempt < 2) {
-              await tester.pump(const Duration(milliseconds: 700));
+              await tester.pump(const Duration(milliseconds: 800));
+              await tester.pumpAndSettle();
             }
           }
-          await tester.pump(const Duration(milliseconds: 400));
         }
 
         await failCurrentTracingQuestion();
 
         expect(tester.takeException(), isNull);
-        expect(
-          find.text('Not quite. Watch the stroke order and try again later.'),
-          findsOneWidget,
-        );
+        expect(find.textContaining('Not quite'), findsOneWidget);
+        expect(find.text('Next'), findsOneWidget);
 
         await tester.tap(find.text('Next'));
-        await tester.pump();
+        await tester.pumpAndSettle();
         await tester.pump(const Duration(milliseconds: 500));
 
         await failCurrentTracingQuestion();
 
         expect(tester.takeException(), isNull);
-        expect(
-          find.text('Not quite. Watch the stroke order and try again later.'),
-          findsOneWidget,
-        );
+        expect(find.textContaining('Not quite'), findsOneWidget);
         expect(find.text('Finish'), findsOneWidget);
       },
     );

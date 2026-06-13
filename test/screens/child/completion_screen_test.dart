@@ -7,6 +7,7 @@ import 'package:bear_tahan/theme/app_theme.dart';
 import 'package:bear_tahan/providers/data_providers.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
 
@@ -14,6 +15,7 @@ void main() {
   late MockFirebaseAuth mockAuth;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({'soundEffectsEnabled': false});
     mockAuth = MockFirebaseAuth();
     when(() => mockAuth.currentUser).thenReturn(null);
   });

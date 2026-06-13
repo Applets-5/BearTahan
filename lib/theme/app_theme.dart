@@ -22,11 +22,11 @@ class AppColors {
   static const star = Color(0xFFFFC400);
   static const navInactive = Color(0xFFA0A5B1);
   static const mascotBubble = Color(0xFFE5F7FF);
-  static const subjectBm = Color(0xFF2C95EA);
-  static const subjectEnglish = Color(0xFFE63375);
-  static const subjectMandarin = Color(0xFFF37B21);
-  static const subjectMath = Color(0xFF7C3AED);
-  static const subjectScience = Color(0xFF22C78F);
+  static const subjectBm = Color(0xFFFF7A2F);
+  static const subjectEnglish = Color(0xFF3A8DFF);
+  static const subjectMandarin = Color(0xFF57B846);
+  static const subjectMath = Color(0xFFA855F7);
+  static const subjectScience = Color(0xFF16A085);
   static const imagePlaceholder = Color(0xFFE5E7EB);
 }
 

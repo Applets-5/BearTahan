@@ -124,7 +124,7 @@ class StrokeTraceQuestionState extends State<StrokeTraceQuestion>
   }
 
   void _handleWrongStroke(int strokeIndex) {
-    if (_isFeedbackPlaying || _completed) return;
+    if (!mounted || _isFeedbackPlaying || _completed) return;
 
     _isFeedbackPlaying = true;
     _attemptsUsed++;

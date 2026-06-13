@@ -11,6 +11,7 @@ import '../models/notification.dart';
 import '../models/outfit_quest.dart';
 import '../models/star_transaction.dart';
 import '../models/level_progress_result.dart';
+import '../models/bears_den_result.dart';
 import '../utils/data_contracts.dart';
 import '../utils/streak_utils.dart';
 import '../utils/star_utils.dart';
@@ -590,6 +591,112 @@ class FirestoreService {
     });
   }
 
+  Stream<int> streamWrongAnswerCount(String parentId, String childId) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  Future<List<Question>> getReviewQuestions(
+    String parentId,
+    String childId, {
+    String? subjectId,
+    int limit = 20,
+  }) async {
+    Query query = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('wrongAnswerBank');
+
+    if (subjectId != null) {
+      query = query.where('subjectId', isEqualTo: subjectId);
+    }
+
+    final snapshot = await query
+        .orderBy('reviewCount', descending: false)
+        .orderBy('lastWrongAt', descending: true)
+        .limit(limit)
+        .get();
+
+    final List<Question> questions = [];
+    for (var doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final questionId = data['questionId'];
+      // Fetch the actual question data from the global questions collection
+      // Based on prefix logic in getQuestions
+      final questionSnapshot = await _db
+          .collection('questions')
+          .doc(questionId)
+          .get();
+
+      if (questionSnapshot.exists) {
+        questions.add(
+          Question.fromFirestore(questionSnapshot.id, questionSnapshot.data()!),
+        );
+      }
+    }
+    return questions;
+  }
+
+  Future<void> recordReviewQuestionAnswered(
+    String parentId,
+    String childId,
+    String questionId,
+  ) async {
+    final childRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+    final wrongAnswerRef = childRef
+        .collection('wrongAnswerBank')
+        .doc(questionId);
+
+    await _db.runTransaction((transaction) async {
+      final childSnapshot = await transaction.get(childRef);
+      final wrongAnswerSnapshot = await transaction.get(wrongAnswerRef);
+      if (!wrongAnswerSnapshot.exists) return;
+
+      final data = childSnapshot.data() ?? {};
+      int counter = (data['reviewQuestionCounter'] ?? 0).toInt();
+      int availableStars = (data['availableStars'] ?? 0).toInt();
+      int lifetimeStars = (data['lifetimeStarsEarned'] ?? availableStars)
+          .toInt();
+
+      counter += 1;
+
+      if (counter >= 20) {
+        counter = 0;
+        availableStars += 1;
+        lifetimeStars += 1;
+
+        // Write star transaction
+        final starTxRef = childRef.collection('starTransactions').doc();
+        transaction.set(starTxRef, {
+          'amount': 1,
+          'type': 'earn',
+          'source': 'review_milestone',
+          'timestamp': FieldValue.serverTimestamp(),
+          'description': 'Completed 20 review questions',
+        });
+      }
+
+      transaction.update(childRef, {
+        'reviewQuestionCounter': counter,
+        'availableStars': availableStars,
+        'lifetimeStarsEarned': lifetimeStars,
+      });
+      transaction.delete(wrongAnswerRef);
+    });
+  }
+
   Stream<List<UserProfile>> streamChildren(String parentId) {
     return _db
         .collection('parents')
@@ -785,6 +892,113 @@ class FirestoreService {
         .toList();
   }
 
+  Future<List<Question>> getQuestionsByIds(List<String> questionIds) async {
+    if (questionIds.isEmpty) return [];
+
+    final snapshots = await Future.wait(
+      questionIds.map((id) => _db.collection('questions').doc(id).get()),
+    );
+
+    return snapshots
+        .where((doc) => doc.exists)
+        .map((doc) => Question.fromFirestore(doc.id, doc.data()!))
+        .toList();
+  }
+
+  Future<BearsDenResult> completeBearsDenSession(
+    String parentId,
+    String childId, {
+    required int score,
+    required int total,
+    DateTime? now,
+  }) async {
+    final performanceStars = score == total && total > 0
+        ? 2
+        : total > 0 && score / total >= 0.7
+        ? 1
+        : 0;
+
+    if (performanceStars == 0) {
+      return const BearsDenResult(
+        performanceStars: 0,
+        awardedStars: 0,
+        status: BearsDenAwardStatus.notEarned,
+      );
+    }
+
+    final localNow = now ?? DateTime.now();
+    final today =
+        '${localNow.year.toString().padLeft(4, '0')}-'
+        '${localNow.month.toString().padLeft(2, '0')}-'
+        '${localNow.day.toString().padLeft(2, '0')}';
+    final childRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId);
+    final levelRef = childRef
+        .collection('subjectProgress')
+        .doc('bi')
+        .collection('levels')
+        .doc('bears_den');
+
+    return _db.runTransaction((transaction) async {
+      final childSnapshot = await transaction.get(childRef);
+      final levelSnapshot = await transaction.get(levelRef);
+      final childData = childSnapshot.data() ?? {};
+      final previousBest = (levelSnapshot.data()?['stars'] ?? 0).toInt();
+      final bestStars = performanceStars > previousBest
+          ? performanceStars
+          : previousBest;
+
+      transaction.set(levelRef, {
+        'stars': bestStars,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (childData['bearsDenStarDate'] == today) {
+        return BearsDenResult(
+          performanceStars: performanceStars,
+          awardedStars: 0,
+          status: BearsDenAwardStatus.dailyCap,
+        );
+      }
+
+      final availableStars =
+          (childData['availableStars'] ??
+                  childData['starBalance'] ??
+                  childData['stars'] ??
+                  0)
+              .toInt();
+      final lifetimeStars = (childData['lifetimeStarsEarned'] ?? availableStars)
+          .toInt();
+
+      transaction.set(childRef, {
+        'availableStars': availableStars + performanceStars,
+        'lifetimeStarsEarned': lifetimeStars + performanceStars,
+        'bearsDenStarDate': today,
+      }, SetOptions(merge: true));
+
+      final starTransactionRef = childRef.collection('starTransactions').doc();
+      transaction.set(starTransactionRef, {
+        'type': 'earn',
+        'source': 'bears_den',
+        'sourceID': 'bi:bears_den',
+        'amount': performanceStars,
+        'description': 'Completed Bear\'s Den',
+        'timestamp': FieldValue.serverTimestamp(),
+        'subjectId': 'bi',
+        'levelId': 'bears_den',
+      });
+
+      return BearsDenResult(
+        performanceStars: performanceStars,
+        awardedStars: performanceStars,
+        status: BearsDenAwardStatus.awarded,
+      );
+    });
+  }
+
   Stream<Map<String, dynamic>> streamParentSettings(String parentId) {
     return _db.collection('parents').doc(parentId).snapshots().map((doc) {
       return doc.data() ?? {};
@@ -828,6 +1042,14 @@ class FirestoreService {
   }
 
   Future<void> deleteParentAccount(String parentId) async {
+    // TODO(account-deletion): Replace this placeholder with an authenticated
+    // callable Cloud Function. The server-side operation must verify that the
+    // caller owns parentId, recursively delete every child and all nested
+    // collections (attempts, starTransactions, wrongAnswerBank,
+    // questionStats, subjectProgress/levels, questProgress, rewardClaims and
+    // rewardClaimLocks), then delete parent rewards, notifications, the parent
+    // document, and finally the Firebase Auth user. Do not implement this as a
+    // client-side loop: partial deletion would leave personal data behind.
     throw UnsupportedError(
       'Account deletion requires the planned server-side recursive deletion flow.',
     );
@@ -1040,6 +1262,8 @@ class FirestoreService {
         normalizedLevelId.contains('revision');
     bool shouldForceSync = false;
 
+    int bestStars = 0;
+
     await _db.runTransaction((transaction) async {
       final levelSnapshot = await transaction.get(normalizedLevelDocRef);
       final legacyLevelSnapshot = legacyLevelDocRef == null
@@ -1124,6 +1348,7 @@ class FirestoreService {
         bool earnedDailyStar = result['earnedDailyStar'];
         int newThreshold = result['newThreshold'];
         didEscalate = newThreshold > currentThreshold;
+        bestStars = newThreshold;
 
         levelUpdates['summaryThreshold'] = newThreshold;
         if (earnedDailyStar) {
@@ -1137,6 +1362,9 @@ class FirestoreService {
           total: total,
           levelId: normalizedLevelId,
         );
+        bestStars = calculatedStars > previousBestStars
+            ? calculatedStars
+            : previousBestStars;
       }
 
       performanceStars = calculatedStars;
@@ -1159,11 +1387,14 @@ class FirestoreService {
                   100,
                 )
               : 0;
+          final bool allChaptersComplete =
+              totalLevels > 0 && currentCompletedLevels >= totalLevels;
 
           transaction.set(normalizedSubjectDocRef, {
             'progress': progressPercentage,
             'completedLevels': currentCompletedLevels,
             'totalStars': currentTotalStars,
+            'allChaptersComplete': allChaptersComplete,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }
@@ -1220,6 +1451,7 @@ class FirestoreService {
       dailyBonusStars: dailyBonusStars,
       didImprove: didImprove,
       didEscalate: didEscalate,
+      bestStars: bestStars,
     );
   }
 

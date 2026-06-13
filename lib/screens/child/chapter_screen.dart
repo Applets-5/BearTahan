@@ -37,15 +37,13 @@ class _ChapterScreenState extends ConsumerState<ChapterScreen> {
         subjectId: effectiveSubjectId,
       )),
     );
-
-    // We can't directly watch summaryThreshold from levelStarsProvider as it only returns a Map<String, int> of stars.
-    // However, FirestoreService.updateLevelProgress saves summaryThreshold in the same level doc.
-    // For now, let's use a workaround or fetch it from a more specific provider if available.
-    // Actually, let's create a specific provider for level progress details if needed,
-    // but looking at existing providers, levelStarsProvider is the closest.
-
-    // Let's assume for now we might need a more detailed fetch.
-    // Looking at data_providers.dart might help.
+    final progressAsync = ref.watch(
+      levelProgressProvider((
+        childId: effectiveChildId,
+        subjectId: effectiveSubjectId,
+        levelId: levelId,
+      )),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -60,20 +58,8 @@ class _ChapterScreenState extends ConsumerState<ChapterScreen> {
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: starsAsync.when(
             data: (starMap) {
-              // In this project, thresholds are managed but maybe not exposed via starsAsync.
-              // We'll need to fetch the raw level data to get 'summaryThreshold'.
-              // For simplicity in this step, I'll use a FutureBuilder or a new provider.
-              return FutureBuilder<Map<String, dynamic>>(
-                future: ref
-                    .read(firestoreServiceProvider)
-                    .getLevelProgress(
-                      ref.read(parentIdProvider),
-                      effectiveChildId,
-                      effectiveSubjectId,
-                      levelId,
-                    ),
-                builder: (context, snapshot) {
-                  final data = snapshot.data ?? {};
+              return progressAsync.when(
+                data: (data) {
                   final threshold = (data['summaryThreshold'] ?? 0) as int;
 
                   String goalText = "Goal: 80% to earn a star";
@@ -170,6 +156,9 @@ class _ChapterScreenState extends ConsumerState<ChapterScreen> {
                     ],
                   );
                 },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) =>
+                    Center(child: Text('Error loading chapter progress: $err')),
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),

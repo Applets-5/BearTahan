@@ -3,8 +3,15 @@ import 'dart:convert';
 class QuestionOption {
   final String text;
   final String? imageUrl;
+  final String? pairText;
+  final String? pairImageUrl;
 
-  QuestionOption({required this.text, this.imageUrl});
+  QuestionOption({
+    required this.text,
+    this.imageUrl,
+    this.pairText,
+    this.pairImageUrl,
+  });
 }
 
 class Question {
@@ -57,7 +64,29 @@ class Question {
                break;
              }
            }
-           return QuestionOption(text: optText, imageUrl: optImg);
+
+           String? pText;
+           if (e.containsKey('pairText')) {
+             pText = e['pairText']?.toString();
+           } else if (e.containsKey('matchText')) {
+             pText = e['matchText']?.toString();
+           }
+
+           String? pImg;
+           if (e.containsKey('pairImageUrl')) {
+             pImg = e['pairImageUrl']?.toString();
+           } else if (e.containsKey('pairImage')) {
+             pImg = e['pairImage']?.toString();
+           } else if (e.containsKey('matchImageUrl')) {
+             pImg = e['matchImageUrl']?.toString();
+           }
+
+           return QuestionOption(
+             text: optText,
+             imageUrl: optImg,
+             pairText: pText,
+             pairImageUrl: pImg,
+           );
          }
          // Fallback for strings or other types
          return QuestionOption(text: e.toString());
@@ -84,6 +113,31 @@ class Question {
         final imageKeys = ['imageUrl', 'image', 'img', 'url', 'picture'];
         for (var key in imageKeys) {
           if (value.containsKey(key)) return value[key]?.toString();
+        }
+      }
+      return null;
+    }
+
+    String? extractPairText(dynamic value) {
+      if (value is Map) {
+        if (value.containsKey('pairText')) return value['pairText']?.toString();
+        if (value.containsKey('matchText')) {
+          return value['matchText']?.toString();
+        }
+      }
+      return null;
+    }
+
+    String? extractPairImageUrl(dynamic value) {
+      if (value is Map) {
+        if (value.containsKey('pairImageUrl')) {
+          return value['pairImageUrl']?.toString();
+        }
+        if (value.containsKey('pairImage')) {
+          return value['pairImage']?.toString();
+        }
+        if (value.containsKey('matchImageUrl')) {
+          return value['matchImageUrl']?.toString();
         }
       }
       return null;
@@ -133,10 +187,58 @@ class Question {
           .map((e) => e.toString())
           .toList();
     } else if (data['correctOrder'] is String) {
-      correctOrder = (data['correctOrder'] as String)
-          .split(',')
+      final String str = data['correctOrder'] as String;
+
+      // Robust matching against actual options to preserve punctuation
+      final rawOptions = data['options'] as List? ?? [];
+      final List<QuestionOption> availableOptions = rawOptions.map((e) {
+        return QuestionOption(
+          text: extractText(e),
+          imageUrl: extractImageUrl(e),
+          pairText: extractPairText(e),
+          pairImageUrl: extractPairImageUrl(e),
+        );
+      }).toList();
+
+      String normalize(String s) {
+        // Remove common punctuation and spaces for comparison
+        return s.toLowerCase().replaceAll(RegExp(r'[ ,.!?;:|，。！？；：]'), '');
+      }
+
+      // Split by common delimiters
+      final segments = str
+          .split(RegExp(r'\s*[,;|]\s*'))
           .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
           .toList();
+
+      final List<String> resolvedOrder = [];
+      final List<QuestionOption> optionsPool = List.from(availableOptions);
+
+      for (final segment in segments) {
+        final normSegment = normalize(segment);
+        if (normSegment.isEmpty) continue;
+
+        // Try exact match first
+        int matchIndex = optionsPool.indexWhere(
+          (o) => o.text.trim() == segment,
+        );
+
+        // Fallback to normalized match
+        if (matchIndex == -1) {
+          matchIndex = optionsPool.indexWhere(
+            (o) => normalize(o.text) == normSegment,
+          );
+        }
+
+        if (matchIndex != -1) {
+          resolvedOrder.add(optionsPool[matchIndex].text);
+          optionsPool.removeAt(matchIndex);
+        } else {
+          resolvedOrder.add(segment);
+        }
+      }
+      correctOrder = resolvedOrder;
     }
 
     // correctBlank for fillblank
@@ -191,11 +293,16 @@ class Question {
       } else {
         finalIndex = int.tryParse(upper) ?? 0;
       }
-    } else if (type == 'fillblank' && correctBlank != null) {
-      // Find index of correctBlank in options
+    }
+
+    // For fillblank, correctBlank is a more reliable source of truth than a potentially stale index
+    if ((normalizedType == 'fillblank' ||
+            normalizedType == 'fillblanklistening') &&
+        correctBlank != null) {
       final rawOptions = data['options'] as List? ?? [];
       for (int i = 0; i < rawOptions.length; i++) {
-        if (extractText(rawOptions[i]) == correctBlank) {
+        if (extractText(rawOptions[i]).trim().toLowerCase() ==
+            correctBlank.trim().toLowerCase()) {
           finalIndex = i;
           break;
         }
@@ -204,7 +311,12 @@ class Question {
 
     final rawOptions = data['options'] as List? ?? [];
     final List<QuestionOption> parsedOptions = rawOptions.map((e) {
-      return QuestionOption(text: extractText(e), imageUrl: extractImageUrl(e));
+      return QuestionOption(
+        text: extractText(e),
+        imageUrl: extractImageUrl(e),
+        pairText: extractPairText(e),
+        pairImageUrl: extractPairImageUrl(e),
+      );
     }).toList();
 
     return Question(

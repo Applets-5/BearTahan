@@ -6,7 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/question.dart';
+import '../../models/bears_den_result.dart';
+import '../../models/session_mode.dart';
+import '../../features/bears_den/bears_den_demo_data.dart';
 import '../../providers/data_providers.dart';
+import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/audio_contexts.dart';
@@ -27,6 +31,8 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
     this.subjectId = 'bm',
     this.levelId = 'l1',
     this.showFeedbackMascot = true,
+    this.reviewQuestions,
+    this.sessionMode = SessionMode.standard,
   });
 
   final String? childId;
@@ -34,6 +40,8 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
   final String subjectId;
   final String levelId;
   final bool showFeedbackMascot;
+  final List<Question>? reviewQuestions;
+  final SessionMode sessionMode;
 
   @override
   ConsumerState<LevelSessionScreen> createState() => _LevelSessionScreenState();
@@ -43,17 +51,21 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   int currentQuestionIndex = 0;
   int score = 0;
   Timer? _sessionTimer;
+  Timer? _loadingQuoteTimer;
   int _elapsedSeconds = 0;
   bool _timerStarted = false;
   bool _isSaving = false;
+  bool _assetsPrepared = false;
+  int _preparedAssetCount = 0;
+  int _totalAssetCount = 0;
+  int _loadingQuoteIndex = 0;
 
   int? selected;
   final TextEditingController _numberController = TextEditingController();
   bool _numberSubmitted = false;
   List<Question>? shuffledQuestions;
   List<Question>? _lastRawQuestions;
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  late final Future<void> _feedbackAudioContextReady;
+  final Set<String> _reviewQuestionIds = {};
   AudioPool? _correctAnswerPool;
   AudioPool? _wrongAnswerPool;
   AudioPool? _correctStrokePool;
@@ -66,17 +78,31 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   @override
   void initState() {
     super.initState();
-    _feedbackAudioContextReady = _audioPlayer.setAudioContext(
-      soundEffectAudioContext(),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startSessionTimer();
-    });
+    _startLoadingQuotes();
     unawaited(_initializeSoundEffectAudio());
   }
 
+  static const _loadingQuotes = [
+    'Hunting for the best questions...',
+    'Packing a basket of brainy challenges...',
+    'Building a den full of bright ideas...',
+    'Putting every question in paw-fect order...',
+  ];
+
+  void _startLoadingQuotes() {
+    _loadingQuoteTimer?.cancel();
+    _loadingQuoteTimer = Timer.periodic(const Duration(milliseconds: 1800), (
+      _,
+    ) {
+      if (!mounted || _assetsPrepared) return;
+      setState(() {
+        _loadingQuoteIndex = (_loadingQuoteIndex + 1) % _loadingQuotes.length;
+      });
+    });
+  }
+
   bool get _soundEffectsEnabled {
-    return soundEffectsEnabled(ref.read(parentSettingsProvider).value);
+    return ref.read(soundEffectsProvider).value ?? true;
   }
 
   Future<void> _initializeSoundEffectAudio() async {
@@ -159,10 +185,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     if (isCorrect) {
       await _stopCorrectAnswer?.call();
-      _stopCorrectAnswer = await pool.start(volume: 0.70);
+      _stopCorrectAnswer = await pool.start(volume: answerFeedbackVolume);
     } else {
       await _stopWrongAnswer?.call();
-      _stopWrongAnswer = await pool.start(volume: 0.70);
+      _stopWrongAnswer = await pool.start(volume: answerFeedbackVolume);
     }
   }
 
@@ -194,6 +220,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   }
 
   Future<void> _recordQuestionResult(Question question, bool isCorrect) async {
+    if (widget.sessionMode == SessionMode.bearsDen) return;
     final parentId = ref.read(parentIdProvider);
     final childId = widget.childId;
     if (parentId.isEmpty || childId == null || childId.isEmpty) return;
@@ -206,12 +233,19 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         question.id,
         isCorrect,
       );
-      if (!isCorrect) {
+
+      if (_reviewQuestionIds.contains(question.id)) {
+        await firestore.recordReviewQuestionAnswered(
+          parentId,
+          childId,
+          question.id,
+        );
+      } else if (!isCorrect) {
         await firestore.flagWrongAnswer(
           parentId,
           childId,
           questionId: question.id,
-          subjectId: widget.subjectId,
+          subjectId: _subjectIdForQuestion(question),
           levelId: widget.levelId,
           questionText: question.text,
         );
@@ -235,8 +269,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   @override
   void dispose() {
     _stopSessionTimer();
+    _loadingQuoteTimer?.cancel();
     unawaited(_disposeSoundEffectAudio());
-    unawaited(_audioPlayer.dispose());
     _numberController.dispose();
     super.dispose();
   }
@@ -269,15 +303,50 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     setState(() => _isSaving = true);
 
     int performanceStars = 0;
+    int bestStars = 0;
     int newStarsAwarded = 0;
     int dailyBonusStars = 0;
     bool isEscalated = false;
     bool isDailyBonus = false;
     final newlyUnlockedOutfits = <String>[];
 
+    final isReviewSession = _isDedicatedReviewSession;
+    BearsDenAwardStatus? bearsDenAwardStatus;
+
     try {
       final parentId = ref.read(parentIdProvider);
-      if (widget.childId != null && parentId.isNotEmpty) {
+      if (widget.sessionMode == SessionMode.bearsDen) {
+        performanceStars = score == totalQuestions
+            ? 2
+            : score / totalQuestions >= 0.7
+            ? 1
+            : 0;
+        bestStars = performanceStars;
+
+        if (widget.childId != null && parentId.isNotEmpty) {
+          try {
+            final result = await ref
+                .read(firestoreServiceProvider)
+                .completeBearsDenSession(
+                  parentId,
+                  widget.childId!,
+                  score: score,
+                  total: totalQuestions,
+                );
+            performanceStars = result.performanceStars;
+            bestStars = performanceStars;
+            newStarsAwarded = result.awardedStars;
+            bearsDenAwardStatus = result.status;
+          } catch (error) {
+            debugPrint('Unable to save Bear\'s Den stars: $error');
+            bearsDenAwardStatus = BearsDenAwardStatus.saveFailed;
+          }
+        } else {
+          bearsDenAwardStatus = BearsDenAwardStatus.saveFailed;
+        }
+      } else if (!isReviewSession &&
+          widget.childId != null &&
+          parentId.isNotEmpty) {
         final firestore = ref.read(firestoreServiceProvider);
 
         final progressResult = await firestore.updateLevelProgress(
@@ -289,6 +358,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           totalQuestions,
         );
         performanceStars = progressResult.performanceStars;
+        bestStars = progressResult.bestStars;
         newStarsAwarded = progressResult.newStarsAwarded;
         dailyBonusStars = progressResult.dailyBonusStars;
         isEscalated = progressResult.didEscalate;
@@ -319,12 +389,13 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         } catch (error) {
           debugPrint('Progress saved but quest evaluation failed: $error');
         }
-      } else {
+      } else if (!isReviewSession) {
         performanceStars = StarUtils.calculateStars(
           score: score,
           total: totalQuestions,
           levelId: widget.levelId,
         );
+        bestStars = performanceStars;
       }
     } catch (e) {
       debugPrint('Unable to save level progress: $e');
@@ -341,21 +412,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       return;
     }
 
-    // Play appropriate audio
-    final String audioPath = performanceStars > 0
-        ? 'audio/levelPassed.mp3'
-        : 'audio/levelFailed.mp3';
-
-    final playFuture = _playSound(() async {
-      await _feedbackAudioContextReady;
-      final completed = _audioPlayer.onPlayerComplete.first;
-      await _audioPlayer.play(AssetSource(audioPath), volume: 0.60);
-      await completed.timeout(const Duration(seconds: 5), onTimeout: () {});
-    });
-
-    // Wait for the audio to finish before navigating
-    await playFuture.timeout(const Duration(seconds: 5), onTimeout: () {});
-
     if (mounted) {
       final params = {
         'childId': widget.childId ?? '',
@@ -364,11 +420,15 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         'levelId': widget.levelId,
         'subjectId': widget.subjectId,
         'performanceStars': performanceStars.toString(),
+        'bestStars': bestStars.toString(),
         'newStarsAwarded': newStarsAwarded.toString(),
         'dailyBonusStars': dailyBonusStars.toString(),
         'levelPrefix': widget.levelPrefix,
         'isEscalated': isEscalated.toString(),
         'isDailyBonus': isDailyBonus.toString(),
+        'sessionMode': widget.sessionMode.name,
+        if (bearsDenAwardStatus != null)
+          'bearsDenAwardStatus': bearsDenAwardStatus.name,
         if (newlyUnlockedOutfits.isNotEmpty)
           'unlockedOutfits': newlyUnlockedOutfits.join(','),
       };
@@ -410,8 +470,212 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     }
   }
 
+  Future<void>? _initializationFuture;
+
+  bool get _isDedicatedReviewSession =>
+      widget.reviewQuestions != null || widget.levelId == 'review_session';
+
+  String _subjectIdForQuestion(Question question) {
+    final prefix = question.id.split('_').first.toLowerCase();
+    const knownSubjects = {'bm', 'bi', 'bc', 'math', 'sci'};
+    return knownSubjects.contains(prefix) ? prefix : widget.subjectId;
+  }
+
+  String _languageForQuestion(Question question) {
+    switch (_subjectIdForQuestion(question)) {
+      case 'bm':
+        return 'ms-MY';
+      case 'bi':
+        return 'en-GB';
+      case 'bc':
+        return 'zh-CN';
+      default:
+        return 'en-GB';
+    }
+  }
+
+  void _resetPreparation() {
+    shuffledQuestions = null;
+    _assetsPrepared = false;
+    _preparedAssetCount = 0;
+    _totalAssetCount = 0;
+    _loadingQuoteIndex = 0;
+    _startLoadingQuotes();
+  }
+
+  Future<void> _prepareSelectedQuestions() async {
+    final questions = shuffledQuestions;
+    if (questions == null || questions.isEmpty) return;
+
+    await ref
+        .read(sessionAssetPreloaderProvider)
+        .preload(
+          context: context,
+          questions: questions,
+          languageForQuestion: _languageForQuestion,
+          onProgress: (completed, total) {
+            if (!mounted) return;
+            setState(() {
+              _preparedAssetCount = completed;
+              _totalAssetCount = total;
+            });
+          },
+        );
+
+    if (!mounted) return;
+    _loadingQuoteTimer?.cancel();
+    _assetsPrepared = true;
+    _startSessionTimer();
+    setState(() {});
+  }
+
+  Future<void> _initializeQuestions(List<Question> rawQuestions) async {
+    if (widget.reviewQuestions != null) {
+      final questionsById = <String, Question>{
+        for (final question in rawQuestions) question.id: question,
+      };
+      _reviewQuestionIds
+        ..clear()
+        ..addAll(questionsById.keys);
+      shuffledQuestions = questionsById.values.toList()..shuffle();
+      await _prepareSelectedQuestions();
+      return;
+    }
+
+    if (widget.sessionMode == SessionMode.bearsDen) {
+      final questions = List<Question>.from(rawQuestions)..shuffle();
+      shuffledQuestions = questions;
+      await _prepareSelectedQuestions();
+      return;
+    }
+    final isSummary = widget.levelId.toLowerCase().contains('summary');
+    final isRevision = widget.levelId.toLowerCase().contains('revision');
+    final needsPrioritization = isSummary || isRevision;
+
+    try {
+      if (needsPrioritization) {
+        final stats = await ref
+            .read(firestoreServiceProvider)
+            .getQuestionStatsForUser(
+              ref.read(parentIdProvider),
+              widget.childId ?? '',
+              rawQuestions.map((q) => q.id).toList(),
+            );
+        shuffledQuestions = _prioritizeQuestions(
+          rawQuestions,
+          stats,
+          15,
+          isRevision,
+        );
+      } else {
+        final reviewQuestions = await ref
+            .read(firestoreServiceProvider)
+            .getReviewQuestions(
+              ref.read(parentIdProvider),
+              widget.childId ?? '',
+              subjectId: widget.subjectId,
+              limit: 2,
+            );
+        final reviewById = <String, Question>{
+          for (final question in reviewQuestions) question.id: question,
+        };
+        _reviewQuestionIds
+          ..clear()
+          ..addAll(reviewById.keys);
+
+        final List<Question> pool =
+            rawQuestions
+                .where((question) => !reviewById.containsKey(question.id))
+                .toList()
+              ..shuffle();
+        final mainQuestions = pool
+            .take((10 - reviewById.length).clamp(0, 10))
+            .toList();
+        shuffledQuestions = [...mainQuestions, ...reviewById.values]..shuffle();
+      }
+    } catch (error) {
+      debugPrint('Unable to prepare personalized questions: $error');
+      _reviewQuestionIds.clear();
+      final fallback = List<Question>.from(rawQuestions)..shuffle();
+      shuffledQuestions = fallback.take(needsPrioritization ? 15 : 10).toList();
+    }
+    await _prepareSelectedQuestions();
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.watch(soundEffectsProvider);
+
+    if (widget.reviewQuestions != null) {
+      final rawQuestions = widget.reviewQuestions!;
+      if (_lastRawQuestions != rawQuestions) {
+        _lastRawQuestions = rawQuestions;
+        _resetPreparation();
+        _initializationFuture = Future<void>.microtask(
+          () => _initializeQuestions(rawQuestions),
+        );
+      }
+      return Scaffold(
+        body: SafeArea(
+          child: rawQuestions.isEmpty
+              ? _buildNoQuestionsPlaceholder(context)
+              : FutureBuilder<void>(
+                  future: _initializationFuture,
+                  builder: (context, snapshot) {
+                    if (!_assetsPrepared || shuffledQuestions == null) {
+                      return _buildPreparationScreen();
+                    }
+                    return _buildSession(shuffledQuestions!);
+                  },
+                ),
+        ),
+      );
+    }
+
+    if (widget.sessionMode == SessionMode.bearsDen) {
+      final questionsAsync = ref.watch(bearsDenQuestionsProvider);
+      ref.watch(parentSettingsProvider);
+      return Scaffold(
+        body: SafeArea(
+          child: questionsAsync.when(
+            data: (rawQuestions) {
+              if (!BearsDenDemoData.isValidSession(rawQuestions)) {
+                return _buildNoQuestionsPlaceholder(
+                  context,
+                  message:
+                      "Bear's Den questions are still loading. Please try again.",
+                );
+              }
+              if (_lastRawQuestions != rawQuestions) {
+                _lastRawQuestions = rawQuestions;
+                _resetPreparation();
+                _initializationFuture = Future<void>.microtask(
+                  () => _initializeQuestions(rawQuestions),
+                );
+              }
+              if (!_assetsPrepared || shuffledQuestions == null) {
+                return FutureBuilder<void>(
+                  future: _initializationFuture,
+                  builder: (context, snapshot) {
+                    if (!_assetsPrepared || shuffledQuestions == null) {
+                      return _buildPreparationScreen();
+                    }
+                    return _buildSession(shuffledQuestions!);
+                  },
+                );
+              }
+              return _buildSession(shuffledQuestions!);
+            },
+            loading: _buildPreparationScreen,
+            error: (error, stack) => _buildNoQuestionsPlaceholder(
+              context,
+              message: "Bear's Den could not load. Check your connection.",
+            ),
+          ),
+        ),
+      );
+    }
+
     // If it's a revision stage, we fetch ALL questions for the subject
     final isRevision = widget.levelId.toLowerCase().contains('revision');
     final queryPrefix = isRevision
@@ -428,52 +692,30 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               return _buildNoQuestionsPlaceholder(context);
             }
 
-            // If questions are ready, we need to fetch stats for prioritization
-            // (Only for Summary and Revision stages)
-            final isSummary = widget.levelId.toLowerCase().contains('summary');
-            final needsPrioritization = isSummary || isRevision;
-
-            if (shuffledQuestions == null ||
-                _lastRawQuestions != rawQuestions) {
+            // Check if raw questions changed to trigger re-initialization
+            if (_lastRawQuestions != rawQuestions) {
               _lastRawQuestions = rawQuestions;
+              _resetPreparation();
+              _initializationFuture = Future<void>.microtask(
+                () => _initializeQuestions(rawQuestions),
+              );
+            }
 
-              if (needsPrioritization) {
-                return FutureBuilder<Map<String, Map<String, int>>>(
-                  future: ref
-                      .read(firestoreServiceProvider)
-                      .getQuestionStatsForUser(
-                        ref.read(parentIdProvider),
-                        widget.childId ?? '',
-                        rawQuestions.map((q) => q.id).toList(),
-                      ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting &&
-                        shuffledQuestions == null) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    if (shuffledQuestions == null) {
-                      final stats = snapshot.data ?? {};
-                      shuffledQuestions = _prioritizeQuestions(
-                        rawQuestions,
-                        stats,
-                        15,
-                        isRevision,
-                      );
-                    }
-
-                    return _buildSession(shuffledQuestions!);
-                  },
-                );
-              } else {
-                final List<Question> temp = List.from(rawQuestions)..shuffle();
-                shuffledQuestions = temp.take(10).toList();
-              }
+            if (!_assetsPrepared || shuffledQuestions == null) {
+              return FutureBuilder<void>(
+                future: _initializationFuture,
+                builder: (context, snapshot) {
+                  if (!_assetsPrepared || shuffledQuestions == null) {
+                    return _buildPreparationScreen();
+                  }
+                  return _buildSession(shuffledQuestions!);
+                },
+              );
             }
 
             return _buildSession(shuffledQuestions!);
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: _buildPreparationScreen,
           error: (err, stack) => Center(child: Text('Error: $err')),
         ),
       ),
@@ -542,12 +784,18 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     return selected.take(count).toList();
   }
 
-  Widget _buildNoQuestionsPlaceholder(BuildContext context) {
+  Widget _buildNoQuestionsPlaceholder(
+    BuildContext context, {
+    String message = 'No questions found for this level.',
+  }) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('No questions found for this level.'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Text(message, textAlign: TextAlign.center),
+          ),
           const SizedBox(height: AppSpacing.md),
           PrimaryButton(
             label: 'Go Back',
@@ -569,23 +817,79 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     );
   }
 
+  Widget _buildPreparationScreen() {
+    final hasProgress = _totalAssetCount > 0;
+    final progress = hasProgress
+        ? (_preparedAssetCount / _totalAssetCount).clamp(0.0, 1.0)
+        : null;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (widget.showFeedbackMascot)
+              ActiveMascotWidget(
+                childId: widget.childId,
+                size: 150,
+                showBackground: false,
+                mood: MascotMood.idle,
+              )
+            else
+              const MascotWidget(
+                size: 150,
+                showBackground: false,
+                mood: MascotMood.idle,
+              ),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              'Preparing your adventure',
+              style: AppTextStyles.title,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: Text(
+                _loadingQuotes[_loadingQuoteIndex],
+                key: ValueKey(_loadingQuoteIndex),
+                style: AppTextStyles.body.copyWith(color: AppColors.mutedText),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            SizedBox(
+              width: 220,
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: AppSpacing.sm,
+                borderRadius: AppRadius.r(AppRadius.sm),
+                color: AppColors.accent,
+                backgroundColor: AppColors.muted,
+              ),
+            ),
+            if (hasProgress) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '$_preparedAssetCount of $_totalAssetCount ready',
+                style: AppTextStyles.small,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSession(List<Question> questions) {
     final question = questions[currentQuestionIndex];
     final isLastQuestion = currentQuestionIndex == questions.length - 1;
     final progress = (currentQuestionIndex + 1) / questions.length;
+    final isQuestionComplete =
+        selected != null || _isQuestionComplete(question);
 
-    String getLanguage() {
-      switch (widget.subjectId.toLowerCase()) {
-        case 'bm':
-          return 'ms-MY';
-        case 'bi':
-          return 'en-GB';
-        case 'bc':
-          return 'zh-CN';
-        default:
-          return 'en-GB';
-      }
-    }
+    final language = _languageForQuestion(question);
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -616,121 +920,187 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
             ],
           ),
-          const Spacer(flex: 1),
-          if (question.imageUrl != null && question.imageUrl!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: Center(
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 160),
-                  decoration: BoxDecoration(
-                    color: AppColors.imagePlaceholder,
-                    borderRadius: AppRadius.r(AppRadius.xl),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: AppRadius.r(AppRadius.xl),
-                    child: Image.network(
-                      question.imageUrl!,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.image,
-                        color: AppColors.mutedText,
-                        size: 48,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          _buildQuestionText(question, getLanguage()),
-          const SizedBox(height: AppSpacing.sm),
-          _buildQuestionBody(question),
-          const Spacer(flex: 2),
-          if (selected != null || _isQuestionComplete(question)) ...[
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutBack,
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
-                );
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: selected == question.correctAnswerIndex
-                      ? AppColors.accentLight
-                      : AppColors.destructiveLight,
-                  borderRadius: AppRadius.r(AppRadius.lg),
-                ),
-                child: Row(
-                  children: [
-                    if (widget.showFeedbackMascot) ...[
-                      SizedBox(
-                        width: 72,
-                        height: 54,
-                        child: OverflowBox(
-                          maxWidth: 120,
-                          maxHeight: 120,
-                          child: ActiveMascotWidget(
-                            childId: widget.childId,
-                            size: selected == question.correctAnswerIndex
-                                ? 86
-                                : 82,
-                            showBackground: false,
-                            mood: selected == question.correctAnswerIndex
-                                ? MascotMood.cheering
-                                : MascotMood.crying,
+          if (widget.sessionMode == SessionMode.bearsDen) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const _BearsDenChip(label: "Bear's Den"),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          Expanded(
+            child: Column(
+              children: [
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        key: const ValueKey('level_session_scroll'),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.md,
+                        ),
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight:
+                                constraints.maxHeight - (AppSpacing.md * 2),
+                          ),
+                          child: Column(
+                            key: const ValueKey('question_content'),
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (question.imageUrl != null &&
+                                  question.imageUrl!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: AppSpacing.md,
+                                  ),
+                                  child: Center(
+                                    child: Container(
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 160,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.imagePlaceholder,
+                                        borderRadius: AppRadius.r(AppRadius.xl),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: AppRadius.r(AppRadius.xl),
+                                        child: Image.network(
+                                          question.imageUrl!,
+                                          fit: BoxFit.contain,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  const Icon(
+                                                    Icons.image,
+                                                    color: AppColors.mutedText,
+                                                    size: 48,
+                                                  ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              _buildQuestionText(question, language),
+                              if (widget.sessionMode ==
+                                  SessionMode.bearsDen) ...[
+                                const SizedBox(height: AppSpacing.sm),
+                                _BearsDenChip(
+                                  label:
+                                      BearsDenDemoData.chapterLabelForQuestion(
+                                        question,
+                                      ),
+                                ),
+                              ],
+                              const SizedBox(height: AppSpacing.sm),
+                              _buildQuestionBody(question),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
-                    Expanded(
-                      child: Text(
-                        _answerFeedbackText(question),
-                        style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
-                      ),
-                    ),
-                  ],
+                      );
+                    },
+                  ),
                 ),
-              ),
+                if (isQuestionComplete) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _buildAnswerActions(
+                    question,
+                    isLastQuestion: isLastQuestion,
+                    totalQuestions: questions.length,
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 8),
-            PrimaryButton(
-              label: isLastQuestion ? 'Finish' : 'Next',
-              isLoading: isLastQuestion && _isSaving,
-              icon: Icons.arrow_forward_rounded,
-              onPressed: () {
-                if (isLastQuestion) {
-                  _completeSession(questions.length);
-                } else {
-                  setState(() {
-                    currentQuestionIndex++;
-                    selected = null;
-                    _rearrangeOrder = null;
-                    _rearrangeSubmitted = false;
-                    _draggedOptionIndex = null;
-                    _fillBlankSubmitted = false;
-                    _dragDropSpellingSubmitted = false;
-                    _matchingSubmitted = false;
-                    _strokeTraceSubmitted = false;
-                    _strokeHadWrongAttempt = false;
-                    _numberSubmitted = false;
-                    _numberController.clear();
-                  });
-                }
-              },
-            ),
-          ],
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAnswerActions(
+    Question question, {
+    required bool isLastQuestion,
+    required int totalQuestions,
+  }) {
+    return Column(
+      key: const ValueKey('answer_actions'),
+      children: [
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutBack,
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: value,
+              child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
+            );
+          },
+          child: Container(
+            key: const ValueKey('answer_feedback'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: selected == question.correctAnswerIndex
+                  ? AppColors.accentLight
+                  : AppColors.destructiveLight,
+              borderRadius: AppRadius.r(AppRadius.lg),
+            ),
+            child: Row(
+              children: [
+                if (widget.showFeedbackMascot) ...[
+                  SizedBox(
+                    width: 72,
+                    height: 54,
+                    child: OverflowBox(
+                      maxWidth: 120,
+                      maxHeight: 120,
+                      child: ActiveMascotWidget(
+                        childId: widget.childId,
+                        size: selected == question.correctAnswerIndex ? 86 : 82,
+                        showBackground: false,
+                        mood: selected == question.correctAnswerIndex
+                            ? MascotMood.cheering
+                            : MascotMood.crying,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                Expanded(
+                  child: Text(
+                    _answerFeedbackText(question),
+                    style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        PrimaryButton(
+          label: isLastQuestion ? 'Finish' : 'Next',
+          isLoading: isLastQuestion && _isSaving,
+          icon: Icons.arrow_forward_rounded,
+          onPressed: () {
+            if (isLastQuestion) {
+              _completeSession(totalQuestions);
+            } else {
+              setState(() {
+                currentQuestionIndex++;
+                selected = null;
+                _rearrangeOrder = null;
+                _rearrangeSubmitted = false;
+                _draggedOptionIndex = null;
+                _fillBlankSubmitted = false;
+                _dragDropSpellingSubmitted = false;
+                _matchingSubmitted = false;
+                _strokeTraceSubmitted = false;
+                _strokeHadWrongAttempt = false;
+                _numberSubmitted = false;
+                _numberController.clear();
+              });
+            }
+          },
+        ),
+      ],
     );
   }
 
@@ -740,17 +1110,22 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       return _buildFillBlankSentence(question, language);
     }
 
+    final bool isDragDropSpelling = type == 'dragdropspelling';
+
     return Text.rich(
       TextSpan(
         children: [
-          TextSpan(
-            text: question.text,
-            style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
-          ),
+          if (!isDragDropSpelling)
+            TextSpan(
+              text: question.text,
+              style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+            ),
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.sm),
+              padding: EdgeInsets.only(
+                left: isDragDropSpelling ? 0 : AppSpacing.sm,
+              ),
               child: SizedBox(
                 width: 28,
                 height: 28,
@@ -880,13 +1255,27 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     switch (type) {
       case 'rearrange':
-        return _buildRearrangeQuestion(question);
+        return _buildRearrangeQuestion(
+          question,
+          key: ValueKey('rearrange_${question.id}'),
+        );
       case 'fillblank':
       case 'fillblanklistening':
-        return _buildFillBlankQuestion(question);
+        return _buildFillBlankQuestion(
+          question,
+          key: ValueKey('fillblank_${question.id}'),
+        );
       case 'dragdropspelling':
         return DragDropSpellingWidget(
+          key: ValueKey('dragdrop_${question.id}'),
           question: question,
+          onCorrectAttempt: () {
+            unawaited(_playStrokeCorrect(0));
+          },
+          onWrongAttempt: () {
+            unawaited(_playStrokeWrong());
+            _strokeHadWrongAttempt = true;
+          },
           onCompleted: (isCorrect) {
             setState(() {
               _dragDropSpellingSubmitted = true;
@@ -899,7 +1288,18 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         );
       case 'matching':
         return MatchingWidget(
+          key: ValueKey('matching_${question.id}'),
           question: question,
+          onCorrectMatch: () {
+            unawaited(
+              _playStrokeCorrect(0),
+            ); // Use stroke correct sound for individual matches
+          },
+          onWrongAttempt: () {
+            unawaited(_playStrokeWrong());
+            _strokeHadWrongAttempt =
+                true; // Use same flag to track if any mistake happened
+          },
           onCompleted: (isCorrect) {
             setState(() {
               _matchingSubmitted = true;
@@ -907,7 +1307,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               if (isCorrect) score++;
               _playQuestionFeedback(question, isCorrect);
             });
-            unawaited(_recordQuestionResult(question, isCorrect));
+            unawaited(
+              _recordQuestionResult(
+                question,
+                isCorrect && !_strokeHadWrongAttempt,
+              ),
+            );
           },
         );
       case 'stroke_trace':
@@ -929,7 +1334,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   List<int>? _rearrangeOrder;
   bool _rearrangeSubmitted = false;
 
-  Widget _buildRearrangeQuestion(Question question) {
+  Widget _buildRearrangeQuestion(Question question, {Key? key}) {
     if (_rearrangeOrder == null) {
       _rearrangeOrder = List.generate(question.options.length, (i) => i);
       // Shuffle initially until it DOESN'T match the correct order (if possible)
@@ -960,12 +1365,17 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           style: AppTextStyles.small,
         ),
         const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 200,
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 400),
           child: ReorderableListView(
+            shrinkWrap: true,
+            physics: const ClampingScrollPhysics(),
+            buildDefaultDragHandles:
+                false, // Disable default long-press handles
             onReorder: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
+                if (newIndex > oldIndex) newIndex--;
                 final int item = _rearrangeOrder!.removeAt(oldIndex);
                 _rearrangeOrder!.insert(newIndex, item);
               });
@@ -984,10 +1394,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               bool isCorrect = true;
               if (question.correctOrder != null) {
                 for (int i = 0; i < _rearrangeOrder!.length; i++) {
-                  final currentText =
-                      question.options[_rearrangeOrder![i]].text;
+                  final currentText = question.options[_rearrangeOrder![i]].text
+                      .trim();
                   if (i >= question.correctOrder!.length ||
-                      currentText != question.correctOrder![i]) {
+                      currentText != question.correctOrder![i].trim()) {
                     isCorrect = false;
                     break;
                   }
@@ -1019,22 +1429,28 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final optionIndex = _rearrangeOrder![index];
     final option = question.options[optionIndex];
 
-    return Container(
+    return ReorderableDragStartListener(
       key: ValueKey('reorder_$optionIndex'),
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-        boxShadow: AppShadows.card,
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.drag_indicator, color: AppColors.mutedText),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(child: Text(option.text, style: AppTextStyles.bodyBold)),
-        ],
+      index: index,
+      enabled: !_rearrangeSubmitted,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: AppRadius.r(AppRadius.lg),
+          border: Border.all(color: AppColors.border),
+          boxShadow: AppShadows.card,
+        ),
+        child: Row(
+          children: [
+            if (!_rearrangeSubmitted) ...[
+              const Icon(Icons.drag_indicator, color: AppColors.mutedText),
+              const SizedBox(width: AppSpacing.md),
+            ],
+            Expanded(child: Text(option.text, style: AppTextStyles.bodyBold)),
+          ],
+        ),
       ),
     );
   }
@@ -1073,40 +1489,66 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     return Column(
       children: [
-        SizedBox(
-          width: 180,
+        Container(
+          width: 200,
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: AppRadius.r(AppRadius.xl),
+            boxShadow: AppShadows.card,
+          ),
           child: TextField(
             key: const ValueKey('numeric_answer_input'),
             controller: _numberController,
             enabled: !_numberSubmitted,
+            autofocus: true,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             textAlign: TextAlign.center,
-            decoration: const InputDecoration(
-              labelText: 'Your answer',
-              border: OutlineInputBorder(),
+            style: AppTextStyles.title.copyWith(
+              fontSize: 32,
+              color: AppColors.primary,
             ),
+            decoration: InputDecoration(
+              hintText: '?',
+              hintStyle: AppTextStyles.title.copyWith(
+                fontSize: 32,
+                color: AppColors.mutedText.withValues(alpha: 0.3),
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              fillColor: Colors.transparent,
+              contentPadding: EdgeInsets.zero,
+            ),
+            onSubmitted: (_) {
+              if (!_numberSubmitted && _numberController.text.isNotEmpty) {
+                _checkNumberAnswer(question);
+              }
+            },
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.xl),
         if (!_numberSubmitted)
           PrimaryButton(
             label: 'Check Answer',
-            onPressed: () {
-              final answer = int.tryParse(_numberController.text);
-              if (answer == null) return;
-              final isCorrect = answer == correctNumber;
-              setState(() {
-                _numberSubmitted = true;
-                selected = isCorrect ? question.correctAnswerIndex : -1;
-                if (isCorrect) score++;
-              });
-              unawaited(_playQuestionFeedback(question, isCorrect));
-              unawaited(_recordQuestionResult(question, isCorrect));
-            },
+            onPressed: () => _checkNumberAnswer(question),
           ),
       ],
     );
+  }
+
+  void _checkNumberAnswer(Question question) {
+    final answer = int.tryParse(_numberController.text);
+    if (answer == null) return;
+    final isCorrect = answer == question.correctNumber;
+    setState(() {
+      _numberSubmitted = true;
+      selected = isCorrect ? question.correctAnswerIndex : -1;
+      if (isCorrect) score++;
+    });
+    unawaited(_playQuestionFeedback(question, isCorrect));
+    unawaited(_recordQuestionResult(question, isCorrect));
   }
 
   String _answerFeedbackText(Question question) {
@@ -1115,6 +1557,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     }
 
     final type = question.type?.toLowerCase();
+    if (type == 'matching') {
+      return 'Oh no, better luck next time!';
+    }
+    if (type == 'dragdropspelling') {
+      return 'Not quite! Remember to check the letter order.';
+    }
     if (type == 'stroke_trace') {
       return 'Not quite. Watch the stroke order and try again later.';
     }
@@ -1124,15 +1572,24 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     if (type == 'keyinnumber' && question.correctNumber != null) {
       return 'Not quite! The answer is ${question.correctNumber}.';
     }
-    if (question.correctAnswerIndex >= 0 &&
+
+    String? answer;
+    if ((type == 'fillblank' || type == 'fillblanklistening') &&
+        question.correctBlank != null &&
+        question.correctBlank!.isNotEmpty) {
+      answer = question.correctBlank;
+    } else if (question.correctAnswerIndex >= 0 &&
         question.correctAnswerIndex < question.options.length) {
-      final answer = question.options[question.correctAnswerIndex].text;
-      if (answer.isNotEmpty) return 'Not quite! The answer is "$answer".';
+      answer = question.options[question.correctAnswerIndex].text;
+    }
+
+    if (answer != null && answer.isNotEmpty) {
+      return 'Not quite! The answer is "$answer".';
     }
     return 'Not quite. Try again next time.';
   }
 
-  Widget _buildFillBlankQuestion(Question question) {
+  Widget _buildFillBlankQuestion(Question question, {Key? key}) {
     return Column(
       children: [
         const Text(
@@ -1153,7 +1610,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 opacity: 0.3,
                 child: _draggableOption(index, question, false),
               ),
-              child: isUsed && !_fillBlankSubmitted
+              child: isUsed
                   ? const SizedBox(width: 80, height: 40)
                   : _draggableOption(index, question, false),
             );
@@ -1323,6 +1780,30 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BearsDenChip extends StatelessWidget {
+  const _BearsDenChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8E1),
+          borderRadius: AppRadius.r(AppRadius.md),
+          border: Border.all(color: const Color(0xFFFCD34D)),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.tiny.copyWith(color: const Color(0xFF92400E)),
         ),
       ),
     );

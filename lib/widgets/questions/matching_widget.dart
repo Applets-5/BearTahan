@@ -5,29 +5,60 @@ import '../../theme/app_theme.dart';
 class MatchingWidget extends StatefulWidget {
   final Question question;
   final Function(bool isCorrect) onCompleted;
+  final VoidCallback? onCorrectMatch;
+  final VoidCallback? onWrongAttempt;
 
   const MatchingWidget({
     super.key,
     required this.question,
     required this.onCompleted,
+    this.onCorrectMatch,
+    this.onWrongAttempt,
   });
 
   @override
   State<MatchingWidget> createState() => _MatchingWidgetState();
 }
 
-class _MatchingWidgetState extends State<MatchingWidget> {
+class _MatchingWidgetState extends State<MatchingWidget>
+    with SingleTickerProviderStateMixin {
+  static const int maxAttempts = 3;
   late List<QuestionOption> _leftOptions;
   late List<QuestionOption> _rightOptions;
   QuestionOption? _selectedLeft;
   QuestionOption? _selectedRight;
   final Set<QuestionOption> _matchedOptions = {};
   bool _isWrongFlash = false;
+  int _attemptsUsed = 0;
+  bool _completed = false;
+
+  late final AnimationController _feedbackController;
+  late final Animation<double> _shakeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _feedbackController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _shakeAnimation =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 0, end: -8), weight: 1),
+          TweenSequenceItem(tween: Tween(begin: -8, end: 8), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 8, end: -6), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: -6, end: 6), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 6, end: 0), weight: 1),
+        ]).animate(
+          CurvedAnimation(parent: _feedbackController, curve: Curves.easeOut),
+        );
     _initGame();
+  }
+
+  @override
+  void dispose() {
+    _feedbackController.dispose();
+    super.dispose();
   }
 
   void _initGame() {
@@ -37,10 +68,12 @@ class _MatchingWidgetState extends State<MatchingWidget> {
     _selectedRight = null;
     _matchedOptions.clear();
     _isWrongFlash = false;
+    _attemptsUsed = 0;
+    _completed = false;
   }
 
   void _handleLeftTap(QuestionOption option) {
-    if (_matchedOptions.contains(option) || _isWrongFlash) return;
+    if (_matchedOptions.contains(option) || _isWrongFlash || _completed) return;
 
     setState(() {
       if (_selectedLeft == option) {
@@ -53,7 +86,7 @@ class _MatchingWidgetState extends State<MatchingWidget> {
   }
 
   void _handleRightTap(QuestionOption option) {
-    if (_matchedOptions.contains(option) || _isWrongFlash) return;
+    if (_matchedOptions.contains(option) || _isWrongFlash || _completed) return;
 
     setState(() {
       if (_selectedRight == option) {
@@ -69,6 +102,7 @@ class _MatchingWidgetState extends State<MatchingWidget> {
     if (_selectedLeft != null && _selectedRight != null) {
       if (_selectedLeft == _selectedRight) {
         // Success
+        widget.onCorrectMatch?.call();
         setState(() {
           _matchedOptions.add(_selectedLeft!);
           _selectedLeft = null;
@@ -76,10 +110,24 @@ class _MatchingWidgetState extends State<MatchingWidget> {
         });
 
         if (_matchedOptions.length == widget.question.options.length) {
+          _completed = true;
           widget.onCompleted(true);
         }
       } else {
         // Wrong
+        _attemptsUsed++;
+        widget.onWrongAttempt?.call();
+        _feedbackController.forward(from: 0);
+
+        if (_attemptsUsed >= maxAttempts) {
+          setState(() {
+            _completed = true;
+            _isWrongFlash = true;
+          });
+          widget.onCompleted(false);
+          return;
+        }
+
         setState(() {
           _isWrongFlash = true;
         });
@@ -102,41 +150,117 @@ class _MatchingWidgetState extends State<MatchingWidget> {
       children: [
         if (widget.question.text.isNotEmpty) ...[
           Text(widget.question.text, style: AppTextStyles.bodyBold),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.sm),
         ],
+        _buildAttemptProgress(),
+        const SizedBox(height: AppSpacing.md),
+        AnimatedBuilder(
+          animation: _feedbackController,
+          builder: (context, child) => Transform.translate(
+            offset: Offset(_shakeAnimation.value, 0),
+            child: child,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left Column: Options
+              Expanded(
+                child: Column(
+                  children: _leftOptions.map((option) {
+                    return _buildMatchCard(
+                      text: option.text,
+                      imageUrl: option.text.isEmpty ? option.imageUrl : null,
+                      isSelected: _selectedLeft == option,
+                      isMatched: _matchedOptions.contains(option),
+                      isWrong: _isWrongFlash && _selectedLeft == option,
+                      onTap: () => _handleLeftTap(option),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              // Right Column: Pairs
+              Expanded(
+                child: Column(
+                  children: _rightOptions.map((option) {
+                    return _buildMatchCard(
+                      text: option.pairText,
+                      imageUrl:
+                          option.pairImageUrl ??
+                          (option.pairText == null ? option.imageUrl : null),
+                      isSelected: _selectedRight == option,
+                      isMatched: _matchedOptions.contains(option),
+                      isWrong: _isWrongFlash && _selectedRight == option,
+                      onTap: () => _handleRightTap(option),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAttemptProgress() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Attempts', style: AppTextStyles.tiny),
+        const SizedBox(height: AppSpacing.xs),
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left Column: Texts
-            Expanded(
-              child: Column(
-                children: _leftOptions.map((option) {
-                  return _buildMatchCard(
-                    text: option.text,
-                    isSelected: _selectedLeft == option,
-                    isMatched: _matchedOptions.contains(option),
-                    isWrong: _isWrongFlash && _selectedLeft == option,
-                    onTap: () => _handleLeftTap(option),
-                  );
-                }).toList(),
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(maxAttempts, (index) {
+            final failed = index < _attemptsUsed;
+            final current = !_completed && !failed && index == _attemptsUsed;
+            final successful =
+                _completed &&
+                _attemptsUsed < maxAttempts &&
+                _matchedOptions.length == widget.question.options.length;
+
+            final color = failed
+                ? AppColors.destructive
+                : (successful &&
+                      index == _attemptsUsed.clamp(0, maxAttempts - 1))
+                ? AppColors.accent
+                : current
+                ? AppColors.primary
+                : AppColors.border;
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color:
+                      failed ||
+                          (successful &&
+                              index == _attemptsUsed.clamp(0, maxAttempts - 1))
+                      ? color
+                      : AppColors.card,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: color, width: current ? 2 : 1),
+                ),
+                child: Icon(
+                  failed
+                      ? Icons.close_rounded
+                      : (successful &&
+                            index == _attemptsUsed.clamp(0, maxAttempts - 1))
+                      ? Icons.check_rounded
+                      : Icons.circle,
+                  size: failed || successful ? 12 : 6,
+                  color: failed || successful
+                      ? Colors.white
+                      : current
+                      ? AppColors.primary
+                      : AppColors.border,
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            // Right Column: Images
-            Expanded(
-              child: Column(
-                children: _rightOptions.map((option) {
-                  return _buildMatchCard(
-                    imageUrl: option.imageUrl,
-                    isSelected: _selectedRight == option,
-                    isMatched: _matchedOptions.contains(option),
-                    isWrong: _isWrongFlash && _selectedRight == option,
-                    onTap: () => _handleRightTap(option),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
+            );
+          }),
         ),
       ],
     );

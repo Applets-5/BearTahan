@@ -29,17 +29,21 @@ dependencies:
   # Audio
   flutter_tts: ^4.0.0
   audioplayers: ^6.1.1
+  flutter_cache_manager: ^3.4.1
 
   # Routing
   go_router: ^17.2.3
 
   # Utilities
-  intl: ^0.20.2               
+  intl: ^0.20.2
+  crypto: ^3.0.6
+  path_provider: ^2.1.5
   firebase_ui_oauth_google: ^2.0.1
   stroke_order_animator: ^3.3.1
   fl_chart: ^1.2.0
   cloud_functions: ^6.3.2
   google_fonts: ^8.1.0
+  shared_preferences: ^2.5.5
   flutter_markdown: ^0.7.7+1
 
 dev_dependencies:

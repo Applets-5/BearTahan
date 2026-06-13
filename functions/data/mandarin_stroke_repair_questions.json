@@ -1,0 +1,34 @@
+[
+  {
+    "id": "bc_c1_l3_q01",
+    "characterUnicode": "一",
+    "prompt": "写一写",
+    "questionType": "stroke_trace",
+    "type": "stroke_trace",
+    "difficulty": 3
+  },
+  {
+    "id": "bc_c1_l3_q02",
+    "characterUnicode": "丨",
+    "prompt": "写一写",
+    "questionType": "stroke_trace",
+    "type": "stroke_trace",
+    "difficulty": 3
+  },
+  {
+    "id": "bc_c1_l3_q03",
+    "characterUnicode": "丿",
+    "prompt": "写一写",
+    "questionType": "stroke_trace",
+    "type": "stroke_trace",
+    "difficulty": 3
+  },
+  {
+    "id": "bc_c1_l3_q04",
+    "characterUnicode": "㇏",
+    "prompt": "写一写",
+    "questionType": "stroke_trace",
+    "type": "stroke_trace",
+    "difficulty": 3
+  }
+]

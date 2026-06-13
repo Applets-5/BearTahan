@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/data_providers.dart';
+import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/missing_child_profile.dart';
@@ -56,6 +57,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     final userProfileAsync = ref.watch(userProfileProvider(childId));
+    final soundEffectsAsync = ref.watch(soundEffectsProvider);
 
     return SafeArea(
       child: Stack(
@@ -83,74 +85,112 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Row(
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.md,
+                  childAspectRatio: 1.3,
                   children: [
-                    Expanded(
-                      child: StatCard(
-                        icon: Icons.star,
-                        label: 'Available',
-                        value: profile.availableStars.toString(),
-                        color: AppColors.star,
-                      ),
+                    StatCard(
+                      icon: Icons.star,
+                      label: 'Available',
+                      value: profile.availableStars.toString(),
+                      color: AppColors.star,
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: StatCard(
-                        icon: Icons.auto_awesome,
-                        label: 'Total Earned',
-                        value: profile.lifetimeStarsEarned.toString(),
-                        color: AppColors.star,
-                      ),
+                    StatCard(
+                      icon: Icons.auto_awesome,
+                      label: 'Total Earned',
+                      value: profile.lifetimeStarsEarned.toString(),
+                      color: AppColors.star,
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Consumer(
-                        builder: (context, ref, child) {
-                          final progressAsync = ref.watch(
-                            subjectProgressProvider(childId),
-                          );
-                          return progressAsync.maybeWhen(
-                            data: (list) {
-                              final totalProgress = list.fold(
-                                0,
-                                (sum, s) => sum + s.progress,
-                              );
-                              return StatCard(
-                                icon: Icons.menu_book,
-                                label: 'Progress',
-                                value:
-                                    '${totalProgress ~/ (list.isEmpty ? 1 : list.length)}%',
-                                color: AppColors.primary,
-                              );
-                            },
-                            orElse: () => const StatCard(
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final progressAsync = ref.watch(
+                          subjectProgressProvider(childId),
+                        );
+                        return progressAsync.maybeWhen(
+                          data: (list) {
+                            final totalProgress = list.fold(
+                              0,
+                              (sum, s) => sum + s.progress,
+                            );
+                            return StatCard(
                               icon: Icons.menu_book,
                               label: 'Progress',
-                              value: '0%',
+                              value:
+                                  '${totalProgress ~/ (list.isEmpty ? 1 : list.length)}%',
                               color: AppColors.primary,
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                          orElse: () => const StatCard(
+                            icon: Icons.menu_book,
+                            label: 'Progress',
+                            value: '0%',
+                            color: AppColors.primary,
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: StatCard(
-                        icon: Icons.local_fire_department,
-                        label: 'Streak',
-                        value: '${profile.streakCount}d',
-                        color: AppColors.destructive,
-                        onTap: () {
-                          context.push(
-                            Uri(
-                              path: AppRouter.streak,
-                              queryParameters: {'childId': childId},
-                            ).toString(),
-                          );
-                        },
-                      ),
+                    StatCard(
+                      icon: Icons.local_fire_department,
+                      label: 'Streak',
+                      value: '${profile.streakCount}d',
+                      color: AppColors.destructive,
+                      onTap: () {
+                        context.push(
+                          Uri(
+                            path: AppRouter.streak,
+                            queryParameters: {'childId': childId},
+                          ).toString(),
+                        );
+                      },
                     ),
                   ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: AppRadius.r(AppRadius.lg),
+                    boxShadow: AppShadows.card,
+                  ),
+                  child: SwitchListTile.adaptive(
+                    value: soundEffectsAsync.value ?? true,
+                    onChanged: soundEffectsAsync.isLoading
+                        ? null
+                        : (enabled) async {
+                            try {
+                              await ref
+                                  .read(soundEffectsProvider.notifier)
+                                  .setEnabled(enabled);
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Error updating sound effects: $e',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                    secondary: Icon(
+                      (soundEffectsAsync.value ?? true)
+                          ? Icons.volume_up_rounded
+                          : Icons.volume_off_rounded,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Sound effects',
+                      style: AppTextStyles.bodyBold,
+                    ),
+                    subtitle: const Text(
+                      'Quiz feedback and completion sounds',
+                      style: AppTextStyles.small,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 FilledButton.icon(

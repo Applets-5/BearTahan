@@ -10,13 +10,18 @@ import '../models/reward_claim.dart';
 import '../models/notification.dart';
 import '../models/outfit_quest.dart';
 import '../models/star_transaction.dart';
+import '../features/bears_den/bears_den_demo_data.dart';
 import '../services/firestore_service.dart';
 import '../services/security_service.dart';
+import '../services/session_asset_preloader.dart';
 import '../services/tts_service.dart';
 
 final firestoreServiceProvider = Provider((ref) => FirestoreService());
 final securityServiceProvider = Provider((ref) => SecurityService());
 final ttsServiceProvider = Provider((ref) => TtsService());
+final sessionAssetPreloaderProvider = Provider(
+  (ref) => SessionAssetPreloader(ttsService: ref.watch(ttsServiceProvider)),
+);
 final firebaseAuthProvider = Provider((ref) => FirebaseAuth.instance);
 
 final authStateProvider = StreamProvider<User?>((ref) {
@@ -118,6 +123,15 @@ final questionsProvider = FutureProvider.family<List<Question>, String>((
   return ref.watch(firestoreServiceProvider).getQuestions(prefix);
 });
 
+final bearsDenQuestionsProvider = FutureProvider.autoDispose<List<Question>>((
+  ref,
+) {
+  return ref
+      .watch(firestoreServiceProvider)
+      .getQuestions('bi_')
+      .then(BearsDenDemoData.selectSession);
+});
+
 final levelStarsProvider =
     StreamProvider.family<
       Map<String, int>,
@@ -134,6 +148,20 @@ final levelStarsProvider =
           .streamLevelStars(parentId, arg.childId, arg.subjectId);
     });
 
+final levelProgressProvider =
+    FutureProvider.family<
+      Map<String, dynamic>,
+      ({String childId, String subjectId, String levelId})
+    >((ref, arg) {
+      final parentId = ref.watch(parentIdProvider);
+      if (parentId.isEmpty || arg.childId.isEmpty) {
+        return <String, dynamic>{};
+      }
+      return ref
+          .watch(firestoreServiceProvider)
+          .getLevelProgress(parentId, arg.childId, arg.subjectId, arg.levelId);
+    });
+
 final starTransactionsProvider =
     StreamProvider.family<
       List<StarTransaction>,
@@ -146,6 +174,19 @@ final starTransactionsProvider =
           .watch(firestoreServiceProvider)
           .streamStarTransactions(arg.parentId, arg.childId);
     });
+
+final wrongAnswerCountProvider = StreamProvider.family<int, String>((
+  ref,
+  childId,
+) {
+  final parentId = ref.watch(parentIdProvider);
+  if (childId.isEmpty || parentId.isEmpty) {
+    return Stream.value(0);
+  }
+  return ref
+      .watch(firestoreServiceProvider)
+      .streamWrongAnswerCount(parentId, childId);
+});
 
 final subjectChaptersProvider =
     FutureProvider.family<List<ChapterData>, String>((ref, subjectId) {
