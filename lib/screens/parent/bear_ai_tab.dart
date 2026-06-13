@@ -319,30 +319,51 @@ class _BearAITabState extends ConsumerState<BearAITab> {
 
   List<String> _generateDynamicChips(dynamic child, List<Subject> subjects) {
     final chips = <String>[];
+    final sorted = List<Subject>.from(subjects)
+      ..sort((a, b) => a.progress.compareTo(b.progress));
 
-    chips.add("📊 This week's summary");
+    // Always useful
+    chips.add("📅 What should ${child.name} do today?");
 
-    // Issue 9: Empty check to prevent crash
-    if (subjects.isNotEmpty) {
-      // Sort to find weakest
-      final sorted = List<Subject>.from(subjects)
-        ..sort((a, b) => a.progress.compareTo(b.progress));
-      final weakest = sorted.first;
+    // Weakness-aware
+    final needsWork = sorted.where((s) => s.progress < 50).toList();
+    final almostThere =
+        sorted.where((s) => s.progress >= 50 && s.progress < 80).toList();
 
-      if (weakest.progress < 50) {
-        chips.add("⚠️ Why is ${weakest.id.toUpperCase()} low?");
-      }
+    if (needsWork.isNotEmpty) {
+      final subj = _subjectName(needsWork.first.id);
+      chips.add("💪 How can I help with $subj?");
+    } else if (almostThere.isNotEmpty) {
+      final subj = _subjectName(almostThere.first.id);
+      chips.add("🎯 ${child.name} is close in $subj — what next?");
     }
 
-    chips.add("🎯 Suggest a daily goal");
-
-    if (child.streakCount > 3) {
-      chips.add("🔥 Streak tips");
+    // Streak-aware
+    if ((child.streakCount ?? 0) == 0) {
+      chips.add("🔥 How do I restart ${child.name}'s streak?");
+    } else if ((child.streakCount ?? 0) > 7) {
+      chips.add("🏆 Celebrate ${child.name}'s ${child.streakCount}-day streak!");
     }
 
-    chips.add("🔁 Repeated mistakes");
+    // Stars-aware
+    if ((child.availableStars ?? 0) > 30) {
+      chips.add("⭐ ${child.name} has lots of stars — reward ideas?");
+    }
 
-    return chips;
+    chips.add("📊 Explain ${child.name}'s Bear's Den sessions");
+
+    return chips.take(4).toList();
+  }
+
+  String _subjectName(String id) {
+    const map = {
+      'bm': 'Bahasa Melayu',
+      'bi': 'English',
+      'bc': 'Mandarin',
+      'math': 'Maths',
+      'sci': 'Science',
+    };
+    return map[id] ?? id.toUpperCase();
   }
 
   Widget _buildChatInput(BearAiState aiState, AsyncValue childProfileAsync) {

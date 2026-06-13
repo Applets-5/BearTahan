@@ -119,6 +119,7 @@ class BearAiNotifier extends Notifier<Map<String, BearAiState>> {
     }
 
     try {
+      debugPrint("🐻 Calling BearAI (askBearAi) for child: $childId");
       final result =
           await FirebaseFunctions.instanceFor(region: 'asia-southeast1')
               .httpsCallable('askBearAi')
@@ -129,6 +130,8 @@ class BearAiNotifier extends Notifier<Map<String, BearAiState>> {
         role: MessageRole.assistant,
       );
 
+      debugPrint("🐻 BearAI Response Received: ${assistantMessage.content}");
+
       final updatedState = _getState(childId);
       _updateState(
         childId,
@@ -138,7 +141,12 @@ class BearAiNotifier extends Notifier<Map<String, BearAiState>> {
         ),
       );
     } catch (e) {
-      debugPrint("🐻 BearAI Error: $e");
+      if (e is FirebaseFunctionsException) {
+        debugPrint("🐻 BearAI Error (${e.code}): ${e.message}");
+        debugPrint("🐻 BearAI Error Details: ${e.details}");
+      } else {
+        debugPrint("🐻 BearAI Error: $e");
+      }
 
       String errorText = "Couldn't reach BearAI. Tap to try again.";
       if (e is FirebaseFunctionsException && e.code == 'resource-exhausted') {
