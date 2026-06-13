@@ -206,7 +206,8 @@ class Question {
       }
 
       // Split by common delimiters
-      final segments = str.split(RegExp(r'\s*[,;|]\s*'))
+      final segments = str
+          .split(RegExp(r'\s*[,;|]\s*'))
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList();
@@ -219,11 +220,15 @@ class Question {
         if (normSegment.isEmpty) continue;
 
         // Try exact match first
-        int matchIndex = optionsPool.indexWhere((o) => o.text.trim() == segment);
+        int matchIndex = optionsPool.indexWhere(
+          (o) => o.text.trim() == segment,
+        );
 
         // Fallback to normalized match
         if (matchIndex == -1) {
-          matchIndex = optionsPool.indexWhere((o) => normalize(o.text) == normSegment);
+          matchIndex = optionsPool.indexWhere(
+            (o) => normalize(o.text) == normSegment,
+          );
         }
 
         if (matchIndex != -1) {

@@ -1117,7 +1117,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           child: ReorderableListView(
             shrinkWrap: true,
             physics: const ClampingScrollPhysics(),
-            buildDefaultDragHandles: false, // Disable default long-press handles
+            buildDefaultDragHandles:
+                false, // Disable default long-press handles
             onReorderItem: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
@@ -1126,7 +1127,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               });
             },
             children: [
-
               for (int i = 0; i < _rearrangeOrder!.length; i++)
                 _reorderableItem(i, question),
             ],
@@ -1140,8 +1140,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               bool isCorrect = true;
               if (question.correctOrder != null) {
                 for (int i = 0; i < _rearrangeOrder!.length; i++) {
-                  final currentText =
-                      question.options[_rearrangeOrder![i]].text.trim();
+                  final currentText = question.options[_rearrangeOrder![i]].text
+                      .trim();
                   if (i >= question.correctOrder!.length ||
                       currentText != question.correctOrder![i].trim()) {
                     isCorrect = false;

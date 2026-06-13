@@ -250,14 +250,13 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget>
             final successful =
                 _isSubmitted && !_isWrong && index == _attemptsUsed;
 
-            final color =
-                failed
-                    ? AppColors.destructive
-                    : successful
-                    ? AppColors.accent
-                    : current
-                    ? AppColors.primary
-                    : AppColors.border;
+            final color = failed
+                ? AppColors.destructive
+                : successful
+                ? AppColors.accent
+                : current
+                ? AppColors.primary
+                : AppColors.border;
 
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
@@ -277,12 +276,11 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget>
                       ? Icons.check_rounded
                       : Icons.circle,
                   size: failed || successful ? 12 : 6,
-                  color:
-                      failed || successful
-                          ? Colors.white
-                          : current
-                          ? AppColors.primary
-                          : AppColors.border,
+                  color: failed || successful
+                      ? Colors.white
+                      : current
+                      ? AppColors.primary
+                      : AppColors.border,
                 ),
               ),
             );
