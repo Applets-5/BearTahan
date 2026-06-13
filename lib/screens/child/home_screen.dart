@@ -227,140 +227,183 @@ class _ForestHero extends ConsumerWidget {
           ),
         ],
       ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            left: 6,
-            top: 14,
-            child: Image.asset('assets/images/cloud1.png', width: 80),
-          ),
-          Positioned(
-            right: 6,
-            top: 48,
-            child: Image.asset('assets/images/cloud2.png', width: 65),
-          ),
-          const Positioned(right: 34, bottom: 26, child: _Sparkle(size: 18)),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Image.asset(
-              'assets/images/grass.png',
-              fit: BoxFit.fitWidth,
-              height: 44,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(34),
+        child: Stack(
+          children: [
+            // Sky background fills the whole card via the Column below
+            Positioned(
+              left: 6,
+              top: 14,
+              child: Image.asset('assets/images/cloud1.png', width: 80),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 32),
-            child: Column(
+            Positioned(
+              right: 6,
+              top: 48,
+              child: Image.asset('assets/images/cloud2.png', width: 65),
+            ),
+            const Positioned(right: 34, bottom: 52, child: _Sparkle(size: 18)),
+            // Grass background positioned behind the content
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: -30,
+              child: Image.asset(
+                'assets/images/grass.png',
+                fit: BoxFit.fitWidth,
+                alignment: Alignment.bottomCenter,
+              ),
+            ),
+            // Column is the sizing child
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'BearTahan',
-                        style: _AdventureText.logo(context),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    userProfileAsync.when(
-                      data: (profile) => Row(
-                        mainAxisSize: MainAxisSize.min,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _HeroStatPill(
-                            icon: Icons.local_fire_department_rounded,
-                            iconColor: const Color(0xFFFF6B35),
-                            value: profile.streakCount.toString(),
-                            label: 'Day Streak',
-                            onTap: () {
-                              context.push(
-                                Uri(
-                                  path: AppRouter.streak,
-                                  queryParameters: {'childId': childId},
-                                ).toString(),
-                              );
-                            },
+                          Expanded(
+                            child: Text(
+                              'BearTahan',
+                              style: _AdventureText.logo(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          _HeroStatPill(
-                            icon: Icons.star_rounded,
-                            iconColor: const Color(0xFFFFC400),
-                            value: profile.lifetimeStarsEarned.toString(),
-                            label: 'Total Stars',
+                          userProfileAsync.when(
+                            data: (profile) => Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _HeroStatPill(
+                                  icon: Icons.local_fire_department_rounded,
+                                  iconColor: const Color(0xFFFF6B35),
+                                  value: profile.streakCount.toString(),
+                                  label: 'Day Streak',
+                                  onTap: () {
+                                    context.push(
+                                      Uri(
+                                        path: AppRouter.streak,
+                                        queryParameters: {'childId': childId},
+                                      ).toString(),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                _HeroStatPill(
+                                  icon: Icons.star_rounded,
+                                  iconColor: const Color(0xFFFFC400),
+                                  value: profile.lifetimeStarsEarned.toString(),
+                                  label: 'Total Stars',
+                                ),
+                              ],
+                            ),
+                            loading: () => const _HeroStatsSkeleton(),
+                            error: (_, _) => const _HeroStatsSkeleton(),
                           ),
                         ],
                       ),
-                      loading: () => const _HeroStatsSkeleton(),
-                      error: (_, _) => const _HeroStatsSkeleton(),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              TweenAnimationBuilder<double>(
+                                tween: Tween(begin: 0.96, end: 1),
+                                duration: const Duration(milliseconds: 900),
+                                curve: Curves.elasticOut,
+                                builder: (context, scale, child) {
+                                  return Transform.scale(
+                                    scale: scale,
+                                    child: child,
+                                  );
+                                },
+                                child: ActiveMascotWidget(
+                                  childId: childId,
+                                  size: constraints.maxWidth >= 600
+                                      ? 120
+                                      : (constraints.maxWidth < 380 ? 72 : 88),
+                                  showBackground: false,
+                                  mood: MascotMood.cheering,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    10,
+                                    12,
+                                    10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.94),
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 3,
+                                    ),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Color(0x1A3B7CA8),
+                                        blurRadius: 18,
+                                        offset: Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      userProfileAsync.when(
+                                        data: (profile) => Text(
+                                          'Hi ${profile.name}!',
+                                          style: _AdventureText.heroTitle(
+                                            context,
+                                          ),
+                                        ),
+                                        loading: () => Text(
+                                          'Hi Explorer!',
+                                          style: _AdventureText.heroTitle(
+                                            context,
+                                          ),
+                                        ),
+                                        error: (_, _) => Text(
+                                          'Hi Explorer!',
+                                          style: _AdventureText.heroTitle(
+                                            context,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "Let's learn something fun today!",
+                                        style: _AdventureText.heroSubtitle(
+                                          context,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.96, end: 1),
-                          duration: const Duration(milliseconds: 900),
-                          curve: Curves.elasticOut,
-                          builder: (context, scale, child) {
-                            return Transform.scale(scale: scale, child: child);
-                          },
-                          child: ActiveMascotWidget(
-                            childId: childId,
-                            size: constraints.maxWidth >= 600
-                                ? 120
-                                : (constraints.maxWidth < 380 ? 72 : 88),
-                            showBackground: false,
-                            mood: MascotMood.cheering,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.94),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x1A3B7CA8),
-                                  blurRadius: 18,
-                                  offset: Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Hi Explorer!',
-                                  style: _AdventureText.heroTitle(context),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "Let's learn something fun today!",
-                                  style: _AdventureText.heroSubtitle(context),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                // Padding bottom for the column to keep content above grass visually
+                const SizedBox(height: 36),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -434,14 +477,18 @@ class _HeroStatPill extends StatelessWidget {
             children: [
               Icon(icon, color: iconColor, size: small ? 16 : 18),
               const SizedBox(height: 2),
-              Text(value,
-                  style: _AdventureText.statValue(context),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1),
-              Text(label,
-                  style: _AdventureText.statLabel(context),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1),
+              Text(
+                value,
+                style: _AdventureText.statValue(context),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              Text(
+                label,
+                style: _AdventureText.statLabel(context),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ],
           ),
         ),
@@ -566,41 +613,74 @@ class _AdventureProgressCard extends StatelessWidget {
             children: [
               SizedBox(
                 height: MediaQuery.of(context).size.width < 400 ? 56 : 66,
-                child: Stack(
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _AdventureTrailPainter(progressValue),
-                      ),
-                    ),
-                    Positioned(
-                      left: 0,
-                      bottom: 8,
-                      child: MascotWidget(
-                        size: 44,
-                        showBackground: false,
-                        mood: MascotMood.idle,
-                      ),
-                    ),
-                    Positioned(
-                      right: 2,
-                      bottom: 8,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF8CD867),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(
-                          Icons.forest_rounded,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final size = constraints.biggest;
+                    final path = Path()
+                      ..moveTo(26, size.height * 0.62)
+                      ..cubicTo(
+                        size.width * 0.28,
+                        size.height * 0.22,
+                        size.width * 0.58,
+                        size.height * 0.92,
+                        size.width - 32,
+                        size.height * 0.56,
+                      );
+
+                    return TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: progressValue),
+                      duration: const Duration(milliseconds: 1000),
+                      curve: Curves.easeInOutCubic,
+                      builder: (context, animValue, child) {
+                        Offset mascotOffset = const Offset(26, 0);
+                        for (final metric in path.computeMetrics()) {
+                          final tangent = metric.getTangentForOffset(
+                            metric.length * animValue,
+                          );
+                          if (tangent != null) {
+                            mascotOffset = tangent.position;
+                          }
+                        }
+
+                        return Stack(
+                          alignment: Alignment.centerLeft,
+                          children: [
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: _AdventureTrailPainter(animValue),
+                              ),
+                            ),
+                            Positioned(
+                              left: mascotOffset.dx - 22,
+                              top: mascotOffset.dy - 36,
+                              child: MascotWidget(
+                                size: 44,
+                                showBackground: false,
+                                mood: MascotMood.idle,
+                              ),
+                            ),
+                            Positioned(
+                              right: 2,
+                              bottom: 8,
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8CD867),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.forest_rounded,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 6),
@@ -851,7 +931,12 @@ class _SubjectIllustration extends StatelessWidget {
           ),
           Positioned(
             bottom: 8,
-            child: Icon(world.illustrationIcon, color: world.accent, size: 62),
+            child: Image.asset(
+              world.illustrationIcon,
+              width: 62,
+              height: 62,
+              fit: BoxFit.contain,
+            ),
           ),
           Positioned(
             right: 3,
@@ -887,7 +972,7 @@ class _SubjectWorld {
   final String title;
   final String subtitle;
   final IconData icon;
-  final IconData illustrationIcon;
+  final String illustrationIcon;
   final Color accent;
   final Color titleColor;
   final List<Color> gradientColors;
@@ -910,7 +995,7 @@ class _SubjectWorld {
           title: 'Reading Island',
           subtitle: 'English Adventure',
           icon: Icons.menu_book_rounded,
-          illustrationIcon: Icons.local_library_rounded,
+          illustrationIcon: 'assets/images/river.png',
           accent: const Color(0xFF3A8DFF),
           titleColor: const Color(0xFF17427E),
           gradientColors: const [Color(0xFFBDEBFF), Color(0xFFE9F8FF)],
@@ -924,7 +1009,7 @@ class _SubjectWorld {
           title: 'Number Mountain',
           subtitle: 'Math Adventure',
           icon: Icons.calculate_rounded,
-          illustrationIcon: Icons.terrain_rounded,
+          illustrationIcon: 'assets/images/mountain.png',
           accent: const Color(0xFFA855F7),
           titleColor: const Color(0xFF402065),
           gradientColors: const [Color(0xFFE3C8FF), Color(0xFFF3E8FF)],
@@ -938,7 +1023,7 @@ class _SubjectWorld {
           title: 'Panda Language Garden',
           subtitle: 'Mandarin',
           icon: Icons.translate_rounded,
-          illustrationIcon: Icons.yard_rounded,
+          illustrationIcon: 'assets/images/panda.png',
           accent: const Color(0xFF57B846),
           titleColor: const Color(0xFF1E5F1E),
           gradientColors: const [Color(0xFFD8F8BE), Color(0xFFF0FFE8)],
@@ -952,7 +1037,7 @@ class _SubjectWorld {
           title: 'Story Jungle',
           subtitle: 'Bahasa Melayu',
           icon: Icons.edit_rounded,
-          illustrationIcon: Icons.forest_rounded,
+          illustrationIcon: 'assets/images/jungle.png',
           accent: const Color(0xFFFF7A2F),
           titleColor: const Color(0xFF7A2C13),
           gradientColors: const [Color(0xFFFFDFAC), Color(0xFFFFF2D8)],
@@ -966,7 +1051,7 @@ class _SubjectWorld {
           title: 'Discovery Grove',
           subtitle: 'Science Explorer',
           icon: Icons.science_rounded,
-          illustrationIcon: Icons.eco_rounded,
+          illustrationIcon: 'assets/images/den.png',
           accent: const Color(0xFF16A085),
           titleColor: const Color(0xFF0D5F51),
           gradientColors: const [Color(0xFFC7F7E8), Color(0xFFE9FFF6)],
@@ -980,7 +1065,7 @@ class _SubjectWorld {
           title: fallbackName,
           subtitle: fallbackSubtitle,
           icon: Icons.explore_rounded,
-          illustrationIcon: Icons.auto_awesome_rounded,
+          illustrationIcon: 'assets/images/beartahan.png',
           accent: const Color(0xFF8CD867),
           titleColor: const Color(0xFF275A24),
           gradientColors: const [Color(0xFFE5FFD8), Color(0xFFFFFFFF)],
@@ -1220,14 +1305,6 @@ class _AdventureText {
       fontSize: (12 * _fontScale(context)).clamp(0.0, 13.0),
       fontWeight: FontWeight.w800,
       color: const Color(0xFF5C341E),
-    );
-  }
-
-  static TextStyle rewardLabel(BuildContext context) {
-    return Theme.of(context).textTheme.labelMedium!.copyWith(
-      fontSize: 13 * _fontScale(context),
-      fontWeight: FontWeight.w900,
-      color: const Color(0xFF8B4B25),
     );
   }
 
