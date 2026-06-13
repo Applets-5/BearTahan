@@ -13,11 +13,15 @@ import '../models/star_transaction.dart';
 import '../features/bears_den/bears_den_demo_data.dart';
 import '../services/firestore_service.dart';
 import '../services/security_service.dart';
+import '../services/session_asset_preloader.dart';
 import '../services/tts_service.dart';
 
 final firestoreServiceProvider = Provider((ref) => FirestoreService());
 final securityServiceProvider = Provider((ref) => SecurityService());
 final ttsServiceProvider = Provider((ref) => TtsService());
+final sessionAssetPreloaderProvider = Provider(
+  (ref) => SessionAssetPreloader(ttsService: ref.watch(ttsServiceProvider)),
+);
 final firebaseAuthProvider = Provider((ref) => FirebaseAuth.instance);
 
 final authStateProvider = StreamProvider<User?>((ref) {

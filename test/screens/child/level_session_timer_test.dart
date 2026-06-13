@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,10 +9,38 @@ import 'package:bear_tahan/screens/child/level_session_screen.dart';
 import 'package:bear_tahan/providers/data_providers.dart';
 import 'package:bear_tahan/models/question.dart';
 import 'package:bear_tahan/services/firestore_service.dart';
+import 'package:bear_tahan/services/session_asset_preloader.dart';
+import 'package:bear_tahan/services/tts_service.dart';
 import 'package:bear_tahan/models/level_progress_result.dart';
 import 'package:bear_tahan/router/app_router.dart';
 
 class MockFirestoreService extends Mock implements FirestoreService {}
+
+class MockTtsService extends Mock implements TtsService {}
+
+class ControlledSessionAssetPreloader extends SessionAssetPreloader {
+  ControlledSessionAssetPreloader(this.gate)
+    : super(ttsService: MockTtsService());
+
+  final Future<void> gate;
+
+  @override
+  Future<SessionPreparationReport> preload({
+    required BuildContext context,
+    required List<Question> questions,
+    required String Function(Question question) languageForQuestion,
+    Duration timeout = const Duration(seconds: 10),
+    PreparationProgressCallback? onProgress,
+  }) async {
+    await gate;
+    return const SessionPreparationReport(
+      completedAssets: 0,
+      totalAssets: 0,
+      failedAssets: 0,
+      timedOut: false,
+    );
+  }
+}
 
 void main() {
   late MockFirestoreService mockFirestoreService;
@@ -106,7 +136,10 @@ void main() {
     ).thenAnswer((_) async => {});
   });
 
-  Widget createTestableWidget({List<Question>? reviewQuestions}) {
+  Widget createTestableWidget({
+    List<Question>? reviewQuestions,
+    SessionAssetPreloader? assetPreloader,
+  }) {
     final router = GoRouter(
       initialLocation: '/test-level',
       routes: [
@@ -136,12 +169,43 @@ void main() {
         parentSettingsProvider.overrideWith(
           (ref) => Stream.value({'soundEffects': true}),
         ),
+        sessionAssetPreloaderProvider.overrideWithValue(
+          assetPreloader ??
+              ControlledSessionAssetPreloader(Future<void>.value()),
+        ),
       ],
       child: MaterialApp.router(routerConfig: router),
     );
   }
 
   group('Level Session Timer Tests', () {
+    testWidgets('Timer starts only after session preparation completes', (
+      WidgetTester tester,
+    ) async {
+      final preparationGate = Completer<void>();
+      await tester.pumpWidget(
+        createTestableWidget(
+          assetPreloader: ControlledSessionAssetPreloader(
+            preparationGate.future,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Preparing your adventure'), findsOneWidget);
+      expect(find.text('00:00'), findsNothing);
+
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.text('00:00'), findsNothing);
+
+      preparationGate.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('00:00'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('00:02'), findsOneWidget);
+    });
+
     testWidgets('Timer is visible and starts at 00:00', (
       WidgetTester tester,
     ) async {

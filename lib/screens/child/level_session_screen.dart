@@ -51,9 +51,14 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   int currentQuestionIndex = 0;
   int score = 0;
   Timer? _sessionTimer;
+  Timer? _loadingQuoteTimer;
   int _elapsedSeconds = 0;
   bool _timerStarted = false;
   bool _isSaving = false;
+  bool _assetsPrepared = false;
+  int _preparedAssetCount = 0;
+  int _totalAssetCount = 0;
+  int _loadingQuoteIndex = 0;
 
   int? selected;
   final TextEditingController _numberController = TextEditingController();
@@ -73,10 +78,27 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startSessionTimer();
-    });
+    _startLoadingQuotes();
     unawaited(_initializeSoundEffectAudio());
+  }
+
+  static const _loadingQuotes = [
+    'Hunting for the best questions...',
+    'Packing a basket of brainy challenges...',
+    'Building a den full of bright ideas...',
+    'Putting every question in paw-fect order...',
+  ];
+
+  void _startLoadingQuotes() {
+    _loadingQuoteTimer?.cancel();
+    _loadingQuoteTimer = Timer.periodic(const Duration(milliseconds: 1800), (
+      _,
+    ) {
+      if (!mounted || _assetsPrepared) return;
+      setState(() {
+        _loadingQuoteIndex = (_loadingQuoteIndex + 1) % _loadingQuotes.length;
+      });
+    });
   }
 
   bool get _soundEffectsEnabled {
@@ -247,6 +269,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   @override
   void dispose() {
     _stopSessionTimer();
+    _loadingQuoteTimer?.cancel();
     unawaited(_disposeSoundEffectAudio());
     _numberController.dispose();
     super.dispose();
@@ -458,11 +481,71 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     return knownSubjects.contains(prefix) ? prefix : widget.subjectId;
   }
 
+  String _languageForQuestion(Question question) {
+    switch (_subjectIdForQuestion(question)) {
+      case 'bm':
+        return 'ms-MY';
+      case 'bi':
+        return 'en-GB';
+      case 'bc':
+        return 'zh-CN';
+      default:
+        return 'en-GB';
+    }
+  }
+
+  void _resetPreparation() {
+    shuffledQuestions = null;
+    _assetsPrepared = false;
+    _preparedAssetCount = 0;
+    _totalAssetCount = 0;
+    _loadingQuoteIndex = 0;
+    _startLoadingQuotes();
+  }
+
+  Future<void> _prepareSelectedQuestions() async {
+    final questions = shuffledQuestions;
+    if (questions == null || questions.isEmpty) return;
+
+    await ref
+        .read(sessionAssetPreloaderProvider)
+        .preload(
+          context: context,
+          questions: questions,
+          languageForQuestion: _languageForQuestion,
+          onProgress: (completed, total) {
+            if (!mounted) return;
+            setState(() {
+              _preparedAssetCount = completed;
+              _totalAssetCount = total;
+            });
+          },
+        );
+
+    if (!mounted) return;
+    _loadingQuoteTimer?.cancel();
+    _assetsPrepared = true;
+    _startSessionTimer();
+    setState(() {});
+  }
+
   Future<void> _initializeQuestions(List<Question> rawQuestions) async {
+    if (widget.reviewQuestions != null) {
+      final questionsById = <String, Question>{
+        for (final question in rawQuestions) question.id: question,
+      };
+      _reviewQuestionIds
+        ..clear()
+        ..addAll(questionsById.keys);
+      shuffledQuestions = questionsById.values.toList()..shuffle();
+      await _prepareSelectedQuestions();
+      return;
+    }
+
     if (widget.sessionMode == SessionMode.bearsDen) {
       final questions = List<Question>.from(rawQuestions)..shuffle();
       shuffledQuestions = questions;
-      if (mounted) setState(() {});
+      await _prepareSelectedQuestions();
       return;
     }
     final isSummary = widget.levelId.toLowerCase().contains('summary');
@@ -516,7 +599,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       final fallback = List<Question>.from(rawQuestions)..shuffle();
       shuffledQuestions = fallback.take(needsPrioritization ? 15 : 10).toList();
     }
-    if (mounted) setState(() {});
+    await _prepareSelectedQuestions();
   }
 
   @override
@@ -525,20 +608,26 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     if (widget.reviewQuestions != null) {
       final rawQuestions = widget.reviewQuestions!;
-      if (shuffledQuestions == null) {
-        final questionsById = <String, Question>{
-          for (final question in rawQuestions) question.id: question,
-        };
-        _reviewQuestionIds
-          ..clear()
-          ..addAll(questionsById.keys);
-        shuffledQuestions = questionsById.values.toList()..shuffle();
+      if (_lastRawQuestions != rawQuestions) {
+        _lastRawQuestions = rawQuestions;
+        _resetPreparation();
+        _initializationFuture = Future<void>.microtask(
+          () => _initializeQuestions(rawQuestions),
+        );
       }
       return Scaffold(
         body: SafeArea(
-          child: shuffledQuestions!.isEmpty
+          child: rawQuestions.isEmpty
               ? _buildNoQuestionsPlaceholder(context)
-              : _buildSession(shuffledQuestions!),
+              : FutureBuilder<void>(
+                  future: _initializationFuture,
+                  builder: (context, snapshot) {
+                    if (!_assetsPrepared || shuffledQuestions == null) {
+                      return _buildPreparationScreen();
+                    }
+                    return _buildSession(shuffledQuestions!);
+                  },
+                ),
         ),
       );
     }
@@ -559,15 +648,17 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               }
               if (_lastRawQuestions != rawQuestions) {
                 _lastRawQuestions = rawQuestions;
-                shuffledQuestions = null;
-                _initializationFuture = _initializeQuestions(rawQuestions);
+                _resetPreparation();
+                _initializationFuture = Future<void>.microtask(
+                  () => _initializeQuestions(rawQuestions),
+                );
               }
-              if (shuffledQuestions == null) {
+              if (!_assetsPrepared || shuffledQuestions == null) {
                 return FutureBuilder<void>(
                   future: _initializationFuture,
                   builder: (context, snapshot) {
-                    if (shuffledQuestions == null) {
-                      return const Center(child: CircularProgressIndicator());
+                    if (!_assetsPrepared || shuffledQuestions == null) {
+                      return _buildPreparationScreen();
                     }
                     return _buildSession(shuffledQuestions!);
                   },
@@ -575,7 +666,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               }
               return _buildSession(shuffledQuestions!);
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: _buildPreparationScreen,
             error: (error, stack) => _buildNoQuestionsPlaceholder(
               context,
               message: "Bear's Den could not load. Check your connection.",
@@ -604,16 +695,18 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             // Check if raw questions changed to trigger re-initialization
             if (_lastRawQuestions != rawQuestions) {
               _lastRawQuestions = rawQuestions;
-              shuffledQuestions = null;
-              _initializationFuture = _initializeQuestions(rawQuestions);
+              _resetPreparation();
+              _initializationFuture = Future<void>.microtask(
+                () => _initializeQuestions(rawQuestions),
+              );
             }
 
-            if (shuffledQuestions == null) {
+            if (!_assetsPrepared || shuffledQuestions == null) {
               return FutureBuilder<void>(
                 future: _initializationFuture,
                 builder: (context, snapshot) {
-                  if (shuffledQuestions == null) {
-                    return const Center(child: CircularProgressIndicator());
+                  if (!_assetsPrepared || shuffledQuestions == null) {
+                    return _buildPreparationScreen();
                   }
                   return _buildSession(shuffledQuestions!);
                 },
@@ -622,7 +715,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
             return _buildSession(shuffledQuestions!);
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: _buildPreparationScreen,
           error: (err, stack) => Center(child: Text('Error: $err')),
         ),
       ),
@@ -724,6 +817,71 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     );
   }
 
+  Widget _buildPreparationScreen() {
+    final hasProgress = _totalAssetCount > 0;
+    final progress = hasProgress
+        ? (_preparedAssetCount / _totalAssetCount).clamp(0.0, 1.0)
+        : null;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (widget.showFeedbackMascot)
+              ActiveMascotWidget(
+                childId: widget.childId,
+                size: 150,
+                showBackground: false,
+                mood: MascotMood.idle,
+              )
+            else
+              const MascotWidget(
+                size: 150,
+                showBackground: false,
+                mood: MascotMood.idle,
+              ),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              'Preparing your adventure',
+              style: AppTextStyles.title,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: Text(
+                _loadingQuotes[_loadingQuoteIndex],
+                key: ValueKey(_loadingQuoteIndex),
+                style: AppTextStyles.body.copyWith(color: AppColors.mutedText),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            SizedBox(
+              width: 220,
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: AppSpacing.sm,
+                borderRadius: AppRadius.r(AppRadius.sm),
+                color: AppColors.accent,
+                backgroundColor: AppColors.muted,
+              ),
+            ),
+            if (hasProgress) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '$_preparedAssetCount of $_totalAssetCount ready',
+                style: AppTextStyles.small,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSession(List<Question> questions) {
     final question = questions[currentQuestionIndex];
     final isLastQuestion = currentQuestionIndex == questions.length - 1;
@@ -731,18 +889,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final isQuestionComplete =
         selected != null || _isQuestionComplete(question);
 
-    String getLanguage() {
-      switch (_subjectIdForQuestion(question)) {
-        case 'bm':
-          return 'ms-MY';
-        case 'bi':
-          return 'en-GB';
-        case 'bc':
-          return 'zh-CN';
-        default:
-          return 'en-GB';
-      }
-    }
+    final language = _languageForQuestion(question);
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -832,7 +979,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                                     ),
                                   ),
                                 ),
-                              _buildQuestionText(question, getLanguage()),
+                              _buildQuestionText(question, language),
                               if (widget.sessionMode ==
                                   SessionMode.bearsDen) ...[
                                 const SizedBox(height: AppSpacing.sm),
