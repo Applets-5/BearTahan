@@ -336,6 +336,51 @@ void main() {
       );
     });
 
+    testWidgets('matching completion reveals Finish without manual scrolling', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(360, 744));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final questions = [
+        Question(
+          id: 'q_matching',
+          text: 'Match each word to its number',
+          type: 'matching',
+          options: [
+            QuestionOption(text: 'One', pairText: '1'),
+            QuestionOption(text: 'Two', pairText: '2'),
+            QuestionOption(text: 'Three', pairText: '3'),
+          ],
+          correctAnswerIndex: 0,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestWidget(questions, key: const ValueKey('matching')),
+      );
+      await tester.pumpAndSettle();
+
+      for (final pair in [('One', '1'), ('Two', '2'), ('Three', '3')]) {
+        await tester.ensureVisible(find.text(pair.$1));
+        await tester.tap(find.text(pair.$1));
+        await tester.ensureVisible(find.text(pair.$2));
+        await tester.tap(find.text(pair.$2));
+        await tester.pumpAndSettle();
+      }
+
+      expect(tester.takeException(), isNull);
+      final finishButton = find.widgetWithText(FilledButton, 'Finish');
+      final scrollView = find.byKey(const ValueKey('level_session_scroll'));
+
+      expect(finishButton, findsOneWidget);
+      expect(
+        tester.getRect(scrollView).contains(tester.getCenter(finishButton)),
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets(
       'should safely complete consecutive failed stroke tracing questions',
       (tester) async {

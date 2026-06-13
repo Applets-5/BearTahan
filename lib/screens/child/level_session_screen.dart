@@ -51,6 +51,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   bool _isSaving = false;
 
   int? selected;
+  final GlobalKey _answerActionsKey = GlobalKey();
+  String? _revealedAnswerActionsForQuestionId;
   final TextEditingController _numberController = TextEditingController();
   bool _numberSubmitted = false;
   List<Question>? shuffledQuestions;
@@ -654,6 +656,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final question = questions[currentQuestionIndex];
     final isLastQuestion = currentQuestionIndex == questions.length - 1;
     final progress = (currentQuestionIndex + 1) / questions.length;
+    final isQuestionComplete =
+        selected != null || _isQuestionComplete(question);
+
+    if (isQuestionComplete) {
+      _scheduleAnswerActionsReveal(question.id);
+    }
 
     String getLanguage() {
       switch (_subjectIdForQuestion(question)) {
@@ -697,122 +705,171 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
             ],
           ),
-          const Spacer(flex: 1),
-          if (question.imageUrl != null && question.imageUrl!.isNotEmpty)
-            Padding(
+          const SizedBox(height: AppSpacing.md),
+          Expanded(
+            child: SingleChildScrollView(
+              key: const ValueKey('level_session_scroll'),
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: Center(
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 160),
-                  decoration: BoxDecoration(
-                    color: AppColors.imagePlaceholder,
-                    borderRadius: AppRadius.r(AppRadius.xl),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: AppRadius.r(AppRadius.xl),
-                    child: Image.network(
-                      question.imageUrl!,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.image,
-                        color: AppColors.mutedText,
-                        size: 48,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          _buildQuestionText(question, getLanguage()),
-          const SizedBox(height: AppSpacing.sm),
-          _buildQuestionBody(question),
-          const Spacer(flex: 2),
-          if (selected != null || _isQuestionComplete(question)) ...[
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutBack,
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
-                );
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: selected == question.correctAnswerIndex
-                      ? AppColors.accentLight
-                      : AppColors.destructiveLight,
-                  borderRadius: AppRadius.r(AppRadius.lg),
-                ),
-                child: Row(
-                  children: [
-                    if (widget.showFeedbackMascot) ...[
-                      SizedBox(
-                        width: 72,
-                        height: 54,
-                        child: OverflowBox(
-                          maxWidth: 120,
-                          maxHeight: 120,
-                          child: ActiveMascotWidget(
-                            childId: widget.childId,
-                            size: selected == question.correctAnswerIndex
-                                ? 86
-                                : 82,
-                            showBackground: false,
-                            mood: selected == question.correctAnswerIndex
-                                ? MascotMood.cheering
-                                : MascotMood.crying,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                children: [
+                  if (question.imageUrl != null &&
+                      question.imageUrl!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: Center(
+                        child: Container(
+                          constraints: const BoxConstraints(maxHeight: 160),
+                          decoration: BoxDecoration(
+                            color: AppColors.imagePlaceholder,
+                            borderRadius: AppRadius.r(AppRadius.xl),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: AppRadius.r(AppRadius.xl),
+                            child: Image.network(
+                              question.imageUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                    Icons.image,
+                                    color: AppColors.mutedText,
+                                    size: 48,
+                                  ),
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
-                    Expanded(
-                      child: Text(
-                        _answerFeedbackText(question),
-                        style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
-                      ),
                     ),
-                  ],
-                ),
+                  _buildQuestionText(question, getLanguage()),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildQuestionBody(question),
+                  if (isQuestionComplete)
+                    Column(
+                      key: _answerActionsKey,
+                      children: [
+                        const SizedBox(height: AppSpacing.lg),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeOutBack,
+                          builder: (context, value, child) {
+                            return Transform.scale(
+                              scale: value,
+                              child: Opacity(
+                                opacity: value.clamp(0.0, 1.0),
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected == question.correctAnswerIndex
+                                  ? AppColors.accentLight
+                                  : AppColors.destructiveLight,
+                              borderRadius: AppRadius.r(AppRadius.lg),
+                            ),
+                            child: Row(
+                              children: [
+                                if (widget.showFeedbackMascot) ...[
+                                  SizedBox(
+                                    width: 72,
+                                    height: 54,
+                                    child: OverflowBox(
+                                      maxWidth: 120,
+                                      maxHeight: 120,
+                                      child: ActiveMascotWidget(
+                                        childId: widget.childId,
+                                        size:
+                                            selected ==
+                                                question.correctAnswerIndex
+                                            ? 86
+                                            : 82,
+                                        showBackground: false,
+                                        mood:
+                                            selected ==
+                                                question.correctAnswerIndex
+                                            ? MascotMood.cheering
+                                            : MascotMood.crying,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    _answerFeedbackText(question),
+                                    style: AppTextStyles.bodyBold.copyWith(
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        PrimaryButton(
+                          label: isLastQuestion ? 'Finish' : 'Next',
+                          isLoading: isLastQuestion && _isSaving,
+                          icon: Icons.arrow_forward_rounded,
+                          onPressed: () {
+                            if (isLastQuestion) {
+                              _completeSession(questions.length);
+                            } else {
+                              setState(() {
+                                currentQuestionIndex++;
+                                selected = null;
+                                _rearrangeOrder = null;
+                                _rearrangeSubmitted = false;
+                                _draggedOptionIndex = null;
+                                _fillBlankSubmitted = false;
+                                _dragDropSpellingSubmitted = false;
+                                _matchingSubmitted = false;
+                                _strokeTraceSubmitted = false;
+                                _strokeHadWrongAttempt = false;
+                                _numberSubmitted = false;
+                                _numberController.clear();
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            PrimaryButton(
-              label: isLastQuestion ? 'Finish' : 'Next',
-              isLoading: isLastQuestion && _isSaving,
-              icon: Icons.arrow_forward_rounded,
-              onPressed: () {
-                if (isLastQuestion) {
-                  _completeSession(questions.length);
-                } else {
-                  setState(() {
-                    currentQuestionIndex++;
-                    selected = null;
-                    _rearrangeOrder = null;
-                    _rearrangeSubmitted = false;
-                    _draggedOptionIndex = null;
-                    _fillBlankSubmitted = false;
-                    _dragDropSpellingSubmitted = false;
-                    _matchingSubmitted = false;
-                    _strokeTraceSubmitted = false;
-                    _strokeHadWrongAttempt = false;
-                    _numberSubmitted = false;
-                    _numberController.clear();
-                  });
-                }
-              },
-            ),
-          ],
+          ),
         ],
       ),
     );
+  }
+
+  void _scheduleAnswerActionsReveal(String questionId) {
+    if (_revealedAnswerActionsForQuestionId == questionId) return;
+    _revealedAnswerActionsForQuestionId = questionId;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final answerActionsContext = _answerActionsKey.currentContext;
+      if (answerActionsContext == null) {
+        _revealedAnswerActionsForQuestionId = null;
+        return;
+      }
+
+      unawaited(
+        Scrollable.ensureVisible(
+          answerActionsContext,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        ),
+      );
+    });
   }
 
   Widget _buildQuestionText(Question question, String language) {
@@ -834,7 +891,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: Padding(
-              padding: EdgeInsets.only(left: isDragDropSpelling ? 0 : AppSpacing.sm),
+              padding: EdgeInsets.only(
+                left: isDragDropSpelling ? 0 : AppSpacing.sm,
+              ),
               child: SizedBox(
                 width: 28,
                 height: 28,
@@ -964,10 +1023,16 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     switch (type) {
       case 'rearrange':
-        return _buildRearrangeQuestion(question, key: ValueKey('rearrange_${question.id}'));
+        return _buildRearrangeQuestion(
+          question,
+          key: ValueKey('rearrange_${question.id}'),
+        );
       case 'fillblank':
       case 'fillblanklistening':
-        return _buildFillBlankQuestion(question, key: ValueKey('fillblank_${question.id}'));
+        return _buildFillBlankQuestion(
+          question,
+          key: ValueKey('fillblank_${question.id}'),
+        );
       case 'dragdropspelling':
         return DragDropSpellingWidget(
           key: ValueKey('dragdrop_${question.id}'),
@@ -987,11 +1052,14 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           key: ValueKey('matching_${question.id}'),
           question: question,
           onCorrectMatch: () {
-            unawaited(_playStrokeCorrect(0)); // Use stroke correct sound for individual matches
+            unawaited(
+              _playStrokeCorrect(0),
+            ); // Use stroke correct sound for individual matches
           },
           onWrongAttempt: () {
             unawaited(_playStrokeWrong());
-            _strokeHadWrongAttempt = true; // Use same flag to track if any mistake happened
+            _strokeHadWrongAttempt =
+                true; // Use same flag to track if any mistake happened
           },
           onCompleted: (isCorrect) {
             setState(() {
@@ -1001,7 +1069,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               _playQuestionFeedback(question, isCorrect);
             });
             unawaited(
-              _recordQuestionResult(question, isCorrect && !_strokeHadWrongAttempt),
+              _recordQuestionResult(
+                question,
+                isCorrect && !_strokeHadWrongAttempt,
+              ),
             );
           },
         );
@@ -1060,7 +1131,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           child: ReorderableListView(
             shrinkWrap: true,
             physics: const ClampingScrollPhysics(),
-            buildDefaultDragHandles: false, // Disable default long-press handles
+            buildDefaultDragHandles:
+                false, // Disable default long-press handles
             onReorder: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
@@ -1194,7 +1266,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             textAlign: TextAlign.center,
-            style: AppTextStyles.title.copyWith(fontSize: 32, color: AppColors.primary),
+            style: AppTextStyles.title.copyWith(
+              fontSize: 32,
+              color: AppColors.primary,
+            ),
             decoration: InputDecoration(
               hintText: '?',
               hintStyle: AppTextStyles.title.copyWith(
