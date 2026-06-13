@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/chapter_data.dart';
 import '../../theme/app_theme.dart';
+import '../../features/bears_den/bears_den_cave_node.dart';
 
 class BearHeadShape extends CustomPainter {
   final Color color;
@@ -381,6 +382,7 @@ class LevelWindingPath extends StatelessWidget {
   final String subjectId;
   final String? childId;
   final void Function(String levelId, bool isBoss, String chapterId) onLevelTap;
+  final VoidCallback? onBearsDenTap;
 
   const LevelWindingPath({
     super.key,
@@ -388,6 +390,7 @@ class LevelWindingPath extends StatelessWidget {
     required this.chapters,
     required this.subjectId,
     required this.onLevelTap,
+    this.onBearsDenTap,
     this.childId,
   });
 
@@ -405,6 +408,8 @@ class LevelWindingPath extends StatelessWidget {
 
         int visualIndex = 0;
         int absoluteLevelIndex = 0;
+        Offset? chapterTwoLevelFivePoint;
+        final chapterTwoRegularPoints = <Offset>[];
 
         for (var chapter in chapters) {
           nodes.add(
@@ -460,7 +465,14 @@ class LevelWindingPath extends StatelessWidget {
             }
 
             final y = visualIndex * verticalStep + 80.0;
-            points.add(Offset(x, y));
+            final point = Offset(x, y);
+            points.add(point);
+            if (chapter.id.toLowerCase() == 'c2' && !isBoss) {
+              chapterTwoRegularPoints.add(point);
+              if (levelId.toLowerCase() == 'c2_l5') {
+                chapterTwoLevelFivePoint = point;
+              }
+            }
 
             nodes.add(
               Positioned(
@@ -485,6 +497,34 @@ class LevelWindingPath extends StatelessWidget {
             if (!levelId.toLowerCase().contains('summary')) {
               chapterLevelIndex++;
             }
+          }
+        }
+
+        if (subjectId == 'bi' && onBearsDenTap != null) {
+          final fallbackPoint = chapterTwoRegularPoints.isEmpty
+              ? null
+              : chapterTwoRegularPoints.length >= 5
+              ? chapterTwoRegularPoints[4]
+              : chapterTwoRegularPoints.last;
+          final anchorPoint = chapterTwoLevelFivePoint ?? fallbackPoint;
+
+          if (anchorPoint != null) {
+            const caveEdgePadding = 72.0;
+            final placeOnLeft = anchorPoint.dx >= centerX;
+            final caveX = placeOnLeft
+                ? caveEdgePadding
+                : width - caveEdgePadding;
+            final caveY = anchorPoint.dy - 60;
+            nodes.add(
+              Positioned(
+                left: caveX - 60,
+                top: caveY - 53,
+                child: BearsDenCaveNode(
+                  onTap: onBearsDenTap!,
+                  stars: starMap['bears_den'] ?? 0,
+                ),
+              ),
+            );
           }
         }
 

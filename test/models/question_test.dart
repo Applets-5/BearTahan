@@ -78,5 +78,16 @@ void main() {
       expect(question.type, 'keyinnumber');
       expect(question.correctNumber, 9);
     });
+
+    test('fromFirestore resolves string correctOrder to exact option text', () {
+      final question = Question.fromFirestore('english_q1', {
+        'questionText': 'Rearrange the sentence',
+        'questionType': 'rearrange',
+        'options': ['Hello,', 'world!'],
+        'correctOrder': 'Hello; world',
+      });
+
+      expect(question.correctOrder, ['Hello,', 'world!']);
+    });
   });
 }

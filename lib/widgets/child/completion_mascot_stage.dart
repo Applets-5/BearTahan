@@ -10,12 +10,14 @@ class CompletionMascotStage extends StatefulWidget {
     required this.passed,
     required this.stars,
     this.isReview = false,
+    this.successMessage,
   });
 
   final String? childId;
   final bool passed;
   final int stars;
   final bool isReview;
+  final String? successMessage;
 
   @override
   State<CompletionMascotStage> createState() => _CompletionMascotStageState();
@@ -26,6 +28,7 @@ class _CompletionMascotStageState extends State<CompletionMascotStage>
   late final AnimationController _controller;
 
   String _successBubbleText() {
+    if (widget.successMessage != null) return widget.successMessage!;
     if (widget.isReview) {
       return 'Great job reviewing!';
     }
@@ -114,7 +117,7 @@ class _CompletionMascotStageState extends State<CompletionMascotStage>
                   child: Transform.translate(
                     offset: Offset(0, value * 4),
                     child: const _MascotSpeechBubble(
-                      text: 'Keep trying, you’re learning!',
+                      text: "Keep trying, you're learning!",
                       success: false,
                     ),
                   ),

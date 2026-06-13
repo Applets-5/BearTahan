@@ -1,5 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
@@ -80,14 +81,41 @@ class _AudioPromptPlayerState extends ConsumerState<AudioPromptPlayer> {
       if (hasUrl) {
         await ref.read(ttsServiceProvider).stop();
         await _player.stop();
-        await _player.play(UrlSource(widget.url!));
+        Source source = UrlSource(widget.url!);
+        try {
+          final cachedFile = await DefaultCacheManager().getFileFromCache(
+            widget.url!,
+          );
+          if (cachedFile != null) {
+            source = DeviceFileSource(cachedFile.file.path);
+          }
+        } catch (error) {
+          debugPrint('Unable to read cached prompt audio: $error');
+        }
+        await _player.play(source);
       } else if (hasText) {
+        final ttsService = ref.read(ttsServiceProvider);
+        await ttsService.stop();
         await _player.stop();
-        setState(() => _isPlaying = true);
-        await ref
-            .read(ttsServiceProvider)
-            .speak(widget.textToSpeak!, language: widget.language);
-        if (mounted) setState(() => _isPlaying = false);
+        if (mounted) setState(() => _isPlaying = true);
+        String? cachedPath;
+        try {
+          cachedPath = await ttsService.cachedAudioPath(
+            widget.textToSpeak!,
+            language: widget.language,
+          );
+        } catch (error) {
+          debugPrint('Unable to read cached TTS prompt: $error');
+        }
+        if (cachedPath != null) {
+          await _player.play(DeviceFileSource(cachedPath));
+        } else {
+          await ttsService.speak(
+            widget.textToSpeak!,
+            language: widget.language,
+          );
+          if (mounted) setState(() => _isPlaying = false);
+        }
       }
 
       if (mounted) {

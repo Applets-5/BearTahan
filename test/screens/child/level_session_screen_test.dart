@@ -8,8 +8,32 @@ import 'package:bear_tahan/providers/data_providers.dart';
 import 'package:bear_tahan/widgets/child/stroke_trace_question.dart';
 import 'package:bear_tahan/widgets/common/audio_prompt_player.dart';
 import 'package:bear_tahan/services/firestore_service.dart';
+import 'package:bear_tahan/services/session_asset_preloader.dart';
+import 'package:bear_tahan/services/tts_service.dart';
 
 class MockFirestoreService extends Mock implements FirestoreService {}
+
+class MockTtsService extends Mock implements TtsService {}
+
+class ImmediateSessionAssetPreloader extends SessionAssetPreloader {
+  ImmediateSessionAssetPreloader() : super(ttsService: MockTtsService());
+
+  @override
+  Future<SessionPreparationReport> preload({
+    required BuildContext context,
+    required List<Question> questions,
+    required String Function(Question question) languageForQuestion,
+    Duration timeout = const Duration(seconds: 10),
+    PreparationProgressCallback? onProgress,
+  }) async {
+    return const SessionPreparationReport(
+      completedAssets: 0,
+      totalAssets: 0,
+      failedAssets: 0,
+      timedOut: false,
+    );
+  }
+}
 
 void main() {
   late MockFirestoreService mockFirestoreService;
@@ -69,6 +93,9 @@ void main() {
           (ref) => Stream.value({'soundEffects': true}),
         ),
         firestoreServiceProvider.overrideWithValue(mockFirestoreService),
+        sessionAssetPreloaderProvider.overrideWithValue(
+          ImmediateSessionAssetPreloader(),
+        ),
       ],
       child: MaterialApp(
         home: LevelSessionScreen(
@@ -113,6 +140,14 @@ void main() {
       expect(find.text('Option B Text'), findsOneWidget);
       expect(find.text('A'), findsOneWidget);
       expect(find.text('B'), findsOneWidget);
+
+      final scrollView = find.byKey(const ValueKey('level_session_scroll'));
+      final questionContent = find.byKey(const ValueKey('question_content'));
+      expect(
+        (tester.getCenter(scrollView).dy - tester.getCenter(questionContent).dy)
+            .abs(),
+        lessThan(40),
+      );
     });
 
     testWidgets('falls back to regular questions when review loading fails', (
@@ -336,7 +371,7 @@ void main() {
       );
     });
 
-    testWidgets('matching completion reveals Finish without manual scrolling', (
+    testWidgets('matching keeps feedback and Finish anchored at the bottom', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(360, 744));
@@ -371,13 +406,19 @@ void main() {
 
       expect(tester.takeException(), isNull);
       final finishButton = find.widgetWithText(FilledButton, 'Finish');
-      final scrollView = find.byKey(const ValueKey('level_session_scroll'));
+      final feedback = find.byKey(const ValueKey('answer_feedback'));
 
       expect(finishButton, findsOneWidget);
+      expect(feedback, findsOneWidget);
       expect(
-        tester.getRect(scrollView).contains(tester.getCenter(finishButton)),
-        isTrue,
+        tester.getBottomLeft(feedback).dy,
+        lessThan(tester.getTopLeft(finishButton).dy),
       );
+      expect(
+        tester.getTopLeft(finishButton).dy - tester.getBottomLeft(feedback).dy,
+        lessThanOrEqualTo(16),
+      );
+      expect(tester.getBottomRight(finishButton).dy, greaterThan(690));
       expect(tester.takeException(), isNull);
     });
 

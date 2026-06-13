@@ -124,6 +124,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                        child: _DailyGoalCard(childId: effectiveChildId),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                         child: _AdventureProgressCard(
                           progress: averageProgress,
                         ),
@@ -141,7 +147,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               Uri(
                                 path: AppRouter.subject,
                                 queryParameters: {
-                                  'childId': widget.childId ?? '',
+                                  'childId': effectiveChildId,
                                   'subjectId': world.subjectId,
                                 },
                               ).toString(),
@@ -586,6 +592,109 @@ class _MemoryQuestCard extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _DailyGoalCard extends ConsumerWidget {
+  const _DailyGoalCard({required this.childId});
+
+  final String childId;
+
+  String _todayKey() {
+    final now = DateTime.now();
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return '${now.year}-$month-$day';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(userProfileProvider(childId));
+
+    return profileAsync.maybeWhen(
+      data: (profile) {
+        final goal = profile.dailyGoal;
+        if (goal == null || !goal.isValid) return const SizedBox.shrink();
+
+        final todayProgress = goal.lastUpdatedDate == _todayKey()
+            ? goal.todayProgress
+            : 0;
+        final progress = (todayProgress / goal.target).clamp(0.0, 1.0);
+        final icon = goal.type == 'minutes'
+            ? Icons.timer_rounded
+            : Icons.flag_rounded;
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x16000000),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFE7B0),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: const Color(0xFFE67817)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Daily Goal',
+                            style: _AdventureText.cardTitle(context),
+                          ),
+                        ),
+                        Text(
+                          '$todayProgress/${goal.target}',
+                          style: _AdventureText.progressChip(
+                            context,
+                            const Color(0xFFE67817),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 9,
+                        color: const Color(0xFFFFA733),
+                        backgroundColor: const Color(0xFFFFF1D6),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '$todayProgress of ${goal.target} '
+                      '${goal.unitLabel} completed today',
+                      style: _AdventureText.cardBody(context),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },

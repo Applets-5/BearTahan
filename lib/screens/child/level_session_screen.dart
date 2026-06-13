@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/question.dart';
+import '../../models/bears_den_result.dart';
+import '../../models/session_mode.dart';
+import '../../features/bears_den/bears_den_demo_data.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
@@ -29,6 +32,7 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
     this.levelId = 'l1',
     this.showFeedbackMascot = true,
     this.reviewQuestions,
+    this.sessionMode = SessionMode.standard,
   });
 
   final String? childId;
@@ -37,6 +41,7 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
   final String levelId;
   final bool showFeedbackMascot;
   final List<Question>? reviewQuestions;
+  final SessionMode sessionMode;
 
   @override
   ConsumerState<LevelSessionScreen> createState() => _LevelSessionScreenState();
@@ -46,13 +51,16 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   int currentQuestionIndex = 0;
   int score = 0;
   Timer? _sessionTimer;
+  Timer? _loadingQuoteTimer;
   int _elapsedSeconds = 0;
   bool _timerStarted = false;
   bool _isSaving = false;
+  bool _assetsPrepared = false;
+  int _preparedAssetCount = 0;
+  int _totalAssetCount = 0;
+  int _loadingQuoteIndex = 0;
 
   int? selected;
-  final GlobalKey _answerActionsKey = GlobalKey();
-  String? _revealedAnswerActionsForQuestionId;
   final TextEditingController _numberController = TextEditingController();
   bool _numberSubmitted = false;
   List<Question>? shuffledQuestions;
@@ -70,10 +78,27 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startSessionTimer();
-    });
+    _startLoadingQuotes();
     unawaited(_initializeSoundEffectAudio());
+  }
+
+  static const _loadingQuotes = [
+    'Hunting for the best questions...',
+    'Packing a basket of brainy challenges...',
+    'Building a den full of bright ideas...',
+    'Putting every question in paw-fect order...',
+  ];
+
+  void _startLoadingQuotes() {
+    _loadingQuoteTimer?.cancel();
+    _loadingQuoteTimer = Timer.periodic(const Duration(milliseconds: 1800), (
+      _,
+    ) {
+      if (!mounted || _assetsPrepared) return;
+      setState(() {
+        _loadingQuoteIndex = (_loadingQuoteIndex + 1) % _loadingQuotes.length;
+      });
+    });
   }
 
   bool get _soundEffectsEnabled {
@@ -195,6 +220,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   }
 
   Future<void> _recordQuestionResult(Question question, bool isCorrect) async {
+    if (widget.sessionMode == SessionMode.bearsDen) return;
     final parentId = ref.read(parentIdProvider);
     final childId = widget.childId;
     if (parentId.isEmpty || childId == null || childId.isEmpty) return;
@@ -243,6 +269,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   @override
   void dispose() {
     _stopSessionTimer();
+    _loadingQuoteTimer?.cancel();
     unawaited(_disposeSoundEffectAudio());
     _numberController.dispose();
     super.dispose();
@@ -284,10 +311,42 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final newlyUnlockedOutfits = <String>[];
 
     final isReviewSession = _isDedicatedReviewSession;
+    BearsDenAwardStatus? bearsDenAwardStatus;
 
     try {
       final parentId = ref.read(parentIdProvider);
-      if (!isReviewSession && widget.childId != null && parentId.isNotEmpty) {
+      if (widget.sessionMode == SessionMode.bearsDen) {
+        performanceStars = score == totalQuestions
+            ? 2
+            : score / totalQuestions >= 0.7
+            ? 1
+            : 0;
+        bestStars = performanceStars;
+
+        if (widget.childId != null && parentId.isNotEmpty) {
+          try {
+            final result = await ref
+                .read(firestoreServiceProvider)
+                .completeBearsDenSession(
+                  parentId,
+                  widget.childId!,
+                  score: score,
+                  total: totalQuestions,
+                );
+            performanceStars = result.performanceStars;
+            bestStars = performanceStars;
+            newStarsAwarded = result.awardedStars;
+            bearsDenAwardStatus = result.status;
+          } catch (error) {
+            debugPrint('Unable to save Bear\'s Den stars: $error');
+            bearsDenAwardStatus = BearsDenAwardStatus.saveFailed;
+          }
+        } else {
+          bearsDenAwardStatus = BearsDenAwardStatus.saveFailed;
+        }
+      } else if (!isReviewSession &&
+          widget.childId != null &&
+          parentId.isNotEmpty) {
         final firestore = ref.read(firestoreServiceProvider);
 
         final progressResult = await firestore.updateLevelProgress(
@@ -367,6 +426,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         'levelPrefix': widget.levelPrefix,
         'isEscalated': isEscalated.toString(),
         'isDailyBonus': isDailyBonus.toString(),
+        'sessionMode': widget.sessionMode.name,
+        if (bearsDenAwardStatus != null)
+          'bearsDenAwardStatus': bearsDenAwardStatus.name,
         if (newlyUnlockedOutfits.isNotEmpty)
           'unlockedOutfits': newlyUnlockedOutfits.join(','),
       };
@@ -419,7 +481,73 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     return knownSubjects.contains(prefix) ? prefix : widget.subjectId;
   }
 
+  String _languageForQuestion(Question question) {
+    switch (_subjectIdForQuestion(question)) {
+      case 'bm':
+        return 'ms-MY';
+      case 'bi':
+        return 'en-GB';
+      case 'bc':
+        return 'zh-CN';
+      default:
+        return 'en-GB';
+    }
+  }
+
+  void _resetPreparation() {
+    shuffledQuestions = null;
+    _assetsPrepared = false;
+    _preparedAssetCount = 0;
+    _totalAssetCount = 0;
+    _loadingQuoteIndex = 0;
+    _startLoadingQuotes();
+  }
+
+  Future<void> _prepareSelectedQuestions() async {
+    final questions = shuffledQuestions;
+    if (questions == null || questions.isEmpty) return;
+
+    await ref
+        .read(sessionAssetPreloaderProvider)
+        .preload(
+          context: context,
+          questions: questions,
+          languageForQuestion: _languageForQuestion,
+          onProgress: (completed, total) {
+            if (!mounted) return;
+            setState(() {
+              _preparedAssetCount = completed;
+              _totalAssetCount = total;
+            });
+          },
+        );
+
+    if (!mounted) return;
+    _loadingQuoteTimer?.cancel();
+    _assetsPrepared = true;
+    _startSessionTimer();
+    setState(() {});
+  }
+
   Future<void> _initializeQuestions(List<Question> rawQuestions) async {
+    if (widget.reviewQuestions != null) {
+      final questionsById = <String, Question>{
+        for (final question in rawQuestions) question.id: question,
+      };
+      _reviewQuestionIds
+        ..clear()
+        ..addAll(questionsById.keys);
+      shuffledQuestions = questionsById.values.toList()..shuffle();
+      await _prepareSelectedQuestions();
+      return;
+    }
+
+    if (widget.sessionMode == SessionMode.bearsDen) {
+      final questions = List<Question>.from(rawQuestions)..shuffle();
+      shuffledQuestions = questions;
+      await _prepareSelectedQuestions();
+      return;
+    }
     final isSummary = widget.levelId.toLowerCase().contains('summary');
     final isRevision = widget.levelId.toLowerCase().contains('revision');
     final needsPrioritization = isSummary || isRevision;
@@ -471,7 +599,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       final fallback = List<Question>.from(rawQuestions)..shuffle();
       shuffledQuestions = fallback.take(needsPrioritization ? 15 : 10).toList();
     }
-    if (mounted) setState(() {});
+    await _prepareSelectedQuestions();
   }
 
   @override
@@ -480,20 +608,70 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     if (widget.reviewQuestions != null) {
       final rawQuestions = widget.reviewQuestions!;
-      if (shuffledQuestions == null) {
-        final questionsById = <String, Question>{
-          for (final question in rawQuestions) question.id: question,
-        };
-        _reviewQuestionIds
-          ..clear()
-          ..addAll(questionsById.keys);
-        shuffledQuestions = questionsById.values.toList()..shuffle();
+      if (_lastRawQuestions != rawQuestions) {
+        _lastRawQuestions = rawQuestions;
+        _resetPreparation();
+        _initializationFuture = Future<void>.microtask(
+          () => _initializeQuestions(rawQuestions),
+        );
       }
       return Scaffold(
         body: SafeArea(
-          child: shuffledQuestions!.isEmpty
+          child: rawQuestions.isEmpty
               ? _buildNoQuestionsPlaceholder(context)
-              : _buildSession(shuffledQuestions!),
+              : FutureBuilder<void>(
+                  future: _initializationFuture,
+                  builder: (context, snapshot) {
+                    if (!_assetsPrepared || shuffledQuestions == null) {
+                      return _buildPreparationScreen();
+                    }
+                    return _buildSession(shuffledQuestions!);
+                  },
+                ),
+        ),
+      );
+    }
+
+    if (widget.sessionMode == SessionMode.bearsDen) {
+      final questionsAsync = ref.watch(bearsDenQuestionsProvider);
+      ref.watch(parentSettingsProvider);
+      return Scaffold(
+        body: SafeArea(
+          child: questionsAsync.when(
+            data: (rawQuestions) {
+              if (!BearsDenDemoData.isValidSession(rawQuestions)) {
+                return _buildNoQuestionsPlaceholder(
+                  context,
+                  message:
+                      "Bear's Den questions are still loading. Please try again.",
+                );
+              }
+              if (_lastRawQuestions != rawQuestions) {
+                _lastRawQuestions = rawQuestions;
+                _resetPreparation();
+                _initializationFuture = Future<void>.microtask(
+                  () => _initializeQuestions(rawQuestions),
+                );
+              }
+              if (!_assetsPrepared || shuffledQuestions == null) {
+                return FutureBuilder<void>(
+                  future: _initializationFuture,
+                  builder: (context, snapshot) {
+                    if (!_assetsPrepared || shuffledQuestions == null) {
+                      return _buildPreparationScreen();
+                    }
+                    return _buildSession(shuffledQuestions!);
+                  },
+                );
+              }
+              return _buildSession(shuffledQuestions!);
+            },
+            loading: _buildPreparationScreen,
+            error: (error, stack) => _buildNoQuestionsPlaceholder(
+              context,
+              message: "Bear's Den could not load. Check your connection.",
+            ),
+          ),
         ),
       );
     }
@@ -517,16 +695,18 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             // Check if raw questions changed to trigger re-initialization
             if (_lastRawQuestions != rawQuestions) {
               _lastRawQuestions = rawQuestions;
-              shuffledQuestions = null;
-              _initializationFuture = _initializeQuestions(rawQuestions);
+              _resetPreparation();
+              _initializationFuture = Future<void>.microtask(
+                () => _initializeQuestions(rawQuestions),
+              );
             }
 
-            if (shuffledQuestions == null) {
+            if (!_assetsPrepared || shuffledQuestions == null) {
               return FutureBuilder<void>(
                 future: _initializationFuture,
                 builder: (context, snapshot) {
-                  if (shuffledQuestions == null) {
-                    return const Center(child: CircularProgressIndicator());
+                  if (!_assetsPrepared || shuffledQuestions == null) {
+                    return _buildPreparationScreen();
                   }
                   return _buildSession(shuffledQuestions!);
                 },
@@ -535,7 +715,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
             return _buildSession(shuffledQuestions!);
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: _buildPreparationScreen,
           error: (err, stack) => Center(child: Text('Error: $err')),
         ),
       ),
@@ -604,12 +784,18 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     return selected.take(count).toList();
   }
 
-  Widget _buildNoQuestionsPlaceholder(BuildContext context) {
+  Widget _buildNoQuestionsPlaceholder(
+    BuildContext context, {
+    String message = 'No questions found for this level.',
+  }) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('No questions found for this level.'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Text(message, textAlign: TextAlign.center),
+          ),
           const SizedBox(height: AppSpacing.md),
           PrimaryButton(
             label: 'Go Back',
@@ -631,6 +817,71 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     );
   }
 
+  Widget _buildPreparationScreen() {
+    final hasProgress = _totalAssetCount > 0;
+    final progress = hasProgress
+        ? (_preparedAssetCount / _totalAssetCount).clamp(0.0, 1.0)
+        : null;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (widget.showFeedbackMascot)
+              ActiveMascotWidget(
+                childId: widget.childId,
+                size: 150,
+                showBackground: false,
+                mood: MascotMood.idle,
+              )
+            else
+              const MascotWidget(
+                size: 150,
+                showBackground: false,
+                mood: MascotMood.idle,
+              ),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              'Preparing your adventure',
+              style: AppTextStyles.title,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: Text(
+                _loadingQuotes[_loadingQuoteIndex],
+                key: ValueKey(_loadingQuoteIndex),
+                style: AppTextStyles.body.copyWith(color: AppColors.mutedText),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            SizedBox(
+              width: 220,
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: AppSpacing.sm,
+                borderRadius: AppRadius.r(AppRadius.sm),
+                color: AppColors.accent,
+                backgroundColor: AppColors.muted,
+              ),
+            ),
+            if (hasProgress) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '$_preparedAssetCount of $_totalAssetCount ready',
+                style: AppTextStyles.small,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSession(List<Question> questions) {
     final question = questions[currentQuestionIndex];
     final isLastQuestion = currentQuestionIndex == questions.length - 1;
@@ -638,22 +889,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final isQuestionComplete =
         selected != null || _isQuestionComplete(question);
 
-    if (isQuestionComplete) {
-      _scheduleAnswerActionsReveal(question.id);
-    }
-
-    String getLanguage() {
-      switch (_subjectIdForQuestion(question)) {
-        case 'bm':
-          return 'ms-MY';
-        case 'bi':
-          return 'en-GB';
-        case 'bc':
-          return 'zh-CN';
-        default:
-          return 'en-GB';
-      }
-    }
+    final language = _languageForQuestion(question);
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -684,143 +920,94 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
             ],
           ),
+          if (widget.sessionMode == SessionMode.bearsDen) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const _BearsDenChip(label: "Bear's Den"),
+          ],
           const SizedBox(height: AppSpacing.md),
           Expanded(
-            child: SingleChildScrollView(
-              key: const ValueKey('level_session_scroll'),
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: Column(
-                children: [
-                  if (question.imageUrl != null &&
-                      question.imageUrl!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                      child: Center(
-                        child: Container(
-                          constraints: const BoxConstraints(maxHeight: 160),
-                          decoration: BoxDecoration(
-                            color: AppColors.imagePlaceholder,
-                            borderRadius: AppRadius.r(AppRadius.xl),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: AppRadius.r(AppRadius.xl),
-                            child: Image.network(
-                              question.imageUrl!,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(
-                                    Icons.image,
-                                    color: AppColors.mutedText,
-                                    size: 48,
-                                  ),
-                            ),
-                          ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        key: const ValueKey('level_session_scroll'),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.md,
                         ),
-                      ),
-                    ),
-                  _buildQuestionText(question, getLanguage()),
-                  const SizedBox(height: AppSpacing.sm),
-                  _buildQuestionBody(question),
-                  if (isQuestionComplete)
-                    Column(
-                      key: _answerActionsKey,
-                      children: [
-                        const SizedBox(height: AppSpacing.lg),
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeOutBack,
-                          builder: (context, value, child) {
-                            return Transform.scale(
-                              scale: value,
-                              child: Opacity(
-                                opacity: value.clamp(0.0, 1.0),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: selected == question.correctAnswerIndex
-                                  ? AppColors.accentLight
-                                  : AppColors.destructiveLight,
-                              borderRadius: AppRadius.r(AppRadius.lg),
-                            ),
-                            child: Row(
-                              children: [
-                                if (widget.showFeedbackMascot) ...[
-                                  SizedBox(
-                                    width: 72,
-                                    height: 54,
-                                    child: OverflowBox(
-                                      maxWidth: 120,
-                                      maxHeight: 120,
-                                      child: ActiveMascotWidget(
-                                        childId: widget.childId,
-                                        size:
-                                            selected ==
-                                                question.correctAnswerIndex
-                                            ? 86
-                                            : 82,
-                                        showBackground: false,
-                                        mood:
-                                            selected ==
-                                                question.correctAnswerIndex
-                                            ? MascotMood.cheering
-                                            : MascotMood.crying,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight:
+                                constraints.maxHeight - (AppSpacing.md * 2),
+                          ),
+                          child: Column(
+                            key: const ValueKey('question_content'),
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (question.imageUrl != null &&
+                                  question.imageUrl!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: AppSpacing.md,
+                                  ),
+                                  child: Center(
+                                    child: Container(
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 160,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.imagePlaceholder,
+                                        borderRadius: AppRadius.r(AppRadius.xl),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: AppRadius.r(AppRadius.xl),
+                                        child: Image.network(
+                                          question.imageUrl!,
+                                          fit: BoxFit.contain,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  const Icon(
+                                                    Icons.image,
+                                                    color: AppColors.mutedText,
+                                                    size: 48,
+                                                  ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                ],
-                                Expanded(
-                                  child: Text(
-                                    _answerFeedbackText(question),
-                                    style: AppTextStyles.bodyBold.copyWith(
-                                      fontSize: 14,
-                                    ),
-                                  ),
+                                ),
+                              _buildQuestionText(question, language),
+                              if (widget.sessionMode ==
+                                  SessionMode.bearsDen) ...[
+                                const SizedBox(height: AppSpacing.sm),
+                                _BearsDenChip(
+                                  label:
+                                      BearsDenDemoData.chapterLabelForQuestion(
+                                        question,
+                                      ),
                                 ),
                               ],
-                            ),
+                              const SizedBox(height: AppSpacing.sm),
+                              _buildQuestionBody(question),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.sm),
-                        PrimaryButton(
-                          label: isLastQuestion ? 'Finish' : 'Next',
-                          isLoading: isLastQuestion && _isSaving,
-                          icon: Icons.arrow_forward_rounded,
-                          onPressed: () {
-                            if (isLastQuestion) {
-                              _completeSession(questions.length);
-                            } else {
-                              setState(() {
-                                currentQuestionIndex++;
-                                selected = null;
-                                _rearrangeOrder = null;
-                                _rearrangeSubmitted = false;
-                                _draggedOptionIndex = null;
-                                _fillBlankSubmitted = false;
-                                _dragDropSpellingSubmitted = false;
-                                _matchingSubmitted = false;
-                                _strokeTraceSubmitted = false;
-                                _strokeHadWrongAttempt = false;
-                                _numberSubmitted = false;
-                                _numberController.clear();
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
+                      );
+                    },
+                  ),
+                ),
+                if (isQuestionComplete) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _buildAnswerActions(
+                    question,
+                    isLastQuestion: isLastQuestion,
+                    totalQuestions: questions.length,
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
         ],
@@ -828,27 +1015,93 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     );
   }
 
-  void _scheduleAnswerActionsReveal(String questionId) {
-    if (_revealedAnswerActionsForQuestionId == questionId) return;
-    _revealedAnswerActionsForQuestionId = questionId;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final answerActionsContext = _answerActionsKey.currentContext;
-      if (answerActionsContext == null) {
-        _revealedAnswerActionsForQuestionId = null;
-        return;
-      }
-
-      unawaited(
-        Scrollable.ensureVisible(
-          answerActionsContext,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+  Widget _buildAnswerActions(
+    Question question, {
+    required bool isLastQuestion,
+    required int totalQuestions,
+  }) {
+    return Column(
+      key: const ValueKey('answer_actions'),
+      children: [
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutBack,
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: value,
+              child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
+            );
+          },
+          child: Container(
+            key: const ValueKey('answer_feedback'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: selected == question.correctAnswerIndex
+                  ? AppColors.accentLight
+                  : AppColors.destructiveLight,
+              borderRadius: AppRadius.r(AppRadius.lg),
+            ),
+            child: Row(
+              children: [
+                if (widget.showFeedbackMascot) ...[
+                  SizedBox(
+                    width: 72,
+                    height: 54,
+                    child: OverflowBox(
+                      maxWidth: 120,
+                      maxHeight: 120,
+                      child: ActiveMascotWidget(
+                        childId: widget.childId,
+                        size: selected == question.correctAnswerIndex ? 86 : 82,
+                        showBackground: false,
+                        mood: selected == question.correctAnswerIndex
+                            ? MascotMood.cheering
+                            : MascotMood.crying,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                Expanded(
+                  child: Text(
+                    _answerFeedbackText(question),
+                    style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      );
-    });
+        const SizedBox(height: AppSpacing.sm),
+        PrimaryButton(
+          label: isLastQuestion ? 'Finish' : 'Next',
+          isLoading: isLastQuestion && _isSaving,
+          icon: Icons.arrow_forward_rounded,
+          onPressed: () {
+            if (isLastQuestion) {
+              _completeSession(totalQuestions);
+            } else {
+              setState(() {
+                currentQuestionIndex++;
+                selected = null;
+                _rearrangeOrder = null;
+                _rearrangeSubmitted = false;
+                _draggedOptionIndex = null;
+                _fillBlankSubmitted = false;
+                _dragDropSpellingSubmitted = false;
+                _matchingSubmitted = false;
+                _strokeTraceSubmitted = false;
+                _strokeHadWrongAttempt = false;
+                _numberSubmitted = false;
+                _numberController.clear();
+              });
+            }
+          },
+        ),
+      ],
+    );
   }
 
   Widget _buildQuestionText(Question question, String language) {
@@ -1119,9 +1372,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             physics: const ClampingScrollPhysics(),
             buildDefaultDragHandles:
                 false, // Disable default long-press handles
-            onReorderItem: (oldIndex, newIndex) {
+            onReorder: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
+                if (newIndex > oldIndex) newIndex--;
                 final int item = _rearrangeOrder!.removeAt(oldIndex);
                 _rearrangeOrder!.insert(newIndex, item);
               });
@@ -1526,6 +1780,30 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BearsDenChip extends StatelessWidget {
+  const _BearsDenChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8E1),
+          borderRadius: AppRadius.r(AppRadius.md),
+          border: Border.all(color: const Color(0xFFFCD34D)),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.tiny.copyWith(color: const Color(0xFF92400E)),
         ),
       ),
     );
