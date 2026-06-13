@@ -213,11 +213,13 @@ class SessionAssetPreloader {
   }) async {
     for (final prompt in prompts) {
       final remaining = timeout - stopwatch.elapsed;
-      if (remaining <= Duration.zero) return;
+      if (remaining <= Duration.zero) {
+        throw TimeoutException('TTS preparation timed out');
+      }
       try {
         await prepare(prompt).timeout(remaining);
       } on TimeoutException {
-        return;
+        throw TimeoutException('TTS preparation timed out');
       }
     }
   }
