@@ -1110,17 +1110,16 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           child: ReorderableListView(
             shrinkWrap: true,
             physics: const ClampingScrollPhysics(),
-            buildDefaultDragHandles:
-                false, // Disable default long-press handles
-            onReorder: (oldIndex, newIndex) {
+            buildDefaultDragHandles: false, // Disable default long-press handles
+            onReorderItem: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
-                if (newIndex > oldIndex) newIndex--;
                 final int item = _rearrangeOrder!.removeAt(oldIndex);
                 _rearrangeOrder!.insert(newIndex, item);
               });
             },
             children: [
+
               for (int i = 0; i < _rearrangeOrder!.length; i++)
                 _reorderableItem(i, question),
             ],
