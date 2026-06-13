@@ -160,8 +160,8 @@ ID 30 (streak)              → requires session timestamp tracking from Sprint 
 | 43 | Timer data on parent dashboard | Should | Dev 2 | Per-level elapsed time and daily total; query from attempt documents |
 | 44 | Mandarin stroke tracing | Must | Dev 4 (dedicated) | Canvas drawing + stroke order validation; limited to simple Std 1 characters; see BT-05 §9 |
 | 45 | Multi-child — add profile + switch | Should | Dev 2 | Second child profile creation; profile switcher in parent mode dashboard |
-| 54 | BearAI insight card | Should | Dev 2 | Auto-generated 2–3 sentence summary of child's recent activity; displayed at top of BearAI tab in parent dashboard; generated via Claude API call with child Firestore data as context |
-| 55 | BearAI chat interface | Must | Dev 2 | Full chat UI in parent dashboard BearAI tab; suggestion chips; free-form questions; Claude API with child data context payload; conversation not persisted across sessions |
+| 54 | BearAI insight card | Should | Dev 2 | Auto-generated 2–3 sentence summary of child's recent activity; displayed at top of BearAI tab in parent dashboard; generated via Gemini API call with child Firestore data as context |
+| 55 | BearAI chat interface | Must | Dev 2 | Full chat UI in parent dashboard BearAI tab; suggestion chips; free-form questions; Gemini API with child data context payload; conversation not persisted across sessions |
 
 ### SM (Samy) — Sprint 3 non-dev responsibilities
 - Sprint 3 planning, daily standups, Sprint 3 review and retrospective
@@ -180,14 +180,14 @@ ID 36, 37, 38 (review)    → Wrong-answer flag data must exist from Sprint 1/2 
 ID 39 (quest unlock)      → ID 41 (outfit selection must exist first)
 ID 40 (quests tab)        → ID 39
 ID 44 (stroke tracing)    → Dev 3 must supply character stroke order data for target Std 1 characters
-ID 54 (BearAI insight)    → Firestore child data must be populated from Sprint 1/2 sessions; Claude API key must be configured
-ID 55 (BearAI chat)       → ID 54 (insight card and BearAI tab must exist first); Claude API key configured; child Firestore context payload designed by Dev 2 before UI work begins
+ID 54 (BearAI insight)    → Firestore child data must be populated from Sprint 1/2 sessions; Gemini API key must be configured
+ID 55 (BearAI chat)       → ID 54 (insight card and BearAI tab must exist first); Gemini API key configured; child Firestore context payload designed by Dev 2 before UI work begins
 ```
 
 ### Risks
 - **ID 44 (stroke tracing):** Highest-risk item in the entire project. Dev 4 must start this on Day 1 of Sprint 3. If not functional by mid-sprint, escalate to full team immediately. Fallback plan: Mandarin ships as recognition-only for V1 and stroke tracing moves to icebox.
 - **ID 36–38 (review system):** Requires wrong-answer data from Sprint 1 and 2 sessions. If no real test sessions have been played, seed test data before the Sprint 3 demo.
-- **ID 55 (BearAI chat):** Requires Claude API key to be provisioned and the child data context payload to be designed before Dev 2 starts building the chat UI. Dev 2 must spike the API call and context structure on Day 1 of Sprint 3. If API integration proves too complex within sprint, fallback plan is hardcoded mock responses for the demo — flag by Day 7.
+- **ID 55 (BearAI chat):** Requires Gemini API key to be provisioned and the child data context payload to be designed before Dev 2 starts building the chat UI. Dev 2 must spike the API call and context structure on Day 1 of Sprint 3. If API integration proves too complex within sprint, fallback plan is hardcoded mock responses for the demo — flag by Day 7.
 
 ### Definition of done — Sprint 3
 - [ ] Child can claim a reward; stars show as pending; parent receives notification

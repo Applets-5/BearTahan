@@ -177,3 +177,12 @@ final rewardClaimsProvider =
           .watch(firestoreServiceProvider)
           .streamRewardClaims(arg.parentId, arg.childId);
     });
+
+final attemptsProvider =
+    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, childId) {
+      final parentId = ref.watch(parentIdProvider);
+      if (parentId.isEmpty || childId.isEmpty) return const Stream.empty();
+      return ref
+          .watch(firestoreServiceProvider)
+          .streamAttempts(parentId, childId);
+    });

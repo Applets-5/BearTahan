@@ -20,6 +20,7 @@ class RewardCard extends StatelessWidget {
     this.currentStars,
     this.showBorder = true,
     this.childName,
+    this.timestamp,
   });
 
   final String title;
@@ -37,11 +38,14 @@ class RewardCard extends StatelessWidget {
   final int? currentStars;
   final bool showBorder;
   final String? childName;
+  final String? timestamp;
 
   @override
   Widget build(BuildContext context) {
     final pending = status == 'pending';
     final redeemed = status == 'redeemed';
+    final approved = status == 'approved';
+    final rejected = status == 'rejected';
     final available = status == 'available';
     final hasEnough = currentStars != null && currentStars! >= cost;
 
@@ -60,13 +64,17 @@ class RewardCard extends StatelessWidget {
     Color progressValueColor = tealGreen;
     Color progressTrackColor = greyTrack;
     Color? buttonColor;
-    Color? buttonTextColor = Colors.white;
+    Color buttonTextColor = Colors.white;
     String finalPrimaryLabel = primaryLabel ?? 'Claim';
     Widget? buttonIcon;
 
-    if (redeemed) {
-      cardColor = AppColors.muted;
+    if (redeemed || approved) {
+      cardColor = Colors.white;
+      borderColor = tealGreen;
       progressValueColor = AppColors.mutedText;
+    } else if (rejected) {
+      cardColor = Colors.white;
+      borderColor = AppColors.destructive;
     } else if (pending) {
       cardColor = const Color(0xFFFFFCEB); // Yellow - Pending
       borderColor = goldenYellow;
@@ -98,21 +106,18 @@ class RewardCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(24.0), // Generous padding
+      padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(24.0), // Highly rounded
-        border: showBorder ? Border.all(color: borderColor, width: 1.5) : null,
+        borderRadius: BorderRadius.circular(24.0),
+        border: showBorder
+            ? Border.all(color: borderColor.withValues(alpha: 0.5), width: 1.0)
+            : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -120,6 +125,7 @@ class RewardCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -129,79 +135,88 @@ class RewardCard extends StatelessWidget {
                       title,
                       style: AppTextStyles.cardTitle.copyWith(
                         color: titleColor,
+                        fontSize: 18,
                       ),
                     ),
-                    if (childName != null)
-                      Text(
-                        'For: $childName',
-                        style: AppTextStyles.tiny.copyWith(
-                          color: tealGreen,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                   ],
                 ),
               ),
-              if (status != 'available')
-                _StatusPill(
-                  label: status,
-                  color: pending ? goldenYellow : AppColors.muted,
-                  textColor: pending ? Colors.white : null,
-                ),
-              if (onEdit != null || onDelete != null)
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit' && onEdit != null) onEdit!();
-                    if (value == 'delete' && onDelete != null) onDelete!();
-                  },
-                  itemBuilder: (context) => [
-                    if (onEdit != null)
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 20),
-                            SizedBox(width: 8),
-                            Text('Edit'),
-                          ],
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (timestamp != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        timestamp!,
+                        style: AppTextStyles.tiny.copyWith(
+                          color: subtitleColor,
+                          fontSize: 10,
                         ),
                       ),
-                    if (onDelete != null)
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, color: Colors.red, size: 20),
-                            SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: Colors.red)),
-                          ],
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.muted.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.stars_rounded,
+                          size: 16,
+                          color: goldenYellow,
                         ),
-                      ),
-                  ],
-                  child: const Icon(Icons.more_vert, color: subtitleColor),
-                ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$cost',
+                          style: AppTextStyles.bodyBold.copyWith(
+                            color: titleColor,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            description,
-            style: AppTextStyles.small.copyWith(color: subtitleColor),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (currentStars == null) ...[
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.star, size: 16, color: goldenYellow),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  '$cost stars required',
-                  style: AppTextStyles.bodyBold.copyWith(color: titleColor),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  description,
+                  style: AppTextStyles.small.copyWith(
+                    color: subtitleColor,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+              if (status != 'available') ...[
+                const SizedBox(width: 8),
+                _StatusPill(
+                  label: status.toUpperCase(),
+                  color: pending
+                      ? goldenYellow
+                      : (rejected
+                            ? AppColors.destructive
+                            : (approved ? tealGreen : AppColors.mutedText)),
+                  textColor: Colors.white,
                 ),
               ],
-            ),
-          ],
+            ],
+          ),
           if (currentStars != null && !redeemed) ...[
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -228,19 +243,19 @@ class RewardCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: 6),
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: LinearProgressIndicator(
                 value: progress,
-                minHeight: 12, // Slightly thicker for a playful feel
+                minHeight: 10,
                 backgroundColor: progressTrackColor,
                 valueColor: AlwaysStoppedAnimation<Color>(progressValueColor),
               ),
             ),
           ],
           if (onPrimary != null || onSecondary != null) ...[
-            const SizedBox(height: 24.0),
+            const SizedBox(height: 20),
             Row(
               children: [
                 if (onPrimary != null && primaryLabel != null)
@@ -254,27 +269,32 @@ class RewardCard extends StatelessWidget {
                       style: FilledButton.styleFrom(
                         backgroundColor: buttonColor,
                         foregroundColor: buttonTextColor,
-                        disabledBackgroundColor: buttonColor,
-                        disabledForegroundColor: buttonTextColor,
+                        disabledBackgroundColor: buttonColor?.withValues(
+                          alpha: 0.5,
+                        ),
+                        disabledForegroundColor: buttonTextColor.withValues(
+                          alpha: 0.7,
+                        ),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),
                 if (onPrimary != null && onSecondary != null)
-                  const SizedBox(width: AppSpacing.md),
+                  const SizedBox(width: 12),
                 if (onSecondary != null && secondaryLabel != null)
                   Expanded(
                     child: OutlinedButton(
                       onPressed: secondaryEnabled ? onSecondary : null,
                       style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.border),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       child: Text(secondaryLabel!),
                     ),
@@ -289,23 +309,27 @@ class RewardCard extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, this.color, this.textColor});
+  const _StatusPill({required this.label, required this.color, this.textColor});
+
   final String label;
-  final Color? color;
+  final Color color;
   final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color ?? AppColors.muted,
+        color: color,
         borderRadius: AppRadius.r(AppRadius.xl),
       ),
-      child: Text(label, style: AppTextStyles.tiny.copyWith(color: textColor)),
+      child: Text(
+        label,
+        style: AppTextStyles.tiny.copyWith(
+          color: textColor ?? AppColors.mutedText,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }

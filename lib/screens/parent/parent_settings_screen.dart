@@ -18,10 +18,12 @@ class ParentSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
-  void _showPinDialog() {
+  void _showPinDialog(Map<String, dynamic> settings) {
+    final oldPinController = TextEditingController();
     final pinController = TextEditingController();
     final confirmController = TextEditingController();
     String? error;
+    final String? currentPin = settings['parentPin'];
 
     showDialog(
       context: context,
@@ -31,6 +33,19 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (currentPin != null) ...[
+                TextField(
+                  controller: oldPinController,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Old 4-digit PIN',
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
               TextField(
                 controller: pinController,
                 obscureText: true,
@@ -48,7 +63,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                 keyboardType: TextInputType.number,
                 maxLength: 4,
                 decoration: InputDecoration(
-                  labelText: 'Confirm PIN',
+                  labelText: 'Confirm New PIN',
                   counterText: '',
                   errorText: error,
                 ),
@@ -62,6 +77,10 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
             ),
             FilledButton(
               onPressed: () async {
+                if (currentPin != null && oldPinController.text != currentPin) {
+                  setDialogState(() => error = 'Incorrect old PIN');
+                  return;
+                }
                 if (pinController.text.length != 4) {
                   setDialogState(() => error = 'PIN must be 4 digits');
                   return;
@@ -273,7 +292,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                       iconColor: const Color(0xFF534AB7),
                       title: 'Change parent PIN',
                       subtitle: '4-digit access code',
-                      onTap: _showPinDialog,
+                      onTap: () => _showPinDialog(settings),
                       trailing: const Icon(
                         Icons.chevron_right,
                         color: AppColors.mutedText,

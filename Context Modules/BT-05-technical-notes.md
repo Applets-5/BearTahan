@@ -578,11 +578,11 @@ These are specific behavioral constraints and testing requirements extracted fro
 
 Sprint 3 task — Dev 2.
 
-BearAI is a Claude API-powered chat feature in the parent dashboard. It gives parents a personal AI consultant that understands their child's in-app activity and answers questions about progress, rewards, goals, and subject-specific concerns.
+BearAI is a Gemini API-powered chat feature in the parent dashboard. It gives parents a personal AI consultant that understands their child's in-app activity and answers questions about progress, rewards, goals, and subject-specific concerns.
 
 ### Architecture
 
-- The Flutter app calls the Claude API directly from the parent dashboard (authenticated parent mode only)
+- The Flutter app calls the Gemini API directly from the parent dashboard (authenticated parent mode only)
 - The API key is stored securely — never hardcoded in the app; retrieved from a Firebase Remote Config or environment config at runtime
 - Each BearAI request assembles a context payload from Firestore in real time before calling the API
 - No conversation history is stored in Firestore — the chat is session-only in V1
@@ -624,28 +624,29 @@ ${subjects.map((s) => '- ${s.subjectID}: ${s.wrongAnswerCount} pending review qu
 ### API call
 
 ```dart
-Future<String> askBearAI(String parentMessage, String systemPrompt) async {
-  final response = await http.post(
-    Uri.parse('https://api.anthropic.com/v1/messages'),
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: jsonEncode({
-      'model': 'claude-sonnet-4-20250514',
-      'max_tokens': 400,
-      'system': systemPrompt,
-      'messages': [
-        {'role': 'user', 'content': parentMessage}
-      ],
-    }),
-  );
-
-  final data = jsonDecode(response.body);
-  return data['content'][0]['text'] as String;
+Future<String> askBearAi(String message, List<Map<String, String>> history) async {
+  final result = await FirebaseFunctions.instanceFor(region: 'asia-southeast1')
+      .httpsCallable('askBearAi')
+      .call({
+    'childId': currentChildId,
+    'message': message,
+    'history': history,
+  });
+  return result.data['text'];
 }
 ```
+
+### Prompt Strategy (Gemini 1.5 Flash)
+
+1. **System Instruction**: Set role as "BearAI", provide child context (stars, streak, progress).
+2. **Context Injection**: Assemble Firestore data into a structured string.
+3. **Chat History**: Pass latest 10 messages for continuity.
+
+### Rate Limiting
+
+- **Cooldown**: 6 seconds between messages per parent.
+- **Daily Cap**: 50 messages per parent per day.
+- **Enforcement**: Managed via Firestore transactions in Cloud Functions.
 
 For multi-turn conversation within the same session, maintain the message history in local state and pass the full history array on each call:
 
@@ -659,7 +660,7 @@ Future<void> sendMessage(String userText) async {
   final response = await http.post(
     // ...same headers...
     body: jsonEncode({
-      'model': 'claude-sonnet-4-20250514',
+      'model': 'gemini-1.5-flash',
       'max_tokens': 400,
       'system': systemPrompt,
       'messages': _messages, // full history
@@ -695,7 +696,7 @@ The four suggestion chips map to these fixed prompts sent as user messages:
 
 ### Security note
 
-The Claude API key must never be bundled in the Flutter app binary. Options:
+The Gemini API key must never be bundled in the Flutter app binary. Options:
 1. Call the API via a Firebase Cloud Function (recommended) — the function holds the key server-side and the app calls the function
 2. Use Firebase Remote Config with server-side key management
 
