@@ -21,7 +21,7 @@ class BearAiNotifier extends Notifier<Map<String, BearAiState>> {
     DateTime? lastDate,
   }) async {
     final currentState = _getState(childId);
-    if (currentState.hasGeneratedInsight || currentState.isInsightLoading){
+    if (currentState.hasGeneratedInsight || currentState.isInsightLoading) {
       return;
     }
     // If we have a fresh insight (less than 7 days old), use it directly
