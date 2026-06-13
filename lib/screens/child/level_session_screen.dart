@@ -1055,12 +1055,16 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           style: AppTextStyles.small,
         ),
         const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 200,
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 400),
           child: ReorderableListView(
+            shrinkWrap: true,
+            physics: const ClampingScrollPhysics(),
+            buildDefaultDragHandles: false, // Disable default long-press handles
             onReorder: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
+                if (newIndex > oldIndex) newIndex--;
                 final int item = _rearrangeOrder!.removeAt(oldIndex);
                 _rearrangeOrder!.insert(newIndex, item);
               });
@@ -1114,22 +1118,28 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final optionIndex = _rearrangeOrder![index];
     final option = question.options[optionIndex];
 
-    return Container(
+    return ReorderableDragStartListener(
       key: ValueKey('reorder_$optionIndex'),
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-        boxShadow: AppShadows.card,
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.drag_indicator, color: AppColors.mutedText),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(child: Text(option.text, style: AppTextStyles.bodyBold)),
-        ],
+      index: index,
+      enabled: !_rearrangeSubmitted,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: AppRadius.r(AppRadius.lg),
+          border: Border.all(color: AppColors.border),
+          boxShadow: AppShadows.card,
+        ),
+        child: Row(
+          children: [
+            if (!_rearrangeSubmitted) ...[
+              const Icon(Icons.drag_indicator, color: AppColors.mutedText),
+              const SizedBox(width: AppSpacing.md),
+            ],
+            Expanded(child: Text(option.text, style: AppTextStyles.bodyBold)),
+          ],
+        ),
       ),
     );
   }
@@ -1233,6 +1243,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     }
 
     final type = question.type?.toLowerCase();
+    if (type == 'matching') {
+      return 'Oh no, better luck next time!';
+    }
     if (type == 'stroke_trace') {
       return 'Not quite. Watch the stroke order and try again later.';
     }

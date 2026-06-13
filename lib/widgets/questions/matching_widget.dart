@@ -20,7 +20,7 @@ class MatchingWidget extends StatefulWidget {
   State<MatchingWidget> createState() => _MatchingWidgetState();
 }
 
-class _MatchingWidgetState extends State<MatchingWidget> {
+class _MatchingWidgetState extends State<MatchingWidget> with SingleTickerProviderStateMixin {
   static const int maxAttempts = 3;
   late List<QuestionOption> _leftOptions;
   late List<QuestionOption> _rightOptions;
@@ -31,10 +31,33 @@ class _MatchingWidgetState extends State<MatchingWidget> {
   int _attemptsUsed = 0;
   bool _completed = false;
 
+  late final AnimationController _feedbackController;
+  late final Animation<double> _shakeAnimation;
+
   @override
   void initState() {
     super.initState();
+    _feedbackController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _shakeAnimation =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 0, end: -8), weight: 1),
+          TweenSequenceItem(tween: Tween(begin: -8, end: 8), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 8, end: -6), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: -6, end: 6), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 6, end: 0), weight: 1),
+        ]).animate(
+          CurvedAnimation(parent: _feedbackController, curve: Curves.easeOut),
+        );
     _initGame();
+  }
+
+  @override
+  void dispose() {
+    _feedbackController.dispose();
+    super.dispose();
   }
 
   void _initGame() {
@@ -93,6 +116,7 @@ class _MatchingWidgetState extends State<MatchingWidget> {
         // Wrong
         _attemptsUsed++;
         widget.onWrongAttempt?.call();
+        _feedbackController.forward(from: 0);
 
         if (_attemptsUsed >= maxAttempts) {
           setState(() {
@@ -129,41 +153,48 @@ class _MatchingWidgetState extends State<MatchingWidget> {
         ],
         _buildAttemptProgress(),
         const SizedBox(height: AppSpacing.md),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left Column: Options
-            Expanded(
-              child: Column(
-                children: _leftOptions.map((option) {
-                  return _buildMatchCard(
-                    text: option.text,
-                    imageUrl: option.text.isEmpty ? option.imageUrl : null,
-                    isSelected: _selectedLeft == option,
-                    isMatched: _matchedOptions.contains(option),
-                    isWrong: _isWrongFlash && _selectedLeft == option,
-                    onTap: () => _handleLeftTap(option),
-                  );
-                }).toList(),
+        AnimatedBuilder(
+          animation: _feedbackController,
+          builder: (context, child) => Transform.translate(
+            offset: Offset(_shakeAnimation.value, 0),
+            child: child,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left Column: Options
+              Expanded(
+                child: Column(
+                  children: _leftOptions.map((option) {
+                    return _buildMatchCard(
+                      text: option.text,
+                      imageUrl: option.text.isEmpty ? option.imageUrl : null,
+                      isSelected: _selectedLeft == option,
+                      isMatched: _matchedOptions.contains(option),
+                      isWrong: _isWrongFlash && _selectedLeft == option,
+                      onTap: () => _handleLeftTap(option),
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            // Right Column: Pairs
-            Expanded(
-              child: Column(
-                children: _rightOptions.map((option) {
-                  return _buildMatchCard(
-                    text: option.pairText,
-                    imageUrl: option.pairImageUrl ?? (option.pairText == null ? option.imageUrl : null),
-                    isSelected: _selectedRight == option,
-                    isMatched: _matchedOptions.contains(option),
-                    isWrong: _isWrongFlash && _selectedRight == option,
-                    onTap: () => _handleRightTap(option),
-                  );
-                }).toList(),
+              const SizedBox(width: AppSpacing.md),
+              // Right Column: Pairs
+              Expanded(
+                child: Column(
+                  children: _rightOptions.map((option) {
+                    return _buildMatchCard(
+                      text: option.pairText,
+                      imageUrl: option.pairImageUrl ?? (option.pairText == null ? option.imageUrl : null),
+                      isSelected: _selectedRight == option,
+                      isMatched: _matchedOptions.contains(option),
+                      isWrong: _isWrongFlash && _selectedRight == option,
+                      onTap: () => _handleRightTap(option),
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
