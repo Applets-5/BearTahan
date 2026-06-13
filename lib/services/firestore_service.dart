@@ -1392,7 +1392,8 @@ class FirestoreService {
     required int total,
     required int stars,
     required int timeInSeconds,
-    String sessionType = 'regular', // 'regular' | 'bears_den' | 'memory_challenge' | 'chapter_summary' | 'revision'
+    String sessionType =
+        'regular', // 'regular' | 'bears_den' | 'memory_challenge' | 'chapter_summary' | 'revision'
   }) async {
     await _db
         .collection('parents')

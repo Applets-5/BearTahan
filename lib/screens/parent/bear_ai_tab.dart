@@ -327,8 +327,9 @@ class _BearAITabState extends ConsumerState<BearAITab> {
 
     // Weakness-aware
     final needsWork = sorted.where((s) => s.progress < 50).toList();
-    final almostThere =
-        sorted.where((s) => s.progress >= 50 && s.progress < 80).toList();
+    final almostThere = sorted
+        .where((s) => s.progress >= 50 && s.progress < 80)
+        .toList();
 
     if (needsWork.isNotEmpty) {
       final subj = _subjectName(needsWork.first.id);
@@ -342,7 +343,9 @@ class _BearAITabState extends ConsumerState<BearAITab> {
     if ((child.streakCount ?? 0) == 0) {
       chips.add("🔥 How do I restart ${child.name}'s streak?");
     } else if ((child.streakCount ?? 0) > 7) {
-      chips.add("🏆 Celebrate ${child.name}'s ${child.streakCount}-day streak!");
+      chips.add(
+        "🏆 Celebrate ${child.name}'s ${child.streakCount}-day streak!",
+      );
     }
 
     // Stars-aware
