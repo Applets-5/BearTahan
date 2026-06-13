@@ -117,7 +117,7 @@ class _CompletionMascotStageState extends State<CompletionMascotStage>
                   child: Transform.translate(
                     offset: Offset(0, value * 4),
                     child: const _MascotSpeechBubble(
-                      text: 'Keep trying, you’re learning!',
+                      text: "Keep trying, you're learning!",
                       success: false,
                     ),
                   ),
