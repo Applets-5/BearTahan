@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:intl/intl.dart';
 import '../../models/bear_ai_message.dart';
 import '../../models/subject.dart';
 import '../../models/subject_weakness_info.dart';
@@ -178,6 +180,17 @@ class _BearAITabState extends ConsumerState<BearAITab> {
     );
   }
 
+  String _timeAgo(DateTime? date) {
+    if (date == null) return "never";
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inDays > 7) return DateFormat('dd MMM').format(date);
+    if (diff.inDays > 0) return "${diff.inDays}d ago";
+    if (diff.inHours > 0) return "${diff.inHours}h ago";
+    if (diff.inMinutes > 0) return "${diff.inMinutes}m ago";
+    return "just now";
+  }
+
   Widget _buildInsightCard(
     BearAiState aiState,
     AsyncValue<Map<String, SubjectWeaknessInfo>> strengthAsync,
@@ -185,6 +198,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
   ) {
     final profile = childProfileAsync.value;
     final displayInsight = aiState.insight ?? profile?.lastAiInsight;
+    final lastUpdate = profile?.lastAiInsightDate;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -204,7 +218,19 @@ class _BearAITabState extends ConsumerState<BearAITab> {
                 size: 20,
               ),
               const SizedBox(width: AppSpacing.sm),
-              const Text('AI Insight', style: AppTextStyles.bodyBold),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('AI Insight', style: AppTextStyles.bodyBold),
+                  if (displayInsight != null)
+                    Text(
+                      'Updated ${_timeAgo(lastUpdate)}',
+                      style: AppTextStyles.tiny.copyWith(
+                        color: AppColors.mutedText,
+                      ),
+                    ),
+                ],
+              ),
               const Spacer(),
               if (aiState.isInsightLoading)
                 const SizedBox(
@@ -417,13 +443,27 @@ class _ChatMessageBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                message.content,
-                style: AppTextStyles.small.copyWith(
-                  color: isError
-                      ? Colors.red.shade700
-                      : (isUser ? Colors.white : AppColors.foreground),
-                  fontWeight: isError ? FontWeight.bold : FontWeight.normal,
+              MarkdownBody(
+                data: message.content,
+                styleSheet: MarkdownStyleSheet(
+                  p: AppTextStyles.small.copyWith(
+                    color: isError
+                        ? Colors.red.shade700
+                        : (isUser ? Colors.white : AppColors.foreground),
+                    fontWeight: isError ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  strong: AppTextStyles.small.copyWith(
+                    color: isError
+                        ? Colors.red.shade700
+                        : (isUser ? Colors.white : AppColors.foreground),
+                    fontWeight: FontWeight.bold,
+                  ),
+                  em: AppTextStyles.small.copyWith(
+                    color: isError
+                        ? Colors.red.shade700
+                        : (isUser ? Colors.white : AppColors.foreground),
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ),
               if (isError)
