@@ -8,6 +8,8 @@ import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/level_winding_path.dart';
+import '../../widgets/common/mascot_widget.dart';
+import '../../widgets/common/primary_button.dart';
 
 class SubjectScreen extends ConsumerStatefulWidget {
   const SubjectScreen({super.key, this.childId, this.subjectId = 'bm'});
@@ -31,6 +33,93 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
   static const double _stickyRevealOffset = 150.0;
   static const double _stickyRevealIntentDistance = 36.0;
   static const Duration _stickyAnimationDuration = Duration(milliseconds: 420);
+
+  Future<void> _showBearsDenIntro() async {
+    final shouldStart = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFFFFF8E1),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xxl,
+              AppSpacing.md,
+              AppSpacing.xxl,
+              AppSpacing.xxl,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    onPressed: () => Navigator.pop(sheetContext, false),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+                ActiveMascotWidget(
+                  childId: widget.childId,
+                  size: 142,
+                  showBackground: false,
+                  mood: MascotMood.cheering,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const Text("Bear's Den", style: AppTextStyles.title),
+                const SizedBox(height: AppSpacing.xs),
+                const Text(
+                  "A challenge from everything you've learned!",
+                  style: AppTextStyles.body,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _BearsDenInfoChip(
+                      icon: Icons.menu_book_rounded,
+                      label: '3 Chapters',
+                    ),
+                    _BearsDenInfoChip(
+                      icon: Icons.quiz_rounded,
+                      label: '12 Questions',
+                    ),
+                    _BearsDenInfoChip(
+                      icon: Icons.star_rounded,
+                      label: 'Up to 2 stars today',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                PrimaryButton(
+                  label: 'Start Challenge',
+                  icon: Icons.play_arrow_rounded,
+                  onPressed: () => Navigator.pop(sheetContext, true),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (shouldStart == true && mounted) {
+      context.push(
+        AppRouter.levelSessionFor(
+          widget.childId,
+          levelPrefix: 'bi_',
+          subjectId: 'bi',
+          levelId: 'bears_den',
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -217,9 +306,9 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
                     ),
                   );
 
-                  final bool showRevision = dbSubject.allChaptersComplete;
                   final String revisionLevelId = '${widget.subjectId}_revision';
 
+                  final bool showRevision = dbSubject.allChaptersComplete;
                   final Set<String> validLevelIds = chapters
                       .expand((c) => c.levelIds)
                       .toSet();
@@ -267,6 +356,7 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
                               chapters: chapters,
                               subjectId: widget.subjectId,
                               childId: widget.childId,
+                              onBearsDenTap: _showBearsDenIntro,
                               onLevelTap: (levelId, isBoss, chapterId) {
                                 // levelId is already namespaced with the chapter (e.g., 'c1_l4' or 'c1_summary')
                                 String prefix =
@@ -375,6 +465,39 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
+      ),
+    );
+  }
+}
+
+class _BearsDenInfoChip extends StatelessWidget {
+  const _BearsDenInfoChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: AppRadius.r(AppRadius.lg),
+        border: Border.all(color: const Color(0xFFFCD34D)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: const Color(0xFFF59E0B), size: 18),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: AppTextStyles.small.copyWith(color: const Color(0xFF92400E)),
+          ),
+        ],
       ),
     );
   }

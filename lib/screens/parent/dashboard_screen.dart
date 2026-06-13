@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/progress_bar_card.dart';
 import '../../widgets/parent/stat_card.dart';
 import 'bear_ai_tab.dart';
+import '../../features/bears_den/chapter_insights_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -379,6 +380,8 @@ class _OverviewTab extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.lg),
+                    const ChapterInsightsCard(),
                   ],
                 );
               },

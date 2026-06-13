@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/question.dart';
+import '../../models/bears_den_result.dart';
+import '../../models/session_mode.dart';
+import '../../features/bears_den/bears_den_demo_data.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
@@ -29,6 +32,7 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
     this.levelId = 'l1',
     this.showFeedbackMascot = true,
     this.reviewQuestions,
+    this.sessionMode = SessionMode.standard,
   });
 
   final String? childId;
@@ -37,6 +41,7 @@ class LevelSessionScreen extends ConsumerStatefulWidget {
   final String levelId;
   final bool showFeedbackMascot;
   final List<Question>? reviewQuestions;
+  final SessionMode sessionMode;
 
   @override
   ConsumerState<LevelSessionScreen> createState() => _LevelSessionScreenState();
@@ -195,6 +200,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   }
 
   Future<void> _recordQuestionResult(Question question, bool isCorrect) async {
+    if (widget.sessionMode == SessionMode.bearsDen) return;
     final parentId = ref.read(parentIdProvider);
     final childId = widget.childId;
     if (parentId.isEmpty || childId == null || childId.isEmpty) return;
@@ -284,10 +290,42 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final newlyUnlockedOutfits = <String>[];
 
     final isReviewSession = _isDedicatedReviewSession;
+    BearsDenAwardStatus? bearsDenAwardStatus;
 
     try {
       final parentId = ref.read(parentIdProvider);
-      if (!isReviewSession && widget.childId != null && parentId.isNotEmpty) {
+      if (widget.sessionMode == SessionMode.bearsDen) {
+        performanceStars = score == totalQuestions
+            ? 2
+            : score / totalQuestions >= 0.7
+            ? 1
+            : 0;
+        bestStars = performanceStars;
+
+        if (widget.childId != null && parentId.isNotEmpty) {
+          try {
+            final result = await ref
+                .read(firestoreServiceProvider)
+                .completeBearsDenSession(
+                  parentId,
+                  widget.childId!,
+                  score: score,
+                  total: totalQuestions,
+                );
+            performanceStars = result.performanceStars;
+            bestStars = performanceStars;
+            newStarsAwarded = result.awardedStars;
+            bearsDenAwardStatus = result.status;
+          } catch (error) {
+            debugPrint('Unable to save Bear\'s Den stars: $error');
+            bearsDenAwardStatus = BearsDenAwardStatus.saveFailed;
+          }
+        } else {
+          bearsDenAwardStatus = BearsDenAwardStatus.saveFailed;
+        }
+      } else if (!isReviewSession &&
+          widget.childId != null &&
+          parentId.isNotEmpty) {
         final firestore = ref.read(firestoreServiceProvider);
 
         final progressResult = await firestore.updateLevelProgress(
@@ -367,6 +405,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         'levelPrefix': widget.levelPrefix,
         'isEscalated': isEscalated.toString(),
         'isDailyBonus': isDailyBonus.toString(),
+        'sessionMode': widget.sessionMode.name,
+        if (bearsDenAwardStatus != null)
+          'bearsDenAwardStatus': bearsDenAwardStatus.name,
         if (newlyUnlockedOutfits.isNotEmpty)
           'unlockedOutfits': newlyUnlockedOutfits.join(','),
       };
@@ -420,6 +461,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   }
 
   Future<void> _initializeQuestions(List<Question> rawQuestions) async {
+    if (widget.sessionMode == SessionMode.bearsDen) {
+      final questions = List<Question>.from(rawQuestions)..shuffle();
+      shuffledQuestions = questions;
+      if (mounted) setState(() {});
+      return;
+    }
     final isSummary = widget.levelId.toLowerCase().contains('summary');
     final isRevision = widget.levelId.toLowerCase().contains('revision');
     final needsPrioritization = isSummary || isRevision;
@@ -494,6 +541,48 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           child: shuffledQuestions!.isEmpty
               ? _buildNoQuestionsPlaceholder(context)
               : _buildSession(shuffledQuestions!),
+        ),
+      );
+    }
+
+    if (widget.sessionMode == SessionMode.bearsDen) {
+      final questionsAsync = ref.watch(bearsDenQuestionsProvider);
+      ref.watch(parentSettingsProvider);
+      return Scaffold(
+        body: SafeArea(
+          child: questionsAsync.when(
+            data: (rawQuestions) {
+              if (!BearsDenDemoData.isValidSession(rawQuestions)) {
+                return _buildNoQuestionsPlaceholder(
+                  context,
+                  message:
+                      "Bear's Den questions are still loading. Please try again.",
+                );
+              }
+              if (_lastRawQuestions != rawQuestions) {
+                _lastRawQuestions = rawQuestions;
+                shuffledQuestions = null;
+                _initializationFuture = _initializeQuestions(rawQuestions);
+              }
+              if (shuffledQuestions == null) {
+                return FutureBuilder<void>(
+                  future: _initializationFuture,
+                  builder: (context, snapshot) {
+                    if (shuffledQuestions == null) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return _buildSession(shuffledQuestions!);
+                  },
+                );
+              }
+              return _buildSession(shuffledQuestions!);
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => _buildNoQuestionsPlaceholder(
+              context,
+              message: "Bear's Den could not load. Check your connection.",
+            ),
+          ),
         ),
       );
     }
@@ -604,12 +693,18 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     return selected.take(count).toList();
   }
 
-  Widget _buildNoQuestionsPlaceholder(BuildContext context) {
+  Widget _buildNoQuestionsPlaceholder(
+    BuildContext context, {
+    String message = 'No questions found for this level.',
+  }) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('No questions found for this level.'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Text(message, textAlign: TextAlign.center),
+          ),
           const SizedBox(height: AppSpacing.md),
           PrimaryButton(
             label: 'Go Back',
@@ -684,6 +779,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
             ],
           ),
+          if (widget.sessionMode == SessionMode.bearsDen) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const _BearsDenChip(label: "Bear's Den"),
+          ],
           const SizedBox(height: AppSpacing.md),
           Expanded(
             child: SingleChildScrollView(
@@ -720,6 +819,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                       ),
                     ),
                   _buildQuestionText(question, getLanguage()),
+                  if (widget.sessionMode == SessionMode.bearsDen) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _BearsDenChip(
+                      label: BearsDenDemoData.chapterLabelForQuestion(question),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.sm),
                   _buildQuestionBody(question),
                   if (isQuestionComplete)
@@ -1517,6 +1622,30 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BearsDenChip extends StatelessWidget {
+  const _BearsDenChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8E1),
+          borderRadius: AppRadius.r(AppRadius.md),
+          border: Border.all(color: const Color(0xFFFCD34D)),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.tiny.copyWith(color: const Color(0xFF92400E)),
         ),
       ),
     );

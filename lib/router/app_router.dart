@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/question.dart';
+import '../models/bears_den_result.dart';
+import '../models/session_mode.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/child/chapter_screen.dart';
 import '../screens/child/completion_screen.dart';
@@ -382,6 +384,11 @@ class AppRouter {
             state.extra,
             isReviewSession: levelId == 'review_session',
           );
+          final sessionMode = switch (levelId) {
+            'review_session' => SessionMode.review,
+            'bears_den' => SessionMode.bearsDen,
+            _ => SessionMode.standard,
+          };
 
           return _noTransitionPage(
             state,
@@ -391,6 +398,7 @@ class AppRouter {
               subjectId: subjectId,
               levelId: levelId,
               reviewQuestions: reviewQuestions,
+              sessionMode: sessionMode,
             ),
           );
         },
@@ -434,6 +442,15 @@ class AppRouter {
                   .where((id) => id.isNotEmpty)
                   .toList() ??
               const <String>[];
+          final sessionMode = SessionMode.values.firstWhere(
+            (mode) => mode.name == state.uri.queryParameters['sessionMode'],
+            orElse: () => SessionMode.standard,
+          );
+          final bearsDenAwardStatus = BearsDenAwardStatus.values.firstWhere(
+            (status) =>
+                status.name == state.uri.queryParameters['bearsDenAwardStatus'],
+            orElse: () => BearsDenAwardStatus.notEarned,
+          );
 
           return _noTransitionPage(
             state,
@@ -451,6 +468,8 @@ class AppRouter {
               isEscalated: isEscalated,
               isDailyBonus: isDailyBonus,
               unlockedOutfits: unlockedOutfits,
+              sessionMode: sessionMode,
+              bearsDenAwardStatus: bearsDenAwardStatus,
             ),
           );
         },

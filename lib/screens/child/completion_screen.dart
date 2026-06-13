@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/outfit_quest.dart';
+import '../../models/bears_den_result.dart';
+import '../../models/session_mode.dart';
 import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
@@ -32,6 +34,8 @@ class CompletionScreen extends ConsumerStatefulWidget {
     this.isEscalated = false,
     this.isDailyBonus = false,
     this.unlockedOutfits = const [],
+    this.sessionMode = SessionMode.standard,
+    this.bearsDenAwardStatus = BearsDenAwardStatus.notEarned,
   });
 
   final String? childId;
@@ -47,6 +51,8 @@ class CompletionScreen extends ConsumerStatefulWidget {
   final bool isEscalated;
   final bool isDailyBonus;
   final List<String> unlockedOutfits;
+  final SessionMode sessionMode;
+  final BearsDenAwardStatus bearsDenAwardStatus;
 
   @override
   ConsumerState<CompletionScreen> createState() => _CompletionScreenState();
@@ -237,6 +243,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
     final replayPrefix =
         widget.levelPrefix ??
         DataContracts.levelPrefix(widget.subjectId, widget.levelId);
+    final isBearsDen = widget.sessionMode == SessionMode.bearsDen;
 
     return Scaffold(
       body: SafeArea(
@@ -267,6 +274,9 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                     passed: passed,
                     stars: performanceStars,
                     isReview: isReview,
+                    successMessage: isBearsDen
+                        ? 'You tackled all 3 chapters!'
+                        : null,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Icon(
@@ -280,7 +290,9 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    isReview
+                    isBearsDen
+                        ? "Bear's Den Complete!"
+                        : isReview
                         ? 'Review Complete!'
                         : (isSummaryOrRevision &&
                               bestStars == 3 &&
@@ -298,20 +310,39 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   if (!isReview)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        widget.isDailyBonus ? 4 : 3,
-                        (index) => Icon(
-                          Icons.star,
-                          size: 40,
-                          color:
-                              index <
-                                  (widget.isDailyBonus ? 4 : performanceStars)
-                              ? AppColors.star
-                              : AppColors.muted,
+                    Column(
+                      children: [
+                        if (isBearsDen) ...[
+                          Text(
+                            "Today's reward",
+                            style: AppTextStyles.small.copyWith(
+                              color: const Color(0xFF92400E),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                        ],
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            isBearsDen
+                                ? 2
+                                : widget.isDailyBonus
+                                ? 4
+                                : 3,
+                            (index) => Icon(
+                              Icons.star,
+                              size: 40,
+                              color:
+                                  index <
+                                      (widget.isDailyBonus && !isBearsDen
+                                          ? 4
+                                          : performanceStars)
+                                  ? AppColors.star
+                                  : AppColors.muted,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   const SizedBox(height: AppSpacing.lg),
                   if (widget.isEscalated)
@@ -333,29 +364,35 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                         ),
                       ),
                     ),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: isReview || passed
-                          ? AppColors.secondaryLight
-                          : AppColors.muted,
-                      borderRadius: AppRadius.r(AppRadius.lg),
-                    ),
-                    child: Text(
-                      _getFeedbackMessage(
-                        isReview: isReview,
-                        passed: passed,
-                        totalAwarded: totalAwarded,
-                        isSummaryOrRevision: isSummaryOrRevision,
-                        performanceStars: performanceStars,
-                        bestStars: bestStars,
-                        isEscalated: widget.isEscalated,
+                  if (isBearsDen)
+                    _BearsDenWalletPanel(
+                      status: widget.bearsDenAwardStatus,
+                      awardedStars: widget.newStarsAwarded,
+                    )
+                  else
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      decoration: BoxDecoration(
+                        color: isReview || passed
+                            ? AppColors.secondaryLight
+                            : AppColors.muted,
+                        borderRadius: AppRadius.r(AppRadius.lg),
                       ),
-                      style: AppTextStyles.bodyBold,
-                      textAlign: TextAlign.center,
+                      child: Text(
+                        _getFeedbackMessage(
+                          isReview: isReview,
+                          passed: passed,
+                          totalAwarded: totalAwarded,
+                          isSummaryOrRevision: isSummaryOrRevision,
+                          performanceStars: performanceStars,
+                          bestStars: bestStars,
+                          isEscalated: widget.isEscalated,
+                        ),
+                        style: AppTextStyles.bodyBold,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  ),
                   const SizedBox(height: AppSpacing.xl),
                   if (isReview || passed)
                     PrimaryButton(
@@ -398,6 +435,87 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
                     ),
                   ],
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BearsDenWalletPanel extends StatelessWidget {
+  const _BearsDenWalletPanel({
+    required this.status,
+    required this.awardedStars,
+  });
+
+  final BearsDenAwardStatus status;
+  final int awardedStars;
+
+  @override
+  Widget build(BuildContext context) {
+    final isFailure = status == BearsDenAwardStatus.saveFailed;
+    final (icon, message) = switch (status) {
+      BearsDenAwardStatus.awarded => (
+        Icons.star_rounded,
+        '+$awardedStars ${awardedStars == 1 ? 'star' : 'stars'} added to your wallet!',
+      ),
+      BearsDenAwardStatus.dailyCap => (
+        Icons.schedule_rounded,
+        "You already earned today's stars. Come back tomorrow!",
+      ),
+      BearsDenAwardStatus.saveFailed => (
+        Icons.warning_amber_rounded,
+        "Wallet stars couldn't be saved right now.",
+      ),
+      BearsDenAwardStatus.notEarned => (
+        Icons.auto_awesome_rounded,
+        'Score at least 70% to earn a star.',
+      ),
+    };
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Transform.translate(
+        offset: Offset(0, 12 * (1 - value)),
+        child: Opacity(opacity: value, child: child),
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: isFailure ? const Color(0xFFF5F5F5) : const Color(0xFFFFF8E1),
+          borderRadius: AppRadius.r(AppRadius.md),
+          border: Border(
+            left: BorderSide(
+              color: isFailure
+                  ? const Color(0xFF9E9E9E)
+                  : const Color(0xFFF59E0B),
+              width: 4,
+            ),
+          ),
+          boxShadow: AppShadows.card,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isFailure
+                  ? const Color(0xFF9E9E9E)
+                  : const Color(0xFFF59E0B),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                message,
+                style: AppTextStyles.bodyBold.copyWith(
+                  color: isFailure
+                      ? const Color(0xFF737373)
+                      : const Color(0xFF92400E),
+                ),
               ),
             ),
           ],
