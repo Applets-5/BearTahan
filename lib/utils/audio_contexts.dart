@@ -1,5 +1,17 @@
 import 'package:audioplayers/audioplayers.dart';
 
+const double answerFeedbackVolume = 0.60;
+const double levelResultVolume = 0.60;
+
+String levelResultAudioPath({
+  required bool isReviewSession,
+  required int performanceStars,
+}) {
+  return isReviewSession || performanceStars > 0
+      ? 'audio/levelPassed.mp3'
+      : 'audio/levelFailed.mp3';
+}
+
 AudioContext promptAudioContext() {
   return AudioContextConfig(
     focus: AudioContextConfigFocus.mixWithOthers,

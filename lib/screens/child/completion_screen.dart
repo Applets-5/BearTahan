@@ -1,10 +1,15 @@
+import 'dart:async';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/outfit_quest.dart';
+import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/audio_contexts.dart';
 import '../../utils/star_utils.dart';
 import '../../utils/data_contracts.dart';
 import '../../widgets/common/mascot_widget.dart';
@@ -49,13 +54,50 @@ class CompletionScreen extends ConsumerStatefulWidget {
 
 class _CompletionScreenState extends ConsumerState<CompletionScreen> {
   bool _unlockDialogShown = false;
+  final AudioPlayer _resultAudioPlayer = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_playResultAudio());
       _showUnlockDialogIfNeeded();
     });
+  }
+
+  int get _performanceStars {
+    return widget.performanceStars ??
+        StarUtils.calculateStars(
+          score: widget.score,
+          total: widget.total,
+          levelId: widget.levelId,
+        );
+  }
+
+  Future<void> _playResultAudio() async {
+    try {
+      final soundEnabled = await ref.read(soundEffectsProvider.future);
+      if (!mounted || !soundEnabled) return;
+
+      await _resultAudioPlayer.setAudioContext(soundEffectAudioContext());
+      await _resultAudioPlayer.play(
+        AssetSource(
+          levelResultAudioPath(
+            isReviewSession: widget.levelId == 'review_session',
+            performanceStars: _performanceStars,
+          ),
+        ),
+        volume: levelResultVolume,
+      );
+    } catch (error) {
+      debugPrint('Unable to play level result sound: $error');
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_resultAudioPlayer.dispose());
+    super.dispose();
   }
 
   Future<void> _showUnlockDialogIfNeeded() async {
@@ -184,13 +226,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final performanceStars =
-        widget.performanceStars ??
-        StarUtils.calculateStars(
-          score: widget.score,
-          total: widget.total,
-          levelId: widget.levelId,
-        );
+    final performanceStars = _performanceStars;
     final bestStars = widget.bestStars ?? performanceStars;
     final passed = performanceStars > 0;
     final totalAwarded = widget.newStarsAwarded + widget.dailyBonusStars;

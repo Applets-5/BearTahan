@@ -191,8 +191,7 @@ void main() {
 
       await tester.tap(find.text('Finish'));
       await tester.pump();
-      await tester.pump(const Duration(seconds: 6));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.text('Completion reached'), findsOneWidget);
 
       verify(
@@ -229,8 +228,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Finish'));
         await tester.pump();
-        await tester.pump(const Duration(seconds: 6));
-        await tester.pump();
+        await tester.pumpAndSettle();
 
         expect(find.text('Completion reached'), findsOneWidget);
         verify(

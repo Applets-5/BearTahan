@@ -58,8 +58,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   List<Question>? shuffledQuestions;
   List<Question>? _lastRawQuestions;
   final Set<String> _reviewQuestionIds = {};
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  late final Future<void> _feedbackAudioContextReady;
   AudioPool? _correctAnswerPool;
   AudioPool? _wrongAnswerPool;
   AudioPool? _correctStrokePool;
@@ -72,9 +70,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   @override
   void initState() {
     super.initState();
-    _feedbackAudioContextReady = _audioPlayer.setAudioContext(
-      soundEffectAudioContext(),
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startSessionTimer();
     });
@@ -165,10 +160,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     if (isCorrect) {
       await _stopCorrectAnswer?.call();
-      _stopCorrectAnswer = await pool.start(volume: 1.0);
+      _stopCorrectAnswer = await pool.start(volume: answerFeedbackVolume);
     } else {
       await _stopWrongAnswer?.call();
-      _stopWrongAnswer = await pool.start(volume: 1.0);
+      _stopWrongAnswer = await pool.start(volume: answerFeedbackVolume);
     }
   }
 
@@ -249,7 +244,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   void dispose() {
     _stopSessionTimer();
     unawaited(_disposeSoundEffectAudio());
-    unawaited(_audioPlayer.dispose());
     _numberController.dispose();
     super.dispose();
   }
@@ -358,21 +352,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       }
       return;
     }
-
-    // Play appropriate audio
-    final String audioPath = isReviewSession || performanceStars > 0
-        ? 'audio/levelPassed.mp3'
-        : 'audio/levelFailed.mp3';
-
-    final playFuture = _playSound(() async {
-      await _feedbackAudioContextReady;
-      final completed = _audioPlayer.onPlayerComplete.first;
-      await _audioPlayer.play(AssetSource(audioPath), volume: 0.60);
-      await completed.timeout(const Duration(seconds: 5), onTimeout: () {});
-    });
-
-    // Wait for the audio to finish before navigating
-    await playFuture.timeout(const Duration(seconds: 5), onTimeout: () {});
 
     if (mounted) {
       final params = {

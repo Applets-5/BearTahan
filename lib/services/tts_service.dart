@@ -12,7 +12,7 @@ class TtsService {
   Future<void> _initTts() async {
     // Standard 1 students need slower, clearer speech
     await _flutterTts.setSpeechRate(0.45);
-    await _flutterTts.setVolume(1.0);
+    await _flutterTts.setVolume(0.8);
     await _flutterTts.setPitch(1.0);
 
     if (Platform.isAndroid) {
