@@ -1334,10 +1334,14 @@ class FirestoreService {
                   100,
                 )
               : 0;
+          final bool allChaptersComplete =
+              totalLevels > 0 && currentCompletedLevels >= totalLevels;
+
           transaction.set(normalizedSubjectDocRef, {
             'progress': progressPercentage,
             'completedLevels': currentCompletedLevels,
             'totalStars': currentTotalStars,
+            'allChaptersComplete': allChaptersComplete,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }

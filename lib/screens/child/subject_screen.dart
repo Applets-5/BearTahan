@@ -308,10 +308,17 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
 
                   final String revisionLevelId = '${widget.subjectId}_revision';
 
-                  final bool showRevision = dbSubject.allChaptersComplete;
-                  final Set<String> validLevelIds = chapters
+                  final Set<String> chapterLevelIds = chapters
                       .expand((c) => c.levelIds)
                       .toSet();
+                  final bool allChapterLevelsComplete =
+                      chapterLevelIds.isNotEmpty &&
+                      chapterLevelIds.every(
+                        (levelId) => (starMap[levelId] ?? 0) > 0,
+                      );
+                  final bool showRevision =
+                      dbSubject.allChaptersComplete || allChapterLevelsComplete;
+                  final Set<String> validLevelIds = {...chapterLevelIds};
                   if (showRevision) {
                     validLevelIds.add(revisionLevelId);
                   }
