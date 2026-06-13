@@ -113,6 +113,14 @@ void main() {
       expect(find.text('Option B Text'), findsOneWidget);
       expect(find.text('A'), findsOneWidget);
       expect(find.text('B'), findsOneWidget);
+
+      final scrollView = find.byKey(const ValueKey('level_session_scroll'));
+      final questionContent = find.byKey(const ValueKey('question_content'));
+      expect(
+        (tester.getCenter(scrollView).dy - tester.getCenter(questionContent).dy)
+            .abs(),
+        lessThan(40),
+      );
     });
 
     testWidgets('falls back to regular questions when review loading fails', (
@@ -336,7 +344,7 @@ void main() {
       );
     });
 
-    testWidgets('matching completion reveals Finish without manual scrolling', (
+    testWidgets('matching keeps feedback and Finish anchored at the bottom', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(360, 744));
@@ -371,13 +379,19 @@ void main() {
 
       expect(tester.takeException(), isNull);
       final finishButton = find.widgetWithText(FilledButton, 'Finish');
-      final scrollView = find.byKey(const ValueKey('level_session_scroll'));
+      final feedback = find.byKey(const ValueKey('answer_feedback'));
 
       expect(finishButton, findsOneWidget);
+      expect(feedback, findsOneWidget);
       expect(
-        tester.getRect(scrollView).contains(tester.getCenter(finishButton)),
-        isTrue,
+        tester.getBottomLeft(feedback).dy,
+        lessThan(tester.getTopLeft(finishButton).dy),
       );
+      expect(
+        tester.getTopLeft(finishButton).dy - tester.getBottomLeft(feedback).dy,
+        lessThanOrEqualTo(16),
+      );
+      expect(tester.getBottomRight(finishButton).dy, greaterThan(690));
       expect(tester.takeException(), isNull);
     });
 

@@ -56,8 +56,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   bool _isSaving = false;
 
   int? selected;
-  final GlobalKey _answerActionsKey = GlobalKey();
-  String? _revealedAnswerActionsForQuestionId;
   final TextEditingController _numberController = TextEditingController();
   bool _numberSubmitted = false;
   List<Question>? shuffledQuestions;
@@ -733,10 +731,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final isQuestionComplete =
         selected != null || _isQuestionComplete(question);
 
-    if (isQuestionComplete) {
-      _scheduleAnswerActionsReveal(question.id);
-    }
-
     String getLanguage() {
       switch (_subjectIdForQuestion(question)) {
         case 'bm':
@@ -785,147 +779,88 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           ],
           const SizedBox(height: AppSpacing.md),
           Expanded(
-            child: SingleChildScrollView(
-              key: const ValueKey('level_session_scroll'),
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: Column(
-                children: [
-                  if (question.imageUrl != null &&
-                      question.imageUrl!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                      child: Center(
-                        child: Container(
-                          constraints: const BoxConstraints(maxHeight: 160),
-                          decoration: BoxDecoration(
-                            color: AppColors.imagePlaceholder,
-                            borderRadius: AppRadius.r(AppRadius.xl),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: AppRadius.r(AppRadius.xl),
-                            child: Image.network(
-                              question.imageUrl!,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(
-                                    Icons.image,
-                                    color: AppColors.mutedText,
-                                    size: 48,
-                                  ),
-                            ),
-                          ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        key: const ValueKey('level_session_scroll'),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.md,
                         ),
-                      ),
-                    ),
-                  _buildQuestionText(question, getLanguage()),
-                  if (widget.sessionMode == SessionMode.bearsDen) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    _BearsDenChip(
-                      label: BearsDenDemoData.chapterLabelForQuestion(question),
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.sm),
-                  _buildQuestionBody(question),
-                  if (isQuestionComplete)
-                    Column(
-                      key: _answerActionsKey,
-                      children: [
-                        const SizedBox(height: AppSpacing.lg),
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeOutBack,
-                          builder: (context, value, child) {
-                            return Transform.scale(
-                              scale: value,
-                              child: Opacity(
-                                opacity: value.clamp(0.0, 1.0),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: selected == question.correctAnswerIndex
-                                  ? AppColors.accentLight
-                                  : AppColors.destructiveLight,
-                              borderRadius: AppRadius.r(AppRadius.lg),
-                            ),
-                            child: Row(
-                              children: [
-                                if (widget.showFeedbackMascot) ...[
-                                  SizedBox(
-                                    width: 72,
-                                    height: 54,
-                                    child: OverflowBox(
-                                      maxWidth: 120,
-                                      maxHeight: 120,
-                                      child: ActiveMascotWidget(
-                                        childId: widget.childId,
-                                        size:
-                                            selected ==
-                                                question.correctAnswerIndex
-                                            ? 86
-                                            : 82,
-                                        showBackground: false,
-                                        mood:
-                                            selected ==
-                                                question.correctAnswerIndex
-                                            ? MascotMood.cheering
-                                            : MascotMood.crying,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight:
+                                constraints.maxHeight - (AppSpacing.md * 2),
+                          ),
+                          child: Column(
+                            key: const ValueKey('question_content'),
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (question.imageUrl != null &&
+                                  question.imageUrl!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: AppSpacing.md,
+                                  ),
+                                  child: Center(
+                                    child: Container(
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 160,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.imagePlaceholder,
+                                        borderRadius: AppRadius.r(AppRadius.xl),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: AppRadius.r(AppRadius.xl),
+                                        child: Image.network(
+                                          question.imageUrl!,
+                                          fit: BoxFit.contain,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  const Icon(
+                                                    Icons.image,
+                                                    color: AppColors.mutedText,
+                                                    size: 48,
+                                                  ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                ],
-                                Expanded(
-                                  child: Text(
-                                    _answerFeedbackText(question),
-                                    style: AppTextStyles.bodyBold.copyWith(
-                                      fontSize: 14,
-                                    ),
-                                  ),
+                                ),
+                              _buildQuestionText(question, getLanguage()),
+                              if (widget.sessionMode ==
+                                  SessionMode.bearsDen) ...[
+                                const SizedBox(height: AppSpacing.sm),
+                                _BearsDenChip(
+                                  label:
+                                      BearsDenDemoData.chapterLabelForQuestion(
+                                        question,
+                                      ),
                                 ),
                               ],
-                            ),
+                              const SizedBox(height: AppSpacing.sm),
+                              _buildQuestionBody(question),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.sm),
-                        PrimaryButton(
-                          label: isLastQuestion ? 'Finish' : 'Next',
-                          isLoading: isLastQuestion && _isSaving,
-                          icon: Icons.arrow_forward_rounded,
-                          onPressed: () {
-                            if (isLastQuestion) {
-                              _completeSession(questions.length);
-                            } else {
-                              setState(() {
-                                currentQuestionIndex++;
-                                selected = null;
-                                _rearrangeOrder = null;
-                                _rearrangeSubmitted = false;
-                                _draggedOptionIndex = null;
-                                _fillBlankSubmitted = false;
-                                _dragDropSpellingSubmitted = false;
-                                _matchingSubmitted = false;
-                                _strokeTraceSubmitted = false;
-                                _strokeHadWrongAttempt = false;
-                                _numberSubmitted = false;
-                                _numberController.clear();
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
+                      );
+                    },
+                  ),
+                ),
+                if (isQuestionComplete) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _buildAnswerActions(
+                    question,
+                    isLastQuestion: isLastQuestion,
+                    totalQuestions: questions.length,
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
         ],
@@ -933,27 +868,93 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     );
   }
 
-  void _scheduleAnswerActionsReveal(String questionId) {
-    if (_revealedAnswerActionsForQuestionId == questionId) return;
-    _revealedAnswerActionsForQuestionId = questionId;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final answerActionsContext = _answerActionsKey.currentContext;
-      if (answerActionsContext == null) {
-        _revealedAnswerActionsForQuestionId = null;
-        return;
-      }
-
-      unawaited(
-        Scrollable.ensureVisible(
-          answerActionsContext,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+  Widget _buildAnswerActions(
+    Question question, {
+    required bool isLastQuestion,
+    required int totalQuestions,
+  }) {
+    return Column(
+      key: const ValueKey('answer_actions'),
+      children: [
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutBack,
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: value,
+              child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
+            );
+          },
+          child: Container(
+            key: const ValueKey('answer_feedback'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: selected == question.correctAnswerIndex
+                  ? AppColors.accentLight
+                  : AppColors.destructiveLight,
+              borderRadius: AppRadius.r(AppRadius.lg),
+            ),
+            child: Row(
+              children: [
+                if (widget.showFeedbackMascot) ...[
+                  SizedBox(
+                    width: 72,
+                    height: 54,
+                    child: OverflowBox(
+                      maxWidth: 120,
+                      maxHeight: 120,
+                      child: ActiveMascotWidget(
+                        childId: widget.childId,
+                        size: selected == question.correctAnswerIndex ? 86 : 82,
+                        showBackground: false,
+                        mood: selected == question.correctAnswerIndex
+                            ? MascotMood.cheering
+                            : MascotMood.crying,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                Expanded(
+                  child: Text(
+                    _answerFeedbackText(question),
+                    style: AppTextStyles.bodyBold.copyWith(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      );
-    });
+        const SizedBox(height: AppSpacing.sm),
+        PrimaryButton(
+          label: isLastQuestion ? 'Finish' : 'Next',
+          isLoading: isLastQuestion && _isSaving,
+          icon: Icons.arrow_forward_rounded,
+          onPressed: () {
+            if (isLastQuestion) {
+              _completeSession(totalQuestions);
+            } else {
+              setState(() {
+                currentQuestionIndex++;
+                selected = null;
+                _rearrangeOrder = null;
+                _rearrangeSubmitted = false;
+                _draggedOptionIndex = null;
+                _fillBlankSubmitted = false;
+                _dragDropSpellingSubmitted = false;
+                _matchingSubmitted = false;
+                _strokeTraceSubmitted = false;
+                _strokeHadWrongAttempt = false;
+                _numberSubmitted = false;
+                _numberController.clear();
+              });
+            }
+          },
+        ),
+      ],
+    );
   }
 
   Widget _buildQuestionText(Question question, String language) {
