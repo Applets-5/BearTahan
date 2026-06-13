@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:intl/intl.dart';
 import '../../models/bear_ai_message.dart';
 import '../../models/subject.dart';
 import '../../models/subject_weakness_info.dart';
@@ -178,6 +180,17 @@ class _BearAITabState extends ConsumerState<BearAITab> {
     );
   }
 
+  String _timeAgo(DateTime? date) {
+    if (date == null) return "never";
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inDays > 7) return DateFormat('dd MMM').format(date);
+    if (diff.inDays > 0) return "${diff.inDays}d ago";
+    if (diff.inHours > 0) return "${diff.inHours}h ago";
+    if (diff.inMinutes > 0) return "${diff.inMinutes}m ago";
+    return "just now";
+  }
+
   Widget _buildInsightCard(
     BearAiState aiState,
     AsyncValue<Map<String, SubjectWeaknessInfo>> strengthAsync,
@@ -185,6 +198,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
   ) {
     final profile = childProfileAsync.value;
     final displayInsight = aiState.insight ?? profile?.lastAiInsight;
+    final lastUpdate = profile?.lastAiInsightDate;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -204,7 +218,19 @@ class _BearAITabState extends ConsumerState<BearAITab> {
                 size: 20,
               ),
               const SizedBox(width: AppSpacing.sm),
-              const Text('AI Insight', style: AppTextStyles.bodyBold),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('AI Insight', style: AppTextStyles.bodyBold),
+                  if (displayInsight != null)
+                    Text(
+                      'Updated ${_timeAgo(lastUpdate)}',
+                      style: AppTextStyles.tiny.copyWith(
+                        color: AppColors.mutedText,
+                      ),
+                    ),
+                ],
+              ),
               const Spacer(),
               if (aiState.isInsightLoading)
                 const SizedBox(
@@ -293,30 +319,54 @@ class _BearAITabState extends ConsumerState<BearAITab> {
 
   List<String> _generateDynamicChips(dynamic child, List<Subject> subjects) {
     final chips = <String>[];
+    final sorted = List<Subject>.from(subjects)
+      ..sort((a, b) => a.progress.compareTo(b.progress));
 
-    chips.add("📊 This week's summary");
+    // Always useful
+    chips.add("📅 What should ${child.name} do today?");
 
-    // Issue 9: Empty check to prevent crash
-    if (subjects.isNotEmpty) {
-      // Sort to find weakest
-      final sorted = List<Subject>.from(subjects)
-        ..sort((a, b) => a.progress.compareTo(b.progress));
-      final weakest = sorted.first;
+    // Weakness-aware
+    final needsWork = sorted.where((s) => s.progress < 50).toList();
+    final almostThere = sorted
+        .where((s) => s.progress >= 50 && s.progress < 80)
+        .toList();
 
-      if (weakest.progress < 50) {
-        chips.add("⚠️ Why is ${weakest.id.toUpperCase()} low?");
-      }
+    if (needsWork.isNotEmpty) {
+      final subj = _subjectName(needsWork.first.id);
+      chips.add("💪 How can I help with $subj?");
+    } else if (almostThere.isNotEmpty) {
+      final subj = _subjectName(almostThere.first.id);
+      chips.add("🎯 ${child.name} is close in $subj — what next?");
     }
 
-    chips.add("🎯 Suggest a daily goal");
-
-    if (child.streakCount > 3) {
-      chips.add("🔥 Streak tips");
+    // Streak-aware
+    if ((child.streakCount ?? 0) == 0) {
+      chips.add("🔥 How do I restart ${child.name}'s streak?");
+    } else if ((child.streakCount ?? 0) > 7) {
+      chips.add(
+        "🏆 Celebrate ${child.name}'s ${child.streakCount}-day streak!",
+      );
     }
 
-    chips.add("🔁 Repeated mistakes");
+    // Stars-aware
+    if ((child.availableStars ?? 0) > 30) {
+      chips.add("⭐ ${child.name} has lots of stars — reward ideas?");
+    }
 
-    return chips;
+    chips.add("📊 Explain ${child.name}'s Bear's Den sessions");
+
+    return chips.take(4).toList();
+  }
+
+  String _subjectName(String id) {
+    const map = {
+      'bm': 'Bahasa Melayu',
+      'bi': 'English',
+      'bc': 'Mandarin',
+      'math': 'Maths',
+      'sci': 'Science',
+    };
+    return map[id] ?? id.toUpperCase();
   }
 
   Widget _buildChatInput(BearAiState aiState, AsyncValue childProfileAsync) {
@@ -417,13 +467,27 @@ class _ChatMessageBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                message.content,
-                style: AppTextStyles.small.copyWith(
-                  color: isError
-                      ? Colors.red.shade700
-                      : (isUser ? Colors.white : AppColors.foreground),
-                  fontWeight: isError ? FontWeight.bold : FontWeight.normal,
+              MarkdownBody(
+                data: message.content,
+                styleSheet: MarkdownStyleSheet(
+                  p: AppTextStyles.small.copyWith(
+                    color: isError
+                        ? Colors.red.shade700
+                        : (isUser ? Colors.white : AppColors.foreground),
+                    fontWeight: isError ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  strong: AppTextStyles.small.copyWith(
+                    color: isError
+                        ? Colors.red.shade700
+                        : (isUser ? Colors.white : AppColors.foreground),
+                    fontWeight: FontWeight.bold,
+                  ),
+                  em: AppTextStyles.small.copyWith(
+                    color: isError
+                        ? Colors.red.shade700
+                        : (isUser ? Colors.white : AppColors.foreground),
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ),
               if (isError)
