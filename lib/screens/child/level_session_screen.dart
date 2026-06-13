@@ -1135,9 +1135,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               if (question.correctOrder != null) {
                 for (int i = 0; i < _rearrangeOrder!.length; i++) {
                   final currentText =
-                      question.options[_rearrangeOrder![i]].text;
+                      question.options[_rearrangeOrder![i]].text.trim();
                   if (i >= question.correctOrder!.length ||
-                      currentText != question.correctOrder![i]) {
+                      currentText != question.correctOrder![i].trim()) {
                     isCorrect = false;
                     break;
                   }
