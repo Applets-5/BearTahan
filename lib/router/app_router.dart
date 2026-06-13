@@ -164,6 +164,7 @@ class AppRouter {
   static const memory = '/memory-challenge';
   static const parentDashboard = '/parent-dashboard';
   static const parentRewards = '/parent-rewards';
+  static const parentStreak = '/parent-streak';
   static const parentGoals = '/parent-goals';
   static const parentNotifications = '/parent-notifications';
   static const parentSettings = '/parent-settings';
@@ -303,6 +304,13 @@ class AppRouter {
             path: parentRewards,
             pageBuilder: (context, state) =>
                 _noTransitionPage(state, const RewardManagementScreen()),
+          ),
+          GoRoute(
+            path: parentStreak,
+            pageBuilder: (context, state) {
+              final childId = state.uri.queryParameters['childId'] ?? '';
+              return _noTransitionPage(state, StreakScreen(childId: childId));
+            },
           ),
           GoRoute(
             path: parentGoals,

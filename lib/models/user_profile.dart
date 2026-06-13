@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/streak_utils.dart';
 
 class DailyGoal {
   final String type; // 'lessons' or 'minutes'
@@ -90,6 +91,17 @@ class UserProfile {
     final availableStars =
         (data['availableStars'] ?? data['starBalance'] ?? data['stars'] ?? 0)
             .toInt();
+    final storedStreak = (data['streakCount'] ?? 0).toInt();
+    final lastActivityDate = data['lastActivityDate'] != null
+        ? (data['lastActivityDate'] as Timestamp).toDate()
+        : null;
+
+    final streakCount = StreakUtils.getEffectiveStreak(
+      storedStreak: storedStreak,
+      lastActivityDate: lastActivityDate,
+      now: DateTime.now(),
+    );
+
     return UserProfile(
       uid: uid,
       name: data['name'] ?? 'Student',
@@ -101,10 +113,8 @@ class UserProfile {
           data['activeMascotOutfit'] ??
           'scholar_bear',
       parentId: data['parentId'],
-      streakCount: (data['streakCount'] ?? 0).toInt(),
-      lastActivityDate: data['lastActivityDate'] != null
-          ? (data['lastActivityDate'] as Timestamp).toDate()
-          : null,
+      streakCount: streakCount,
+      lastActivityDate: lastActivityDate,
       dailyGoal: dailyGoalData is Map
           ? DailyGoal.fromMap(Map<String, dynamic>.from(dailyGoalData))
           : null,

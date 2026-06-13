@@ -56,9 +56,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               automaticallyImplyLeading: false,
               title: Row(
                 children: [
-                  const Expanded(
-                    child: Text('Dashboard', style: AppTextStyles.screenTitle),
-                  ),
                   PopupMenuButton<String>(
                     onSelected: (id) {
                       ref.read(childIdProvider.notifier).update(id);
@@ -199,15 +196,14 @@ class _OverviewTab extends ConsumerWidget {
     }
 
     final double progress = (goal.todayProgress / goal.target).clamp(0.0, 1.0);
+    final String unit = goal.unitLabel;
     final bool isComplete = goal.todayProgress >= goal.target;
-    final int remaining = (goal.target - goal.todayProgress).clamp(
-      0,
-      goal.target,
-    );
 
     return ProgressBarCard(
       title: 'Daily Goal',
-      subtitle: isComplete ? 'Goal completed!' : '$remaining more to go today',
+      subtitle: isComplete
+          ? 'Goal completed! ${goal.todayProgress}/$goal.target $unit'
+          : '${profile.name} has completed ${goal.todayProgress} of $goal.target $unit today',
       progress: progress,
       icon: isComplete ? Icons.stars_rounded : Icons.flag_rounded,
       color: isComplete ? AppColors.star : AppColors.primary,
@@ -308,7 +304,7 @@ class _OverviewTab extends ConsumerWidget {
                             onTap: () {
                               context.push(
                                 Uri(
-                                  path: AppRouter.streak,
+                                  path: AppRouter.parentStreak,
                                   queryParameters: {'childId': selectedChildId},
                                 ).toString(),
                               );

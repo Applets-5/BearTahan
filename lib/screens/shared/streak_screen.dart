@@ -204,8 +204,8 @@ class _StreakCalendarState extends State<_StreakCalendar> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 0,
             ),
             itemCount: daysInMonth + startingWeekday,
             itemBuilder: (context, index) {
@@ -218,30 +218,70 @@ class _StreakCalendarState extends State<_StreakCalendar> {
               final isActive = widget.activeDates.contains(date);
               final isToday = DateUtils.isSameDay(date, DateTime.now());
 
-              return Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isActive
-                      ? AppColors.destructive
-                      : isToday
-                      ? AppColors.destructiveLight
-                      : null,
-                  border: isToday
-                      ? Border.all(color: AppColors.destructive, width: 2)
-                      : null,
-                ),
-                child: Text(
-                  '$day',
-                  style: TextStyle(
-                    fontWeight: (isActive || isToday) ? FontWeight.bold : null,
-                    color: isActive
-                        ? Colors.white
-                        : isToday
-                        ? AppColors.destructive
-                        : AppColors.foreground,
+              if (!isActive) {
+                return Container(
+                  alignment: Alignment.center,
+                  margin: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isToday ? AppColors.destructiveLight : null,
+                    border: isToday
+                        ? Border.all(color: AppColors.destructive, width: 2)
+                        : null,
                   ),
-                ),
+                  child: Text(
+                    '$day',
+                    style: TextStyle(
+                      fontWeight: isToday ? FontWeight.bold : null,
+                      color: isToday
+                          ? AppColors.destructive
+                          : AppColors.foreground,
+                    ),
+                  ),
+                );
+              }
+
+              // Check neighbors for continuous highlight
+              final prevDate = date.subtract(const Duration(days: 1));
+              final nextDate = date.add(const Duration(days: 1));
+
+              final hasPrev =
+                  widget.activeDates.contains(prevDate) &&
+                  prevDate.month == date.month;
+
+              final hasNext =
+                  widget.activeDates.contains(nextDate) &&
+                  nextDate.month == date.month;
+
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    margin: EdgeInsets.only(
+                      top: 8,
+                      bottom: 8,
+                      left: hasPrev ? 0 : 6,
+                      right: hasNext ? 0 : 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.destructive,
+                      borderRadius: BorderRadius.horizontal(
+                        left: hasPrev ? Radius.zero : const Radius.circular(20),
+                        right: hasNext
+                            ? Radius.zero
+                            : const Radius.circular(20),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$day',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               );
             },
           ),

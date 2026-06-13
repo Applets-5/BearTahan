@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:intl/intl.dart';
 import '../../models/bear_ai_message.dart';
 import '../../models/subject.dart';
+import '../../models/subject_weakness_info.dart';
 import '../../providers/bear_ai_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../providers/subject_strength_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/parent/radar_chart_widget.dart';
 import '../../widgets/parent/typing_indicator.dart';
@@ -42,13 +46,16 @@ class _BearAITabState extends ConsumerState<BearAITab> {
 
   @override
   Widget build(BuildContext context) {
-    final aiState = ref.watch(bearAiProvider);
+    final aiState = ref.watch(bearAiChildProvider(widget.childId));
     final subjectsAsync = ref.watch(subjectProgressProvider(widget.childId));
+    final strengthAsync = ref.watch(subjectStrengthProvider(widget.childId));
     final childProfileAsync = ref.watch(userProfileProvider(widget.childId));
 
     // Listen to profile changes to trigger insight generation if needed
     ref.listen(userProfileProvider(widget.childId), (previous, next) {
-      if (next.hasValue && !aiState.hasGeneratedInsight && !aiState.isLoading) {
+      if (next.hasValue &&
+          !aiState.hasGeneratedInsight &&
+          !aiState.isInsightLoading) {
         final profile = next.value!;
         ref
             .read(bearAiProvider.notifier)
@@ -60,6 +67,23 @@ class _BearAITabState extends ConsumerState<BearAITab> {
       }
     });
 
+    // Also trigger if already loaded but not generated (Issue 2 fix)
+    if (childProfileAsync.hasValue &&
+        !aiState.hasGeneratedInsight &&
+        !aiState.isInsightLoading &&
+        aiState.insightError == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final profile = childProfileAsync.value!;
+        ref
+            .read(bearAiProvider.notifier)
+            .generateInsightIfNeeded(
+              widget.childId,
+              existingInsight: profile.lastAiInsight,
+              lastDate: profile.lastAiInsightDate,
+            );
+      });
+    }
+
     return Column(
       children: [
         const SizedBox(height: AppSpacing.md), // Space below TabBar
@@ -69,7 +93,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
             controller: _scrollController,
             children: [
               // AI Insight Card
-              _buildInsightCard(aiState, subjectsAsync, childProfileAsync),
+              _buildInsightCard(aiState, strengthAsync, childProfileAsync),
               const SizedBox(height: AppSpacing.lg),
 
               // Chat Card
@@ -105,11 +129,12 @@ class _BearAITabState extends ConsumerState<BearAITab> {
                             .sendMessage(
                               widget.childId,
                               msg.retryData as String,
+                              isRetry: true,
                             ),
                       ),
                     ),
 
-                    if (aiState.isLoading && aiState.hasGeneratedInsight)
+                    if (aiState.isChatLoading)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
                         child: Align(
@@ -121,7 +146,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
                     const SizedBox(height: AppSpacing.md),
 
                     // Suggestion Chips
-                    if (!aiState.isLoading)
+                    if (!aiState.isChatLoading)
                       _buildSuggestionChips(childProfileAsync, subjectsAsync),
 
                     const SizedBox(height: AppSpacing.lg),
@@ -134,10 +159,11 @@ class _BearAITabState extends ConsumerState<BearAITab> {
                     childProfileAsync.when(
                       data: (child) => Center(
                         child: Text(
-                          "BearAI uses ${child.name}'s in-app activity data only.",
+                          "BearAI analyzes ${child.name}'s activity data using secure AI processing. No names or private IDs are shared.",
                           style: AppTextStyles.tiny.copyWith(
                             color: AppColors.mutedText,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                       loading: () => const SizedBox(),
@@ -154,13 +180,25 @@ class _BearAITabState extends ConsumerState<BearAITab> {
     );
   }
 
+  String _timeAgo(DateTime? date) {
+    if (date == null) return "never";
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inDays > 7) return DateFormat('dd MMM').format(date);
+    if (diff.inDays > 0) return "${diff.inDays}d ago";
+    if (diff.inHours > 0) return "${diff.inHours}h ago";
+    if (diff.inMinutes > 0) return "${diff.inMinutes}m ago";
+    return "just now";
+  }
+
   Widget _buildInsightCard(
     BearAiState aiState,
-    AsyncValue<List<Subject>> subjectsAsync,
+    AsyncValue<Map<String, SubjectWeaknessInfo>> strengthAsync,
     AsyncValue childProfileAsync,
   ) {
     final profile = childProfileAsync.value;
     final displayInsight = aiState.insight ?? profile?.lastAiInsight;
+    final lastUpdate = profile?.lastAiInsightDate;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -180,9 +218,21 @@ class _BearAITabState extends ConsumerState<BearAITab> {
                 size: 20,
               ),
               const SizedBox(width: AppSpacing.sm),
-              const Text('AI Insight', style: AppTextStyles.bodyBold),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('AI Insight', style: AppTextStyles.bodyBold),
+                  if (displayInsight != null)
+                    Text(
+                      'Updated ${_timeAgo(lastUpdate)}',
+                      style: AppTextStyles.tiny.copyWith(
+                        color: AppColors.mutedText,
+                      ),
+                    ),
+                ],
+              ),
               const Spacer(),
-              if (aiState.isLoading && !aiState.hasGeneratedInsight)
+              if (aiState.isInsightLoading)
                 const SizedBox(
                   width: 14,
                   height: 14,
@@ -191,29 +241,30 @@ class _BearAITabState extends ConsumerState<BearAITab> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          if (displayInsight != null)
-            Text(displayInsight, style: AppTextStyles.body),
-          if (displayInsight == null && !aiState.isLoading)
+          if (aiState.insightError != null)
+            Text(
+              aiState.insightError!,
+              style: AppTextStyles.body.copyWith(color: Colors.red.shade700),
+            )
+          else if (displayInsight != null)
+            Text(displayInsight, style: AppTextStyles.body)
+          else if (!aiState.isInsightLoading)
             const Text(
               'Generating weekly insight...',
               style: AppTextStyles.body,
-            ),
-          if (displayInsight == null && aiState.isLoading)
+            )
+          else
             const Text('Connecting to BearAI...', style: AppTextStyles.body),
 
           const SizedBox(height: AppSpacing.lg),
 
-          subjectsAsync.when(
-            data: (subjects) {
-              final Map<String, double> scores = {};
-              for (var s in subjects) {
-                scores[s.id] = s.progress.toDouble() / 100;
-              }
+          strengthAsync.when(
+            data: (strengthMap) {
               return Column(
                 children: [
-                  const Text('Weekly Progress', style: AppTextStyles.bodyBold),
+                  const Text('Subject Strength', style: AppTextStyles.bodyBold),
                   const SizedBox(height: AppSpacing.sm),
-                  SubjectRadarChart(subjectScores: scores),
+                  SubjectRadarChart(subjectData: strengthMap),
                 ],
               );
             },
@@ -268,27 +319,54 @@ class _BearAITabState extends ConsumerState<BearAITab> {
 
   List<String> _generateDynamicChips(dynamic child, List<Subject> subjects) {
     final chips = <String>[];
-
-    // Sort to find weakest
     final sorted = List<Subject>.from(subjects)
       ..sort((a, b) => a.progress.compareTo(b.progress));
-    final weakest = sorted.first;
 
-    chips.add("📊 This week's summary");
+    // Always useful
+    chips.add("📅 What should ${child.name} do today?");
 
-    if (weakest.progress < 50) {
-      chips.add("⚠️ Why is ${weakest.id.toUpperCase()} low?");
+    // Weakness-aware
+    final needsWork = sorted.where((s) => s.progress < 50).toList();
+    final almostThere = sorted
+        .where((s) => s.progress >= 50 && s.progress < 80)
+        .toList();
+
+    if (needsWork.isNotEmpty) {
+      final subj = _subjectName(needsWork.first.id);
+      chips.add("💪 How can I help with $subj?");
+    } else if (almostThere.isNotEmpty) {
+      final subj = _subjectName(almostThere.first.id);
+      chips.add("🎯 ${child.name} is close in $subj — what next?");
     }
 
-    chips.add("🎯 Suggest a daily goal");
-
-    if (child.streakCount > 3) {
-      chips.add("🔥 Streak tips");
+    // Streak-aware
+    if ((child.streakCount ?? 0) == 0) {
+      chips.add("🔥 How do I restart ${child.name}'s streak?");
+    } else if ((child.streakCount ?? 0) > 7) {
+      chips.add(
+        "🏆 Celebrate ${child.name}'s ${child.streakCount}-day streak!",
+      );
     }
 
-    chips.add("🔁 Repeated mistakes");
+    // Stars-aware
+    if ((child.availableStars ?? 0) > 30) {
+      chips.add("⭐ ${child.name} has lots of stars — reward ideas?");
+    }
 
-    return chips;
+    chips.add("📊 Explain ${child.name}'s Bear's Den sessions");
+
+    return chips.take(4).toList();
+  }
+
+  String _subjectName(String id) {
+    const map = {
+      'bm': 'Bahasa Melayu',
+      'bi': 'English',
+      'bc': 'Mandarin',
+      'math': 'Maths',
+      'sci': 'Science',
+    };
+    return map[id] ?? id.toUpperCase();
   }
 
   Widget _buildChatInput(BearAiState aiState, AsyncValue childProfileAsync) {
@@ -326,7 +404,7 @@ class _BearAITabState extends ConsumerState<BearAITab> {
           ),
           IconButton(
             icon: const Icon(Icons.send, color: AppColors.primary),
-            onPressed: aiState.isLoading
+            onPressed: aiState.isChatLoading
                 ? null
                 : () {
                     ref
@@ -389,13 +467,27 @@ class _ChatMessageBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                message.content,
-                style: AppTextStyles.small.copyWith(
-                  color: isError
-                      ? Colors.red.shade700
-                      : (isUser ? Colors.white : AppColors.foreground),
-                  fontWeight: isError ? FontWeight.bold : FontWeight.normal,
+              MarkdownBody(
+                data: message.content,
+                styleSheet: MarkdownStyleSheet(
+                  p: AppTextStyles.small.copyWith(
+                    color: isError
+                        ? Colors.red.shade700
+                        : (isUser ? Colors.white : AppColors.foreground),
+                    fontWeight: isError ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  strong: AppTextStyles.small.copyWith(
+                    color: isError
+                        ? Colors.red.shade700
+                        : (isUser ? Colors.white : AppColors.foreground),
+                    fontWeight: FontWeight.bold,
+                  ),
+                  em: AppTextStyles.small.copyWith(
+                    color: isError
+                        ? Colors.red.shade700
+                        : (isUser ? Colors.white : AppColors.foreground),
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ),
               if (isError)

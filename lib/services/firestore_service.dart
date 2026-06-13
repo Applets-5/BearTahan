@@ -196,6 +196,59 @@ class FirestoreService {
     });
   }
 
+  Future<void> revertRewardClaim(String parentId, RewardClaim claim) async {
+    final childDocRef = _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(claim.childId);
+    final claimDocRef = childDocRef.collection('rewardClaims').doc(claim.id);
+    final claimLockRef = childDocRef
+        .collection('rewardClaimLocks')
+        .doc(claim.rewardId);
+
+    await _db.runTransaction((transaction) async {
+      final childSnapshot = await transaction.get(childDocRef);
+      final claimSnapshot = await transaction.get(claimDocRef);
+      final childData = childSnapshot.data() ?? {};
+      final claimData = claimSnapshot.data() ?? {};
+
+      if (claimData['status'] == 'pending') return;
+
+      if (claimData['status'] == 'approved') {
+        final availableStars = (childData['availableStars'] ?? 0).toInt();
+        final starCost = (claimData['starCost'] ?? claim.starCost).toInt();
+
+        transaction.update(childDocRef, {
+          'availableStars': availableStars + starCost,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      transaction.update(claimDocRef, {
+        'status': 'pending',
+        'resolvedAt': null,
+      });
+
+      transaction.set(claimLockRef, {
+        'claimId': claim.id,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> deleteRewardClaim(String parentId, RewardClaim claim) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(claim.childId)
+        .collection('rewardClaims')
+        .doc(claim.id)
+        .delete();
+  }
+
   Future<void> rejectRewardClaim(String parentId, RewardClaim claim) async {
     final claimDocRef = _db
         .collection('parents')
@@ -1547,6 +1600,21 @@ class FirestoreService {
         });
   }
 
+  Stream<List<Map<String, dynamic>>> streamAttempts(
+    String parentId,
+    String childId,
+  ) {
+    return _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .collection('attempts')
+        .orderBy('completedAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+  }
+
   Future<void> recordAttempt(
     String parentId,
     String childId, {
@@ -1556,6 +1624,8 @@ class FirestoreService {
     required int total,
     required int stars,
     required int timeInSeconds,
+    String sessionType =
+        'regular', // 'regular' | 'bears_den' | 'memory_challenge' | 'chapter_summary' | 'revision'
   }) async {
     await _db
         .collection('parents')
@@ -1570,6 +1640,7 @@ class FirestoreService {
           'total': total,
           'stars': stars,
           'timeInSeconds': timeInSeconds,
+          'sessionType': sessionType,
           'completedAt': FieldValue.serverTimestamp(),
         });
 
