@@ -41,7 +41,7 @@ class _ChapterInsightsCardState extends State<ChapterInsightsCard> {
           'badgeColor': AppColors.secondary,
           'badgeTextColor': AppColors.foreground,
         },
-      ]
+      ],
     },
     {
       'subject': 'Bahasa Melayu',
@@ -68,7 +68,7 @@ class _ChapterInsightsCardState extends State<ChapterInsightsCard> {
           'badgeColor': AppColors.destructive,
           'badgeTextColor': Colors.white,
         },
-      ]
+      ],
     },
     {
       'subject': 'Mandarin',
@@ -95,7 +95,7 @@ class _ChapterInsightsCardState extends State<ChapterInsightsCard> {
           'badgeColor': AppColors.destructive,
           'badgeTextColor': Colors.white,
         },
-      ]
+      ],
     },
     {
       'subject': 'Mathematics',
@@ -122,7 +122,7 @@ class _ChapterInsightsCardState extends State<ChapterInsightsCard> {
           'badgeColor': AppColors.secondary,
           'badgeTextColor': AppColors.foreground,
         },
-      ]
+      ],
     },
     {
       'subject': 'Science',
@@ -149,7 +149,7 @@ class _ChapterInsightsCardState extends State<ChapterInsightsCard> {
           'badgeColor': AppColors.accent,
           'badgeTextColor': Colors.white,
         },
-      ]
+      ],
     },
   ];
 
@@ -257,7 +257,10 @@ class _ChapterInsightsCardState extends State<ChapterInsightsCard> {
                               badgeTextColor: i['badgeTextColor'],
                             ),
                             if (!isLast)
-                              const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                              const Divider(
+                                height: 1,
+                                color: Color(0xFFEEEEEE),
+                              ),
                           ],
                         );
                       }),
