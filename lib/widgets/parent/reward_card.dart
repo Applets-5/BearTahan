@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../common/primary_button.dart';
 
 class RewardCard extends StatelessWidget {
   const RewardCard({
@@ -259,27 +260,14 @@ class RewardCard extends StatelessWidget {
               children: [
                 if (onPrimary != null && primaryLabel != null)
                   Expanded(
-                    child: FilledButton.icon(
+                    child: PrimaryButton(
                       onPressed: primaryEnabled && (hasEnough || !available)
                           ? onPrimary
                           : null,
-                      icon: buttonIcon,
-                      label: Text(finalPrimaryLabel),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: buttonColor,
-                        foregroundColor: buttonTextColor,
-                        disabledBackgroundColor: buttonColor?.withValues(
-                          alpha: 0.5,
-                        ),
-                        disabledForegroundColor: buttonTextColor.withValues(
-                          alpha: 0.7,
-                        ),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
+                      label: finalPrimaryLabel,
+                      backgroundColor: buttonColor ?? AppColors.primary,
+                      foregroundColor: buttonTextColor,
+                      icon: buttonIcon != null ? Icons.lock : null,
                     ),
                   ),
                 if (onPrimary != null && onSecondary != null)
