@@ -666,7 +666,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               }
               return _buildSession(shuffledQuestions!);
             },
-            loading: _buildPreparationScreen,
+            loading: () => _buildPreparationScreen(animateMascot: false),
             error: (error, stack) => _buildNoQuestionsPlaceholder(
               context,
               message: "Bear's Den could not load. Check your connection.",
@@ -715,7 +715,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
             return _buildSession(shuffledQuestions!);
           },
-          loading: _buildPreparationScreen,
+          loading: () => _buildPreparationScreen(animateMascot: false),
           error: (err, stack) => Center(child: Text('Error: $err')),
         ),
       ),
@@ -786,38 +786,78 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
   Widget _buildNoQuestionsPlaceholder(
     BuildContext context, {
-    String message = 'No questions found for this level.',
+    String message =
+        'No questions are ready for this level yet. Head back and explore another trail.',
   }) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            child: Text(message, textAlign: TextAlign.center),
+    return SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl,
+            vertical: AppSpacing.xl,
           ),
-          const SizedBox(height: AppSpacing.md),
-          PrimaryButton(
-            label: 'Go Back',
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go(
-                  AppRouter.subjectFor(
-                    widget.childId,
-                    subjectId: widget.subjectId,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (widget.showFeedbackMascot)
+                ActiveMascotWidget(
+                  childId: widget.childId,
+                  size: 150,
+                  showBackground: false,
+                  mood: MascotMood.crying,
+                  hideUntilLoaded: true,
+                )
+              else
+                const MascotWidget(
+                  size: 150,
+                  showBackground: false,
+                  mood: MascotMood.crying,
+                ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'The question trail is quiet!',
+                style: AppTextStyles.title,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 300),
+                child: Text(
+                  message,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.mutedText,
                   ),
-                );
-              }
-            },
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              SizedBox(
+                width: 190,
+                child: PrimaryButton(
+                  label: 'Back to the Trail',
+                  icon: Icons.arrow_back_rounded,
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go(
+                        AppRouter.subjectFor(
+                          widget.childId,
+                          subjectId: widget.subjectId,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildPreparationScreen() {
+  Widget _buildPreparationScreen({bool animateMascot = true}) {
     final hasProgress = _totalAssetCount > 0;
     final progress = hasProgress
         ? (_preparedAssetCount / _totalAssetCount).clamp(0.0, 1.0)
@@ -829,20 +869,25 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (widget.showFeedbackMascot)
-              ActiveMascotWidget(
-                childId: widget.childId,
-                size: 150,
-                showBackground: false,
-                mood: MascotMood.idle,
-              )
-            else
-              const MascotWidget(
-                size: 150,
-                showBackground: false,
-                mood: MascotMood.idle,
-              ),
-            const SizedBox(height: AppSpacing.xl),
+            WalkingMascotStage(
+              mascotSize: 120,
+              height: 155,
+              isWalking: animateMascot,
+              child: widget.showFeedbackMascot
+                  ? ActiveMascotWidget(
+                      childId: widget.childId,
+                      size: 120,
+                      showBackground: false,
+                      mood: MascotMood.idle,
+                      hideUntilLoaded: true,
+                    )
+                  : const MascotWidget(
+                      size: 120,
+                      showBackground: false,
+                      mood: MascotMood.idle,
+                    ),
+            ),
+            const SizedBox(height: AppSpacing.md),
             Text(
               'Preparing your adventure',
               style: AppTextStyles.title,

@@ -503,8 +503,16 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
 
-        expect(find.text('No questions found for this level.'), findsOneWidget);
-        expect(find.text('Go Back'), findsOneWidget);
+        expect(find.text('The question trail is quiet!'), findsOneWidget);
+        expect(
+          find.text(
+            'No questions are ready for this level yet. '
+            'Head back and explore another trail.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Back to the Trail'), findsOneWidget);
+        expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
       },
     );
   });
