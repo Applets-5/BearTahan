@@ -38,7 +38,7 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
     final shouldStart = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFFFFF8E1),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
