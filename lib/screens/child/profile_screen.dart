@@ -40,11 +40,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Widget _buildButtons(String childId) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () {
+                context.push(
+                  Uri(
+                    path: AppRouter.starHistory,
+                    queryParameters: {'childId': childId},
+                  ).toString(),
+                );
+              },
+              icon: const Icon(Icons.history),
+              label: const Text('Star History'),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _enterParentMode,
+              icon: const Icon(Icons.login),
+              label: const Text('Parent Mode'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final routeChildId = GoRouterState.of(
-      context,
-    ).uri.queryParameters['childId'];
+    final routeChildId =
+        GoRouterState.of(context).uri.queryParameters['childId'];
     final providerChildId = ref.watch(childIdProvider);
     final childId = routeChildId?.isNotEmpty == true
         ? routeChildId!
@@ -59,170 +93,170 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final userProfileAsync = ref.watch(userProfileProvider(childId));
     final soundEffectsAsync = ref.watch(soundEffectsProvider);
 
-    return SafeArea(
-      child: Stack(
-        children: [
-          userProfileAsync.when(
-            data: (profile) => ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              children: [
-                const Text('Profile', style: AppTextStyles.screenTitle),
-                const SizedBox(height: AppSpacing.lg),
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.xxl),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: AppRadius.r(AppRadius.xl),
-                    boxShadow: AppShadows.card,
-                  ),
-                  child: Column(
+    return userProfileAsync.when(
+      data: (profile) => Scaffold(
+        backgroundColor: Colors.transparent,
+        // Using bottomNavigationBar is the safest way to have fixed buttons
+        // that never overflow and respect the screen's bottom safe area.
+        bottomNavigationBar: _buildButtons(childId),
+        body: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isTablet = constraints.maxWidth > 600;
+
+                  return ListView(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
-                      ActiveMascotWidget(childId: childId, size: 96),
+                      const Text('Profile', style: AppTextStyles.screenTitle),
+                      const SizedBox(height: AppSpacing.lg),
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.xxl),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: AppRadius.r(AppRadius.xl),
+                          boxShadow: AppShadows.card,
+                        ),
+                        child: Column(
+                          children: [
+                            ActiveMascotWidget(childId: childId, size: 96),
+                            const SizedBox(height: AppSpacing.md),
+                            Text(profile.name, style: AppTextStyles.cardTitle),
+                            const Text(
+                              'Tap to edit name',
+                              style: AppTextStyles.tiny,
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: AppSpacing.md),
-                      Text(profile.name, style: AppTextStyles.cardTitle),
-                      const Text('Tap to edit name', style: AppTextStyles.tiny),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  mainAxisSpacing: AppSpacing.md,
-                  crossAxisSpacing: AppSpacing.md,
-                  childAspectRatio: 1.3,
-                  children: [
-                    StatCard(
-                      icon: Icons.star,
-                      label: 'Available',
-                      value: profile.availableStars.toString(),
-                      color: AppColors.star,
-                    ),
-                    StatCard(
-                      icon: Icons.auto_awesome,
-                      label: 'Total Earned',
-                      value: profile.lifetimeStarsEarned.toString(),
-                      color: AppColors.star,
-                    ),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final progressAsync = ref.watch(
-                          subjectProgressProvider(childId),
-                        );
-                        return progressAsync.maybeWhen(
-                          data: (list) {
-                            final totalProgress = list.fold(
-                              0,
-                              (sum, s) => sum + s.progress,
-                            );
-                            return StatCard(
-                              icon: Icons.menu_book,
-                              label: 'Progress',
-                              value:
-                                  '${totalProgress ~/ (list.isEmpty ? 1 : list.length)}%',
-                              color: AppColors.primary,
-                            );
-                          },
-                          orElse: () => const StatCard(
-                            icon: Icons.menu_book,
-                            label: 'Progress',
-                            value: '0%',
-                            color: AppColors.primary,
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: isTablet ? 4 : 2,
+                        mainAxisSpacing: AppSpacing.md,
+                        crossAxisSpacing: AppSpacing.md,
+                        childAspectRatio: isTablet ? 1.1 : 1.0, // More room for phone cards
+                        children: [
+                          StatCard(
+                            icon: Icons.star,
+                            label: 'Available',
+                            value: profile.availableStars.toString(),
+                            color: AppColors.star,
                           ),
-                        );
-                      },
-                    ),
-                    StatCard(
-                      icon: Icons.local_fire_department,
-                      label: 'Streak',
-                      value: '${profile.streakCount}d',
-                      color: AppColors.destructive,
-                      onTap: () {
-                        context.push(
-                          Uri(
-                            path: AppRouter.streak,
-                            queryParameters: {'childId': childId},
-                          ).toString(),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: AppRadius.r(AppRadius.lg),
-                    boxShadow: AppShadows.card,
-                  ),
-                  child: SwitchListTile.adaptive(
-                    value: soundEffectsAsync.value ?? true,
-                    onChanged: soundEffectsAsync.isLoading
-                        ? null
-                        : (enabled) async {
-                            try {
-                              await ref
-                                  .read(soundEffectsProvider.notifier)
-                                  .setEnabled(enabled);
-                            } catch (e) {
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Error updating sound effects: $e',
-                                  ),
+                          StatCard(
+                            icon: Icons.auto_awesome,
+                            label: 'Total Earned',
+                            value: profile.lifetimeStarsEarned.toString(),
+                            color: AppColors.star,
+                          ),
+                          Consumer(
+                            builder: (context, ref, child) {
+                              final progressAsync = ref.watch(
+                                subjectProgressProvider(childId),
+                              );
+                              return progressAsync.maybeWhen(
+                                data: (list) {
+                                  final totalProgress = list.fold(
+                                    0,
+                                    (sum, s) => sum + s.progress,
+                                  );
+                                  return StatCard(
+                                    icon: Icons.menu_book,
+                                    label: 'Progress',
+                                    value:
+                                        '${totalProgress ~/ (list.isEmpty ? 1 : list.length)}%',
+                                    color: AppColors.primary,
+                                  );
+                                },
+                                orElse: () => const StatCard(
+                                  icon: Icons.menu_book,
+                                  label: 'Progress',
+                                  value: '0%',
+                                  color: AppColors.primary,
                                 ),
                               );
-                            }
-                          },
-                    secondary: Icon(
-                      (soundEffectsAsync.value ?? true)
-                          ? Icons.volume_up_rounded
-                          : Icons.volume_off_rounded,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'Sound effects',
-                      style: AppTextStyles.bodyBold,
-                    ),
-                    subtitle: const Text(
-                      'Quiz feedback and completion sounds',
-                      style: AppTextStyles.small,
-                    ),
-                  ),
+                            },
+                          ),
+                          StatCard(
+                            icon: Icons.local_fire_department,
+                            label: 'Streak',
+                            value: '${profile.streakCount}d',
+                            color: AppColors.destructive,
+                            onTap: () {
+                              context.push(
+                                Uri(
+                                  path: AppRouter.streak,
+                                  queryParameters: {'childId': childId},
+                                ).toString(),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: AppRadius.r(AppRadius.lg),
+                          boxShadow: AppShadows.card,
+                        ),
+                        child: SwitchListTile.adaptive(
+                          value: soundEffectsAsync.value ?? true,
+                          onChanged: soundEffectsAsync.isLoading
+                              ? null
+                              : (enabled) async {
+                                  try {
+                                    await ref
+                                        .read(soundEffectsProvider.notifier)
+                                        .setEnabled(enabled);
+                                  } catch (e) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Error updating sound effects: $e',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                          secondary: Icon(
+                            (soundEffectsAsync.value ?? true)
+                                ? Icons.volume_up_rounded
+                                : Icons.volume_off_rounded,
+                            color: AppColors.primary,
+                          ),
+                          title: const Text(
+                            'Sound effects',
+                            style: AppTextStyles.bodyBold,
+                          ),
+                          subtitle: const Text(
+                            'Quiz feedback and completion sounds',
+                            style: AppTextStyles.small,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              if (showPin)
+                _PinModal(
+                  onClose: () => setState(() => showPin = false),
+                  onEnter: () => context.go(AppRouter.parentDashboard),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                FilledButton.icon(
-                  onPressed: () {
-                    context.push(
-                      Uri(
-                        path: AppRouter.starHistory,
-                        queryParameters: {'childId': childId},
-                      ).toString(),
-                    );
-                  },
-                  icon: const Icon(Icons.history),
-                  label: const Text('Star History'),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                FilledButton.icon(
-                  onPressed: _enterParentMode,
-                  icon: const Icon(Icons.login),
-                  label: const Text('Parent Mode'),
-                ),
-              ],
-            ),
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, _) =>
-                Center(child: Text('Error loading profile: $err')),
+            ],
           ),
-          if (showPin)
-            _PinModal(
-              onClose: () => setState(() => showPin = false),
-              onEnter: () => context.go(AppRouter.parentDashboard),
-            ),
-        ],
+        ),
+      ),
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, _) => Scaffold(
+        body: Center(child: Text('Error loading profile: $err')),
       ),
     );
   }
