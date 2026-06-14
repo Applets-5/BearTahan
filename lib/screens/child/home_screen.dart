@@ -266,7 +266,11 @@ class _ForestHero extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const Positioned(right: 34, bottom: 52, child: _Sparkle(size: 18)),
+                const Positioned(
+                  right: 34,
+                  bottom: 52,
+                  child: _Sparkle(size: 18),
+                ),
                 // Grass background positioned behind the content
                 Positioned(
                   left: 0,
@@ -314,7 +318,9 @@ class _ForestHero extends ConsumerWidget {
                                         context.push(
                                           Uri(
                                             path: AppRouter.streak,
-                                            queryParameters: {'childId': childId},
+                                            queryParameters: {
+                                              'childId': childId,
+                                            },
                                           ).toString(),
                                         );
                                       },
@@ -323,7 +329,8 @@ class _ForestHero extends ConsumerWidget {
                                     _HeroStatPill(
                                       icon: Icons.star_rounded,
                                       iconColor: const Color(0xFFFFC400),
-                                      value: profile.lifetimeStarsEarned.toString(),
+                                      value: profile.lifetimeStarsEarned
+                                          .toString(),
                                       label: 'Total Stars',
                                     ),
                                   ],
@@ -353,7 +360,9 @@ class _ForestHero extends ConsumerWidget {
                                       childId: childId,
                                       size: constraints.maxWidth >= 600
                                           ? 120
-                                          : (constraints.maxWidth < 380 ? 72 : 88),
+                                          : (constraints.maxWidth < 380
+                                                ? 72
+                                                : 88),
                                       showBackground: false,
                                       mood: MascotMood.cheering,
                                     ),
@@ -368,7 +377,9 @@ class _ForestHero extends ConsumerWidget {
                                         10,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.94),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.94,
+                                        ),
                                         borderRadius: BorderRadius.circular(30),
                                         border: Border.all(
                                           color: Colors.white,
