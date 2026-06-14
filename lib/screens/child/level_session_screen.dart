@@ -1480,10 +1480,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
             physics: const ClampingScrollPhysics(),
             buildDefaultDragHandles:
                 false, // Disable default long-press handles
-            onReorder: (oldIndex, newIndex) {
+            onReorderItem: (oldIndex, newIndex) {
               if (_rearrangeSubmitted) return;
               setState(() {
-                if (newIndex > oldIndex) newIndex--;
                 final int item = _rearrangeOrder!.removeAt(oldIndex);
                 _rearrangeOrder!.insert(newIndex, item);
               });
