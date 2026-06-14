@@ -879,6 +879,8 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
                 controller: _titleController,
                 decoration: InputDecoration(
                   labelText: 'Reward name',
+                  filled: true, // Add this
+                  fillColor: AppColors.card,
                   border: OutlineInputBorder(
                     borderRadius: AppRadius.r(AppRadius.lg),
                     borderSide: BorderSide.none,
@@ -890,6 +892,8 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
                 controller: _descriptionController,
                 decoration: InputDecoration(
                   labelText: 'Description',
+                  filled: true, // Add this
+                  fillColor: AppColors.card,
                   border: OutlineInputBorder(
                     borderRadius: AppRadius.r(AppSpacing.lg),
                     borderSide: BorderSide.none,
@@ -910,7 +914,7 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: AppColors.muted.withValues(alpha: 0.3),
+                  fillColor: AppColors.card,
                 ),
                 hint: const Text('All Children'),
                 selectedItemBuilder: (context) {
@@ -992,6 +996,8 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
                         labelText: 'Star Cost',
+                        filled: true, // Add this
+                        fillColor: AppColors.card,
                         border: OutlineInputBorder(
                           borderRadius: AppRadius.r(AppRadius.lg),
                           borderSide: BorderSide.none,
@@ -1036,7 +1042,7 @@ class _CostBtn extends StatelessWidget {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: AppColors.muted,
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 18),

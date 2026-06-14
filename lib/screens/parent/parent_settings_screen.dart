@@ -42,6 +42,8 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                   maxLength: 4,
                   decoration: const InputDecoration(
                     labelText: 'Old 4-digit PIN',
+                    filled: true,
+                    fillColor: AppColors.card,
                     counterText: '',
                   ),
                 ),
@@ -54,6 +56,8 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                 maxLength: 4,
                 decoration: const InputDecoration(
                   labelText: 'New 4-digit PIN',
+                  filled: true,
+                  fillColor: AppColors.card,
                   counterText: '',
                 ),
               ),
@@ -65,6 +69,8 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                 maxLength: 4,
                 decoration: InputDecoration(
                   labelText: 'Confirm New PIN',
+                  filled: true,
+                  fillColor: AppColors.card,
                   counterText: '',
                   errorText: error,
                 ),
