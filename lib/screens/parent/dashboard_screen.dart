@@ -424,7 +424,7 @@ class _OverviewTab extends ConsumerWidget {
                             onTap: () {
                               context.push(
                                 Uri(
-                                  path: AppRouter.starHistory,
+                                  path: AppRouter.lessonHistory,
                                   queryParameters: {'childId': selectedChildId},
                                 ).toString(),
                               );
