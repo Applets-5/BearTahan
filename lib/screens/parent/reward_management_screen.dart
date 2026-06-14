@@ -909,6 +909,8 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
                     borderRadius: AppRadius.r(AppRadius.lg),
                     borderSide: BorderSide.none,
                   ),
+                  filled: true,
+                  fillColor: AppColors.muted.withValues(alpha: 0.3),
                 ),
                 hint: const Text('All Children'),
                 selectedItemBuilder: (context) {
@@ -920,24 +922,56 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
                 items: [
                   DropdownMenuItem<String>(
                     value: null,
-                    child: Text(
-                      'All Children',
-                      style: AppTextStyles.body.copyWith(
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
                         color: _selectedChildId == null
-                            ? AppColors.primary
-                            : null,
+                            ? AppColors.primary.withValues(alpha: 0.1)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'All Children',
+                        style: AppTextStyles.body.copyWith(
+                          color: _selectedChildId == null
+                              ? AppColors.primary
+                              : null,
+                          fontWeight: _selectedChildId == null
+                              ? FontWeight.bold
+                              : null,
+                        ),
                       ),
                     ),
                   ),
                   ...children.map(
                     (c) => DropdownMenuItem(
                       value: c.uid,
-                      child: Text(
-                        c.name,
-                        style: AppTextStyles.body.copyWith(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
                           color: _selectedChildId == c.uid
-                              ? AppColors.primary
-                              : null,
+                              ? AppColors.primary.withValues(alpha: 0.1)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          c.name,
+                          style: AppTextStyles.body.copyWith(
+                            color: _selectedChildId == c.uid
+                                ? AppColors.primary
+                                : null,
+                            fontWeight: _selectedChildId == c.uid
+                                ? FontWeight.bold
+                                : null,
+                          ),
                         ),
                       ),
                     ),
