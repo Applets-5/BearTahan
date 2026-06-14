@@ -28,6 +28,7 @@ class Question {
   final String? characterUnicode;
   final String? strokeOrderDataJson;
   final int? correctNumber;
+  final List<String>? correctAnswers;
 
   Question({
     required this.id,
@@ -43,6 +44,7 @@ class Question {
     this.characterUnicode,
     this.strokeOrderDataJson,
     this.correctNumber,
+    this.correctAnswers,
   }) : options = options.map((e) {
          if (e is QuestionOption) return e;
          if (e == null) return QuestionOption(text: '');
@@ -281,6 +283,17 @@ class Question {
           : int.tryParse(rawNumber?.toString().trim() ?? '');
     }
 
+    // ── correctAnswers — multiple valid answers for keyInNumber ───────────────
+    List<String>? correctAnswers;
+    if (data['correctAnswers'] is List) {
+      correctAnswers = (data['correctAnswers'] as List)
+          .map((e) => e.toString().trim())
+          .toList();
+    } else if (correctNumber != null) {
+      // Fallback — single answer questions still work
+      correctAnswers = [correctNumber.toString()];
+    }
+
     int finalIndex = 0;
     if (rawIndex is num) {
       finalIndex = rawIndex.toInt();
@@ -333,6 +346,18 @@ class Question {
       characterUnicode: data['characterUnicode']?.toString(),
       strokeOrderDataJson: strokeOrderDataJson,
       correctNumber: correctNumber,
+      correctAnswers: correctAnswers,
     );
+  }
+
+  bool isCorrectKeyInAnswer(String userInput) {
+    final trimmed = userInput.trim();
+    if (correctAnswers != null) {
+      if (correctAnswers!.any((a) => a.trim() == trimmed)) return true;
+    }
+    if (correctNumber != null && correctNumber.toString() == trimmed) {
+      return true;
+    }
+    return false;
   }
 }

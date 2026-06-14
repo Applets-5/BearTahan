@@ -21,7 +21,7 @@ class DragDropSpellingWidget extends StatefulWidget {
 }
 
 class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const int maxAttempts = 3;
   late List<String> _promptParts;
   late List<int> _blankIndices;
@@ -33,6 +33,8 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget>
 
   late final AnimationController _feedbackController;
   late final Animation<double> _shakeAnimation;
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
 
   @override
   void initState() {
@@ -51,12 +53,20 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget>
         ]).animate(
           CurvedAnimation(parent: _feedbackController, curve: Curves.easeOut),
         );
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
     _initGame();
   }
 
   @override
   void dispose() {
     _feedbackController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -310,35 +320,66 @@ class _DragDropSpellingWidgetState extends State<DragDropSpellingWidget>
 
   Widget _buildDropSlot(int blankIndex) {
     final filledOption = _filledOptions[blankIndex];
+    final isEmpty = filledOption == null;
 
     return DragTarget<QuestionOption>(
       onWillAcceptWithDetails: (details) => !_isSubmitted,
       onAcceptWithDetails: (details) => _onDrop(blankIndex, details.data),
       builder: (context, candidateData, rejectedData) {
-        return GestureDetector(
+        final isHovering = candidateData.isNotEmpty;
+
+        Widget slot = GestureDetector(
           onTap: () => _onTapFilled(blankIndex),
-          child: Container(
-            width: 40,
-            height: 50,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 44,
+            height: 54,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: _isWrong ? AppColors.destructiveLight : AppColors.card,
+              color: _isWrong
+                  ? AppColors.destructiveLight
+                  : isHovering
+                  ? AppColors.primaryContainer
+                  : isEmpty
+                  ? AppColors.primaryLight
+                  : AppColors.card,
               borderRadius: AppRadius.r(AppRadius.sm),
               border: Border.all(
                 color: _isWrong
                     ? AppColors.destructive
-                    : (candidateData.isNotEmpty
-                          ? AppColors.primary
-                          : AppColors.border),
-                width: 2,
+                    : isHovering
+                    ? AppColors.primary
+                    : isEmpty
+                    ? AppColors.primary
+                    : AppColors.border,
+                width: isEmpty || isHovering ? 2.5 : 2,
               ),
-              boxShadow: AppShadows.card,
+              boxShadow: isHovering ? AppShadows.strong : AppShadows.card,
             ),
             child: filledOption != null
                 ? Text(filledOption.text, style: AppTextStyles.title)
-                : null,
+                : Text(
+                    '_',
+                    style: AppTextStyles.title.copyWith(
+                      color: AppColors.primary.withValues(alpha: 0.4),
+                      fontSize: 18,
+                    ),
+                  ),
           ),
         );
+
+        if (isEmpty && !isHovering && !_isSubmitted) {
+          return AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) => Transform.scale(
+              scale: 1.0 + _pulseAnimation.value * 0.04,
+              child: child,
+            ),
+            child: slot,
+          );
+        }
+
+        return slot;
       },
     );
   }

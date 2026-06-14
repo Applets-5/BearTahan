@@ -273,6 +273,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     _loadingQuoteTimer?.cancel();
     unawaited(_disposeSoundEffectAudio());
     _numberController.dispose();
+    for (final c in _fillBlankListControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -1192,6 +1195,10 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                   if (isLastQuestion) {
                     _completeSession(totalQuestions);
                   } else {
+                    for (final c in _fillBlankListControllers) {
+                      c.dispose();
+                    }
+                    _fillBlankListControllers.clear();
                     setState(() {
                       currentQuestionIndex++;
                       selected = null;
@@ -1205,6 +1212,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                       _strokeHadWrongAttempt = false;
                       _numberSubmitted = false;
                       _numberController.clear();
+                      _fillBlankListAnswers = [];
+                      _fillBlankListSubmitted = false;
                     });
                   }
                 },
@@ -1216,10 +1225,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     );
   }
 
-  /// Whether the fixed-bottom "Check Answer" button should appear for this
-  /// question type. Returns true when the question has not been submitted yet
-  /// and (for types that require user input before checking) the user has
-  /// provided that input.
   bool _shouldShowCheckButton(Question question) {
     final type = question.type?.toLowerCase() ?? 'mcq';
     switch (type) {
@@ -1235,8 +1240,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     }
   }
 
-  /// Fixed-bottom "Check Answer" button that mirrors the positioning of the
-  /// feedback panel so the button never scrolls out of view.
   Widget _buildCheckAnswerAction(Question question) {
     final type = question.type?.toLowerCase() ?? 'mcq';
     VoidCallback? onPressed;
@@ -1306,7 +1309,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         question.correctBlank?.trim().toLowerCase() ??
         question.options[question.correctAnswerIndex].text.trim().toLowerCase();
 
-    bool isCorrect = selectedText == correctText;
+    final bool isCorrect = selectedText == correctText;
 
     setState(() {
       _fillBlankSubmitted = true;
@@ -1322,6 +1325,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     if (type == 'fillblank' || type == 'fillblanklistening') {
       return _buildFillBlankSentence(question, language);
     }
+
+    // Prompt with blanks is rendered inside the body widget
+    if (type == 'fillblanklist') return const SizedBox.shrink();
 
     final bool isDragDropSpelling = type == 'dragdropspelling';
 
@@ -1396,35 +1402,40 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 TextSpan(text: parts[0]),
               WidgetSpan(
                 alignment: PlaceholderAlignment.middle,
-                child: Container(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
                   constraints: const BoxConstraints(
-                    minWidth: 52,
-                    maxWidth: 120,
+                    minWidth: 64,
+                    maxWidth: 130,
                   ),
                   margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm,
-                    vertical: 2,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: candidateData.isNotEmpty || isOccupied
-                            ? AppColors.primary
-                            : const Color(0xFFAAAAAA),
-                        width: 2,
-                      ),
+                    color: candidateData.isNotEmpty
+                        ? AppColors.primaryContainer
+                        : isOccupied
+                        ? AppColors.primaryLight
+                        : AppColors.primaryLight,
+                    borderRadius: AppRadius.r(AppRadius.sm),
+                    border: Border.all(
+                      color: AppColors.primary,
+                      width: candidateData.isNotEmpty ? 3 : 2,
                     ),
-                    color: isOccupied
-                        ? AppColors.primaryLight.withValues(alpha: 0.1)
-                        : Colors.transparent,
+                    boxShadow: candidateData.isNotEmpty
+                        ? AppShadows.strong
+                        : AppShadows.card,
                   ),
                   child: Text(
                     isOccupied
                         ? question.options[_draggedOptionIndex!].text
-                        : ' ',
+                        : '？',
                     style: AppTextStyles.bodyBold.copyWith(
-                      color: AppColors.primary,
+                      color: isOccupied
+                          ? AppColors.primary
+                          : AppColors.primary.withValues(alpha: 0.4),
                       fontSize: 16,
                     ),
                     textAlign: TextAlign.center,
@@ -1465,6 +1476,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     if (type == 'fillblank' || type == 'fillblanklistening') {
       return _fillBlankSubmitted;
     }
+    if (type == 'fillblanklist') return _fillBlankListSubmitted;
     if (type == 'dragdropspelling') return _dragDropSpellingSubmitted;
     if (type == 'matching') return _matchingSubmitted;
     if (type == 'stroke_trace') return _strokeTraceSubmitted;
@@ -1486,6 +1498,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         return _buildFillBlankQuestion(
           question,
           key: ValueKey('fillblank_${question.id}'),
+        );
+      case 'fillblanklist':
+        return _buildFillBlankListQuestion(
+          question,
+          key: ValueKey('fillblanklist_${question.id}'),
         );
       case 'dragdropspelling':
         return DragDropSpellingWidget(
@@ -1689,9 +1706,19 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   bool _strokeTraceSubmitted = false;
   bool _strokeHadWrongAttempt = false;
 
+  // --- FILL BLANK LIST TYPE (multiple blanks) ---
+  List<int?> _fillBlankListAnswers = [];
+  bool _fillBlankListSubmitted = false;
+
+  final List<TextEditingController> _fillBlankListControllers = [];
+
   Widget _buildNumberQuestion(Question question) {
     final correctNumber = question.correctNumber;
-    if (correctNumber == null) {
+    final hasAnswer =
+        correctNumber != null ||
+        (question.correctAnswers != null &&
+            question.correctAnswers!.isNotEmpty);
+    if (!hasAnswer) {
       return Column(
         children: [
           const Text(
@@ -1759,9 +1786,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   }
 
   void _checkNumberAnswer(Question question) {
-    final answer = int.tryParse(_numberController.text);
-    if (answer == null) return;
-    final isCorrect = answer == question.correctNumber;
+    final input = _numberController.text.trim();
+    if (input.isEmpty) return;
+
+    final isCorrect = question.isCorrectKeyInAnswer(input);
+
     setState(() {
       _numberSubmitted = true;
       selected = isCorrect ? question.correctAnswerIndex : -1;
@@ -1777,6 +1806,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     }
 
     final type = question.type?.toLowerCase();
+    if (type == 'fillblanklist' && question.correctOrder != null) {
+      return 'Not quite! The correct answers are: ${question.correctOrder!.join(', ')}.';
+    }
     if (type == 'matching') {
       return 'Better luck next time!';
     }
@@ -1790,7 +1822,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       return 'The correct sentence is "${question.correctOrder!.join(' ')}".';
     }
     if (type == 'keyinnumber' && question.correctNumber != null) {
-      return 'The answer is ${question.correctNumber}.';
+      return 'Not quite! The answer is ${question.correctNumber}.';
     }
 
     String? answer;
@@ -1837,6 +1869,339 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           }),
         ),
       ],
+    );
+  }
+
+  Widget _buildFillBlankListQuestion(Question question, {Key? key}) {
+    // ── Keyboard input mode — no options to drag, player types answers ──────────
+    if (question.options.isEmpty) {
+      final blanksCount = question.correctOrder?.length ?? 0;
+
+      // Initialise controllers if size changed (new question)
+      if (_fillBlankListControllers.length != blanksCount) {
+        for (final c in _fillBlankListControllers) {
+          c.dispose();
+        }
+        _fillBlankListControllers.clear();
+        for (int i = 0; i < blanksCount; i++) {
+          _fillBlankListControllers.add(TextEditingController());
+        }
+      }
+
+      final allFilled = _fillBlankListControllers.every(
+        (c) => c.text.trim().isNotEmpty,
+      );
+
+      return Column(
+        key: key,
+        children: [
+          Text(
+            question.text,
+            style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          ...List.generate(blanksCount, (index) {
+            final isSubmitted = _fillBlankListSubmitted;
+            final correctAnswer = question.correctOrder![index];
+            final userAnswer = _fillBlankListControllers[index].text.trim();
+            final isCorrect = userAnswer == correctAnswer;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: Row(
+                children: [
+                  Text('Blank ${index + 1}:', style: AppTextStyles.bodyBold),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: TextField(
+                      controller: _fillBlankListControllers[index],
+                      enabled: !isSubmitted,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      decoration: InputDecoration(
+                        hintText: '?',
+                        filled: true,
+                        fillColor: isSubmitted
+                            ? isCorrect
+                                  ? AppColors.accentLight
+                                  : AppColors.destructiveLight
+                            : AppColors.card,
+                        border: OutlineInputBorder(
+                          borderRadius: AppRadius.r(AppRadius.md),
+                          borderSide: BorderSide(
+                            color: isSubmitted
+                                ? isCorrect
+                                      ? AppColors.accent
+                                      : AppColors.destructive
+                                : AppColors.border,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: AppRadius.r(AppRadius.md),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: AppRadius.r(AppRadius.md),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
+                        ),
+                        suffixIcon: isSubmitted
+                            ? Icon(
+                                isCorrect ? Icons.check_circle : Icons.cancel,
+                                color: isCorrect
+                                    ? AppColors.accent
+                                    : AppColors.destructive,
+                              )
+                            : null,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  // Show correct answer beside wrong answer after submit
+                  if (isSubmitted && !isCorrect) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      '→ $correctAnswer',
+                      style: AppTextStyles.bodyBold.copyWith(
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }),
+          if (!_fillBlankListSubmitted && allFilled) ...[
+            const SizedBox(height: AppSpacing.sm),
+            PrimaryButton(
+              label: 'Check Answers',
+              onPressed: () {
+                final allCorrect = List.generate(
+                  blanksCount,
+                  (i) =>
+                      _fillBlankListControllers[i].text.trim() ==
+                      question.correctOrder![i],
+                ).every((c) => c);
+
+                setState(() {
+                  _fillBlankListSubmitted = true;
+                  selected = allCorrect ? question.correctAnswerIndex : -1;
+                  if (allCorrect) score++;
+                });
+                unawaited(_playQuestionFeedback(question, allCorrect));
+                unawaited(_recordQuestionResult(question, allCorrect));
+              },
+            ),
+          ],
+        ],
+      );
+    }
+
+    // ── Drag mode — existing implementation unchanged below ───────────────────
+    final RegExp blankRegex = RegExp(r'（\s*）|___+');
+    final lines = question.text.split('\n');
+
+    int totalBlanks = 0;
+    for (final line in lines) {
+      totalBlanks += blankRegex.allMatches(line).length;
+    }
+
+    if (_fillBlankListAnswers.length != totalBlanks) {
+      _fillBlankListAnswers = List.filled(totalBlanks, null);
+    }
+
+    final usedOptionIndices = _fillBlankListAnswers
+        .where((e) => e != null)
+        .cast<int>()
+        .toSet();
+    final allFilled = totalBlanks > 0 && !_fillBlankListAnswers.contains(null);
+
+    final textStyle = AppTextStyles.cardTitle.copyWith(fontSize: 16);
+
+    int globalBlankIdx = 0;
+    final lineWidgets = <Widget>[];
+
+    for (final line in lines) {
+      if (line.trim().isEmpty) {
+        lineWidgets.add(const SizedBox(height: 4));
+        continue;
+      }
+
+      final matches = blankRegex.allMatches(line).toList();
+
+      if (matches.isEmpty) {
+        lineWidgets.add(
+          Text(line, style: textStyle, textAlign: TextAlign.center),
+        );
+        continue;
+      }
+
+      final rowChildren = <Widget>[];
+      int lastEnd = 0;
+
+      for (final match in matches) {
+        if (match.start > lastEnd) {
+          rowChildren.add(
+            Text(line.substring(lastEnd, match.start), style: textStyle),
+          );
+        }
+        final idx = globalBlankIdx;
+        rowChildren.add(_buildFillBlankListSlot(idx, question));
+        globalBlankIdx++;
+        lastEnd = match.end;
+      }
+      if (lastEnd < line.length) {
+        rowChildren.add(Text(line.substring(lastEnd), style: textStyle));
+      }
+
+      lineWidgets.add(
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 2,
+          children: rowChildren,
+        ),
+      );
+    }
+
+    return Column(
+      key: key,
+      children: [
+        ...lineWidgets,
+        const SizedBox(height: AppSpacing.xxl),
+        if (!_fillBlankListSubmitted) ...[
+          const Text(
+            'Drag the correct answers to the blanks!',
+            style: AppTextStyles.small,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.md,
+            children: List.generate(question.options.length, (optIdx) {
+              final isUsed = usedOptionIndices.contains(optIdx);
+              return Draggable<int>(
+                data: optIdx,
+                feedback: _draggableOption(optIdx, question, true),
+                childWhenDragging: Opacity(
+                  opacity: 0.3,
+                  child: _draggableOption(optIdx, question, false),
+                ),
+                child: isUsed
+                    ? Opacity(
+                        opacity: 0.3,
+                        child: _draggableOption(optIdx, question, false),
+                      )
+                    : _draggableOption(optIdx, question, false),
+              );
+            }),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          if (allFilled)
+            PrimaryButton(
+              label: 'Check Answer',
+              onPressed: () {
+                final answers = _fillBlankListAnswers
+                    .map(
+                      (idx) => idx != null
+                          ? question.options[idx].text.trim().toLowerCase()
+                          : '',
+                    )
+                    .toList();
+
+                bool isCorrect = false;
+                if (question.correctOrder != null &&
+                    question.correctOrder!.length == answers.length) {
+                  isCorrect = true;
+                  for (int i = 0; i < answers.length; i++) {
+                    if (answers[i] !=
+                        question.correctOrder![i].trim().toLowerCase()) {
+                      isCorrect = false;
+                      break;
+                    }
+                  }
+                }
+
+                setState(() {
+                  _fillBlankListSubmitted = true;
+                  selected = isCorrect ? question.correctAnswerIndex : -1;
+                  if (isCorrect) score++;
+                });
+                unawaited(_playQuestionFeedback(question, isCorrect));
+                unawaited(_recordQuestionResult(question, isCorrect));
+              },
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFillBlankListSlot(int blankIdx, Question question) {
+    final filledOptIdx = blankIdx < _fillBlankListAnswers.length
+        ? _fillBlankListAnswers[blankIdx]
+        : null;
+
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (details) => !_fillBlankListSubmitted,
+      onAcceptWithDetails: (details) {
+        setState(() {
+          final optIdx = details.data;
+          // If the same option is in another slot, clear it
+          for (int i = 0; i < _fillBlankListAnswers.length; i++) {
+            if (_fillBlankListAnswers[i] == optIdx && i != blankIdx) {
+              _fillBlankListAnswers[i] = null;
+            }
+          }
+          _fillBlankListAnswers[blankIdx] = optIdx;
+        });
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        final isOccupied = filledOptIdx != null;
+
+        return GestureDetector(
+          onTap: isOccupied && !_fillBlankListSubmitted
+              ? () => setState(() => _fillBlankListAnswers[blankIdx] = null)
+              : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            constraints: const BoxConstraints(minWidth: 56, maxWidth: 120),
+            margin: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xs,
+              vertical: AppSpacing.xs,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: 5,
+            ),
+            decoration: BoxDecoration(
+              color: isHovering
+                  ? AppColors.primaryContainer
+                  : AppColors.primaryLight,
+              borderRadius: AppRadius.r(AppRadius.sm),
+              border: Border.all(
+                color: AppColors.primary,
+                width: isHovering ? 3 : 2,
+              ),
+              boxShadow: isHovering ? AppShadows.strong : AppShadows.card,
+            ),
+            child: Text(
+              isOccupied ? question.options[filledOptIdx].text : '？',
+              style: AppTextStyles.bodyBold.copyWith(
+                color: isOccupied
+                    ? AppColors.primary
+                    : AppColors.primary.withValues(alpha: 0.4),
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        );
+      },
     );
   }
 
