@@ -432,14 +432,14 @@ class _OverviewTab extends ConsumerWidget {
                                 label: 'Streak',
                                 value: '${profile.streakCount}d',
                                 color: hasActivityToday
-                                    ? AppColors.accent
+                                    ? AppColors.destructive
                                     : Colors.grey,
                                 onTap: () {
                                   context.push(
                                     Uri(
                                       path: AppRouter.parentStreak,
                                       queryParameters: {
-                                        'childId': selectedChildId
+                                        'childId': selectedChildId,
                                       },
                                     ).toString(),
                                   );
