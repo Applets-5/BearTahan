@@ -9,6 +9,127 @@ import '../../providers/data_providers.dart';
 
 enum MascotMood { idle, cheering, crying, celebrating }
 
+final Set<String> _decodedMascotAssets = <String>{};
+
+class WalkingMascotStage extends StatefulWidget {
+  const WalkingMascotStage({
+    super.key,
+    required this.child,
+    required this.mascotSize,
+    this.height = 180,
+    this.duration = const Duration(milliseconds: 4800),
+    this.isWalking = true,
+  });
+
+  final Widget child;
+  final double mascotSize;
+  final double height;
+  final Duration duration;
+  final bool isWalking;
+
+  @override
+  State<WalkingMascotStage> createState() => _WalkingMascotStageState();
+}
+
+class _WalkingMascotStageState extends State<WalkingMascotStage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: widget.duration);
+    if (widget.isWalking) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant WalkingMascotStage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.duration != widget.duration) {
+      _controller.duration = widget.duration;
+    }
+    if (oldWidget.isWalking != widget.isWalking) {
+      if (widget.isWalking) {
+        _controller.repeat();
+      } else {
+        _controller
+          ..stop()
+          ..value = 0;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: widget.height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final travelDistance = math.max(
+            0.0,
+            constraints.maxWidth - widget.mascotSize,
+          );
+
+          return AnimatedBuilder(
+            animation: _controller,
+            child: widget.child,
+            builder: (context, child) {
+              final travelPhase = _controller.value * math.pi * 2;
+              final stepPhase = _controller.value * math.pi * 12;
+              final horizontalProgress = (math.sin(travelPhase) + 1) / 2;
+              final walkingRight = math.cos(travelPhase) >= 0;
+              final bounce = widget.isWalking
+                  ? math.sin(stepPhase).abs() * 12
+                  : 0.0;
+              final wobble = widget.isWalking
+                  ? math.sin(stepPhase) * 0.075 * (walkingRight ? 1 : -1)
+                  : 0.0;
+
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    left: 0,
+                    bottom: 0,
+                    child: Transform.translate(
+                      offset: Offset(
+                        travelDistance * horizontalProgress,
+                        -bounce,
+                      ),
+                      child: Transform.rotate(
+                        angle: wobble,
+                        alignment: Alignment.bottomCenter,
+                        child: Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.diagonal3Values(
+                            walkingRight ? 1 : -1,
+                            1,
+                            1,
+                          ),
+                          child: child,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
 class MascotWidget extends StatelessWidget {
   const MascotWidget({
     super.key,
@@ -54,27 +175,24 @@ class MascotWidget extends StatelessWidget {
     'explorer_bear': 'assets/images/cheer_bear1_explorer.png',
   };
 
-  @override
-  Widget build(BuildContext context) {
-    final imagePath = switch (mood) {
+  static String imagePathFor(String outfitId, MascotMood mood) {
+    return switch (mood) {
       MascotMood.crying =>
         cryOutfitImages[outfitId] ??
             outfitImages[outfitId] ??
             outfitImages['scholar_bear']!,
-
-      MascotMood.cheering =>
+      MascotMood.cheering || MascotMood.celebrating =>
         cheerOutfitImages[outfitId] ??
             outfitImages[outfitId] ??
             outfitImages['scholar_bear']!,
-
-      MascotMood.celebrating =>
-        cheerOutfitImages[outfitId] ??
-            outfitImages[outfitId] ??
-            outfitImages['scholar_bear']!,
-
       MascotMood.idle =>
         outfitImages[outfitId] ?? outfitImages['scholar_bear']!,
     };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imagePath = imagePathFor(outfitId, mood);
 
     final image = locked
         ? Icon(Icons.lock, color: AppColors.mutedText, size: size * .45)
@@ -240,6 +358,7 @@ class ActiveMascotWidget extends ConsumerWidget {
     this.message,
     this.showBackground = true,
     this.mood = MascotMood.idle,
+    this.hideUntilLoaded = false,
   });
 
   final String? childId;
@@ -247,6 +366,7 @@ class ActiveMascotWidget extends ConsumerWidget {
   final String? message;
   final bool showBackground;
   final MascotMood mood;
+  final bool hideUntilLoaded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -258,6 +378,22 @@ class ActiveMascotWidget extends ConsumerWidget {
         message: message,
         showBackground: showBackground,
         mood: mood,
+      );
+    }
+
+    if (hideUntilLoaded) {
+      final profile = ref.watch(userProfileProvider(childId!));
+
+      return profile.when(
+        loading: () => SizedBox(height: size, width: size),
+        error: (error, stackTrace) => SizedBox(height: size, width: size),
+        data: (profile) => _PrecachedMascot(
+          outfitId: profile.activeMascotOutfit,
+          size: size,
+          message: message,
+          showBackground: showBackground,
+          mood: mood,
+        ),
       );
     }
 
@@ -280,6 +416,79 @@ class ActiveMascotWidget extends ConsumerWidget {
           mood: mood,
         );
       },
+    );
+  }
+}
+
+class _PrecachedMascot extends StatefulWidget {
+  const _PrecachedMascot({
+    required this.outfitId,
+    required this.size,
+    required this.message,
+    required this.showBackground,
+    required this.mood,
+  });
+
+  final String outfitId;
+  final double size;
+  final String? message;
+  final bool showBackground;
+  final MascotMood mood;
+
+  @override
+  State<_PrecachedMascot> createState() => _PrecachedMascotState();
+}
+
+class _PrecachedMascotState extends State<_PrecachedMascot> {
+  bool _ready = false;
+  String? _loadingPath;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _prepareImage();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PrecachedMascot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.outfitId != widget.outfitId ||
+        oldWidget.mood != widget.mood) {
+      _prepareImage();
+    }
+  }
+
+  void _prepareImage() {
+    final imagePath = MascotWidget.imagePathFor(widget.outfitId, widget.mood);
+    if (_loadingPath == imagePath) return;
+
+    _loadingPath = imagePath;
+    if (_decodedMascotAssets.contains(imagePath)) {
+      _ready = true;
+      return;
+    }
+
+    _ready = false;
+    precacheImage(AssetImage(imagePath), context).then((_) {
+      _decodedMascotAssets.add(imagePath);
+      if (mounted && _loadingPath == imagePath) {
+        setState(() => _ready = true);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) {
+      return SizedBox(height: widget.size, width: widget.size);
+    }
+
+    return MascotWidget(
+      size: widget.size,
+      message: widget.message,
+      outfitId: widget.outfitId,
+      showBackground: widget.showBackground,
+      mood: widget.mood,
     );
   }
 }
