@@ -1249,9 +1249,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                     minWidth: 52,
                     maxWidth: 120,
                   ),
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                  ),
+                  margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm,
                     vertical: 2,

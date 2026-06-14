@@ -290,7 +290,10 @@ void main() {
         ];
 
         await tester.pumpWidget(
-          createTestWidget(questions, key: const ValueKey('mandarin_fillblank')),
+          createTestWidget(
+            questions,
+            key: const ValueKey('mandarin_fillblank'),
+          ),
         );
         await tester.pumpAndSettle();
 

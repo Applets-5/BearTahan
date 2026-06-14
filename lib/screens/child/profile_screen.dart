@@ -77,8 +77,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final routeChildId =
-        GoRouterState.of(context).uri.queryParameters['childId'];
+    final routeChildId = GoRouterState.of(
+      context,
+    ).uri.queryParameters['childId'];
     final providerChildId = ref.watch(childIdProvider);
     final childId = routeChildId?.isNotEmpty == true
         ? routeChildId!
@@ -138,7 +139,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         crossAxisCount: isTablet ? 4 : 2,
                         mainAxisSpacing: AppSpacing.md,
                         crossAxisSpacing: AppSpacing.md,
-                        childAspectRatio: isTablet ? 1.1 : 1.0, // More room for phone cards
+                        childAspectRatio: isTablet
+                            ? 1.1
+                            : 1.0, // More room for phone cards
                         children: [
                           StatCard(
                             icon: Icons.star,
@@ -252,12 +255,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (err, _) => Scaffold(
-        body: Center(child: Text('Error loading profile: $err')),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, _) =>
+          Scaffold(body: Center(child: Text('Error loading profile: $err'))),
     );
   }
 }
