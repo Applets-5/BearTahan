@@ -22,6 +22,10 @@
     "repair:mandarin-content:dry-run": "node scripts/repair_mandarin_non_tracing.js --dry-run",
     "repair:mandarin-content:apply": "node scripts/repair_mandarin_non_tracing.js --apply",
     "test:mandarin-content-repair": "node --test test/mandarin_non_tracing_repair_test.js",
+    "demo:outfits:dry-run": "node scripts/set_demo_outfit_eligibility.js --dry-run --child-name Aiden",
+    "demo:outfits:apply": "node scripts/set_demo_outfit_eligibility.js --apply --child-name Aiden",
+    "demo:outfits:clear": "node scripts/set_demo_outfit_eligibility.js --clear --child-name Aiden",
+    "test:demo-outfits": "node --test test/demo_outfit_eligibility_test.js",
     "migrate:sprint3:inspect": "node scripts/migrate_sprint3_data.js --inspect",
     "migrate:sprint3:dry-run": "node scripts/migrate_sprint3_data.js --dry-run",
     "migrate:sprint3:apply": "node scripts/migrate_sprint3_data.js --apply"

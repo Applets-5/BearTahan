@@ -425,6 +425,7 @@ class FirestoreService {
       transaction.set(progressDocRef, {
         'isUnlocked': true,
         'unlockedAt': FieldValue.serverTimestamp(),
+        'demoEligibilityOverride': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     });
@@ -484,14 +485,19 @@ class FirestoreService {
     final batch = _db.batch();
 
     for (final quest in quests) {
-      final currentValue = QuestUtils.calculateQuestCurrentValue(
+      final existingData = existingProgress[quest.id] ?? {};
+      final calculatedValue = QuestUtils.calculateQuestCurrentValue(
         quest: quest,
         lifetimeStarsEarned: lifetimeStarsEarned,
         subjectProgress: subjectProgress,
         attempts: attempts,
       );
-
-      final existingData = existingProgress[quest.id] ?? {};
+      final currentValue = QuestUtils.effectiveCurrentValue(
+        calculatedValue: calculatedValue,
+        targetValue: quest.target,
+        demoEligibilityOverride:
+            existingData['demoEligibilityOverride'] == true,
+      );
       final alreadyUnlocked = existingData['isUnlocked'] == true;
 
       batch.set(

@@ -3,6 +3,37 @@ import 'package:bear_tahan/models/outfit_quest.dart';
 import 'package:bear_tahan/utils/quest_utils.dart';
 
 void main() {
+  group('QuestUtils.effectiveCurrentValue', () {
+    test('uses the quest target for a demo eligibility override', () {
+      final value = QuestUtils.effectiveCurrentValue(
+        calculatedValue: 1,
+        targetValue: 5,
+        demoEligibilityOverride: true,
+      );
+
+      expect(value, 5);
+    });
+
+    test('keeps the calculated value without an override', () {
+      final value = QuestUtils.effectiveCurrentValue(
+        calculatedValue: 1,
+        targetValue: 5,
+      );
+
+      expect(value, 1);
+    });
+
+    test('does not reduce progress already above the target', () {
+      final value = QuestUtils.effectiveCurrentValue(
+        calculatedValue: 7,
+        targetValue: 5,
+        demoEligibilityOverride: true,
+      );
+
+      expect(value, 7);
+    });
+  });
+
   group('QuestUtils.calculateQuestCurrentValue', () {
     test('returns target value for starter quest', () {
       final quest = OutfitQuest.byId('scholar_bear');

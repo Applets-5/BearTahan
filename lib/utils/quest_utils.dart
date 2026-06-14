@@ -4,6 +4,17 @@ import 'data_contracts.dart';
 class QuestUtils {
   const QuestUtils._();
 
+  static int effectiveCurrentValue({
+    required int calculatedValue,
+    required int targetValue,
+    bool demoEligibilityOverride = false,
+  }) {
+    if (!demoEligibilityOverride || calculatedValue >= targetValue) {
+      return calculatedValue;
+    }
+    return targetValue;
+  }
+
   static int calculateQuestCurrentValue({
     required OutfitQuest quest,
     required int lifetimeStarsEarned,
