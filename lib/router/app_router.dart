@@ -161,6 +161,7 @@ class AppRouter {
   static const rewards = '/rewards';
   static const profile = '/profile';
   static const starHistory = '/star-history';
+  static const parentStarHistory = '/parent-star-history';
   static const streak = '/streak';
   static const memory = '/memory-challenge';
   static const parentDashboard = '/parent-dashboard';
@@ -170,7 +171,7 @@ class AppRouter {
   static const parentNotifications = '/parent-notifications';
   static const parentSettings = '/parent-settings';
   static const parentProfileDetail = '/parent-profile-detail';
-  static const lessonHistory = '/lesson-history';
+  static const lessonHistory = '/parent-lesson-history';
   static const changePassword = '/change-password';
   static const noInternet = '/no-internet';
   static const tutorial = '/tutorial';
@@ -333,6 +334,16 @@ class AppRouter {
             path: parentProfileDetail,
             pageBuilder: (context, state) =>
                 _noTransitionPage(state, const ParentProfileDetailScreen()),
+          ),
+          GoRoute(
+            path: parentStarHistory,
+            pageBuilder: (context, state) {
+              final childId = state.uri.queryParameters['childId'] ?? '';
+              return _noTransitionPage(
+                state,
+                StarHistoryScreen(childId: childId),
+              );
+            },
           ),
           GoRoute(
             path: lessonHistory,
