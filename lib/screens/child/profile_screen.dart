@@ -85,7 +85,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         child: Column(
                           children: [
-                            ActiveMascotWidget(childId: childId, size: 96),
+                            ActiveMascotWidget(
+                              childId: childId,
+                              size: 96,
+                              showBackground: false,
+                            ),
                             const SizedBox(height: AppSpacing.md),
                             Text(profile.name, style: AppTextStyles.cardTitle),
                           ],

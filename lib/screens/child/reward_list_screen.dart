@@ -154,7 +154,7 @@ class RewardListScreen extends ConsumerWidget {
                       cost: claim.starCost,
                       status: claim.status,
                       currentStars: userProfileAsync.value?.availableStars,
-                      showBorder: false,
+                      showBorder: true,
                     ),
                   ),
                 ),

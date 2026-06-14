@@ -1033,7 +1033,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                                       maxHeight: 160,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.imagePlaceholder,
+                                      color: Colors.transparent,
                                       borderRadius: AppRadius.r(AppRadius.xl),
                                     ),
                                     child: ClipRRect(
