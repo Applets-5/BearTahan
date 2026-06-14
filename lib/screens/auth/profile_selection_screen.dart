@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../../router/app_router.dart';
 import '../../widgets/common/mascot_widget.dart';
+import '../../widgets/common/primary_button.dart';
 import '../../providers/data_providers.dart';
 
 class ProfileSelectionScreen extends ConsumerStatefulWidget {
@@ -64,10 +65,10 @@ class _ProfileSelectionScreenState
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                FilledButton.icon(
+                PrimaryButton(
                   onPressed: () => context.go(AppRouter.login),
-                  icon: const Icon(Icons.login_rounded),
-                  label: const Text('Go to Login'),
+                  icon: Icons.login_rounded,
+                  label: 'Go to Login',
                 ),
               ],
             ),
@@ -77,6 +78,7 @@ class _ProfileSelectionScreenState
     }
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
           StreamBuilder<QuerySnapshot>(
@@ -318,47 +320,65 @@ class _ChildCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imagePath = activeOutfitId == null
-        ? null
-        : MascotWidget.outfitImages[activeOutfitId];
+        ? 'assets/images/bear1.png'
+        : MascotWidget.outfitImages[activeOutfitId] ??
+              'assets/images/bear1.png';
 
     return AspectRatio(
       aspectRatio: 0.8,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadius.r(AppRadius.lg),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: AppRadius.r(AppRadius.lg),
-            border: Border.all(color: AppColors.primary, width: 1.5),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: AppRadius.r(AppRadius.md),
-                ),
-                child: Center(
-                  child: imagePath == null
-                      ? Text(avatar, style: const TextStyle(fontSize: 32))
-                      : Image.asset(
-                          imagePath,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Text(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6, right: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAEEDA),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColors.primary,
+              offset: Offset(6, 6),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(32),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(32),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Image.asset(
+                        imagePath,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Center(
+                          child: Text(
                             avatar,
-                            style: const TextStyle(fontSize: 32),
+                            style: const TextStyle(fontSize: 48),
                           ),
                         ),
-                ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    name,
+                    style: AppTextStyles.bodyBold.copyWith(
+                      color: AppColors.foreground,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(name, style: AppTextStyles.bodyBold),
-            ],
+            ),
           ),
         ),
       ),
@@ -375,29 +395,52 @@ class _AddChildCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AspectRatio(
       aspectRatio: 0.8,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadius.r(AppRadius.lg),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: AppRadius.r(AppRadius.lg),
-            border: Border.all(
-              color: AppColors.border,
-              width: 1.5,
-              style: BorderStyle.solid,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6, right: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAEEDA).withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.8),
+              offset: const Offset(6, 6),
+              blurRadius: 0,
             ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_rounded, size: 36, color: AppColors.mutedText),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Add child',
-                style: AppTextStyles.body.copyWith(color: AppColors.mutedText),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(32),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(32),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Icon(
+                        Icons.add_circle_outline_rounded,
+                        size: 56,
+                        color: AppColors.primary.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Add child',
+                    style: AppTextStyles.bodyBold.copyWith(
+                      color: AppColors.mutedText,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

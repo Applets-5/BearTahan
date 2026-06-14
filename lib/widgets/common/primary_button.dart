@@ -22,23 +22,39 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    final bool isEnabled = onPressed != null && !isLoading;
+    final Color shadowColor = isEnabled
+        ? Color.lerp(backgroundColor, Colors.black, 0.25)!
+        : Colors.transparent;
+
+    return Container(
       width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 6, right: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            offset: const Offset(6, 6),
+            blurRadius: 0,
+          ),
+        ],
+      ),
       child: FilledButton(
         onPressed: isLoading ? null : onPressed,
         style: FilledButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: foregroundColor,
+          elevation: 0,
           textStyle: AppTextStyles.button.copyWith(color: foregroundColor),
           shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.r(AppRadius.lg),
+            borderRadius: BorderRadius.circular(32),
           ),
           padding: const EdgeInsets.symmetric(
             vertical: AppSpacing.md,
             horizontal: AppSpacing.md, // Added horizontal padding for safety
           ),
         ),
-
         child: isLoading
             ? const SizedBox(
                 height: 20,
@@ -59,8 +75,7 @@ class PrimaryButton extends StatelessWidget {
                   Flexible(
                     child: Text(
                       label,
-                      overflow: TextOverflow
-                          .ellipsis, // Optional: adds '...' if still too long
+                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                     ),
                   ),

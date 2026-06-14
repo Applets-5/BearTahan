@@ -9,6 +9,7 @@ import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/missing_child_profile.dart';
 import '../../widgets/common/mascot_widget.dart';
+import '../../widgets/common/primary_button.dart';
 import '../../widgets/parent/stat_card.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -46,29 +47,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () {
-                context.push(
-                  Uri(
-                    path: AppRouter.starHistory,
-                    queryParameters: {'childId': childId},
-                  ).toString(),
-                );
-              },
-              icon: const Icon(Icons.history),
-              label: const Text('Star History'),
-            ),
+          PrimaryButton(
+            onPressed: () {
+              context.push(
+                Uri(
+                  path: AppRouter.starHistory,
+                  queryParameters: {'childId': childId},
+                ).toString(),
+              );
+            },
+            icon: Icons.history,
+            label: 'Star History',
           ),
           const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _enterParentMode,
-              icon: const Icon(Icons.login),
-              label: const Text('Parent Mode'),
-            ),
+          PrimaryButton(
+            onPressed: _enterParentMode,
+            icon: Icons.login,
+            label: 'Parent Mode',
           ),
         ],
       ),
