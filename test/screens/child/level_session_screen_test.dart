@@ -467,14 +467,7 @@ void main() {
 
       expect(finishButton, findsOneWidget);
       expect(feedback, findsOneWidget);
-      expect(
-        tester.getBottomLeft(feedback).dy,
-        lessThan(tester.getTopLeft(finishButton).dy),
-      );
-      expect(
-        tester.getTopLeft(finishButton).dy - tester.getBottomLeft(feedback).dy,
-        lessThanOrEqualTo(16),
-      );
+      // In the new design the button is inside the feedback card
       expect(tester.getBottomRight(finishButton).dy, greaterThan(690));
       expect(tester.takeException(), isNull);
     });
@@ -537,9 +530,9 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.textContaining('Not quite'), findsOneWidget);
-        expect(find.text('Next'), findsOneWidget);
+        expect(find.text('Got it'), findsOneWidget);
 
-        await tester.tap(find.text('Next'));
+        await tester.tap(find.text('Got it'));
         await tester.pumpAndSettle();
         await tester.pump(const Duration(milliseconds: 500));
 

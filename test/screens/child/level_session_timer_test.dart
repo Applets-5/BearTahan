@@ -253,6 +253,8 @@ void main() {
       await tester.tap(find.text('Rumah'));
       await tester.pump();
 
+      await tester.ensureVisible(find.text('Finish'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Finish'));
       await tester.pump();
       await tester.pumpAndSettle();
