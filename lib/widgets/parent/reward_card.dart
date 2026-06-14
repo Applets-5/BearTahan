@@ -206,7 +206,9 @@ class RewardCard extends StatelessWidget {
                       ? goldenYellow
                       : (rejected
                             ? AppColors.destructive
-                            : (approved ? AppColors.accent : AppColors.mutedText)),
+                            : (approved
+                                  ? AppColors.accent
+                                  : AppColors.mutedText)),
                   textColor: Colors.white,
                 ),
               ],

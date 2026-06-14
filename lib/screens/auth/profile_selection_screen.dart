@@ -320,7 +320,8 @@ class _ChildCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final imagePath = activeOutfitId == null
         ? 'assets/images/bear1.png'
-        : MascotWidget.outfitImages[activeOutfitId] ?? 'assets/images/bear1.png';
+        : MascotWidget.outfitImages[activeOutfitId] ??
+              'assets/images/bear1.png';
 
     return AspectRatio(
       aspectRatio: 0.8,
