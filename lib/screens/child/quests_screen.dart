@@ -324,7 +324,7 @@ class _QuestHeader extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Text('🎯', style: TextStyle(fontSize: 22)),
+            //const Text('🎯', style: TextStyle(fontSize: 22)),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
@@ -437,7 +437,7 @@ class _QuestOutfitCard extends StatelessWidget {
                   ],
                   if (active)
                     const _SmallStatusButton(
-                      label: '✅ Active',
+                      label: 'Active',
                       backgroundColor: AppColors.primary,
                       textColor: Colors.white,
                     )

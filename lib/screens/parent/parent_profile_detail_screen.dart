@@ -122,6 +122,8 @@ class _ParentProfileDetailScreenState
                       controller: nameController,
                       decoration: InputDecoration(
                         labelText: 'Name',
+                        filled: true,
+                        fillColor: AppColors.card,
                         border: OutlineInputBorder(
                           borderRadius: AppRadius.r(AppRadius.lg),
                           borderSide: BorderSide.none,
@@ -133,6 +135,8 @@ class _ParentProfileDetailScreenState
                       controller: ageController,
                       decoration: InputDecoration(
                         labelText: 'Age',
+                        filled: true,
+                        fillColor: AppColors.card,
                         border: OutlineInputBorder(
                           borderRadius: AppRadius.r(AppRadius.lg),
                           borderSide: BorderSide.none,
@@ -148,13 +152,13 @@ class _ParentProfileDetailScreenState
                       icon: const Icon(Icons.keyboard_arrow_down_rounded),
                       decoration: InputDecoration(
                         labelText: 'Grade',
+                        filled: true,
+                        fillColor: AppColors.card,
                         prefixIcon: const Icon(Icons.school_outlined, size: 20),
                         border: OutlineInputBorder(
                           borderRadius: AppRadius.r(AppRadius.lg),
                           borderSide: BorderSide.none,
                         ),
-                        filled: true,
-                        fillColor: AppColors.muted.withValues(alpha: 0.3),
                       ),
                       selectedItemBuilder: (context) {
                         return grades.map((g) {

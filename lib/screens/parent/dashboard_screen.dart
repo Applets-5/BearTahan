@@ -265,16 +265,12 @@ class _OverviewTab extends ConsumerWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: isComplete
-                  ? const Color(0xFFE8F5E9)
-                  : const Color(0xFFFFE7B0),
+              color: isComplete ? AppColors.muted : const Color(0xFFFFE7B0),
               shape: BoxShape.circle,
             ),
             child: Icon(
               isComplete ? Icons.stars_rounded : icon,
-              color: isComplete
-                  ? const Color(0xFF43A047)
-                  : const Color(0xFFE67817),
+              color: isComplete ? AppColors.primary : const Color(0xFFE67817),
             ),
           ),
           const SizedBox(width: 12),
@@ -295,7 +291,7 @@ class _OverviewTab extends ConsumerWidget {
                       style: _AdventureText.progressChip(
                         context,
                         isComplete
-                            ? const Color(0xFF43A047)
+                            ? AppColors.primary
                             : const Color(0xFFE67817),
                       ),
                     ),
@@ -308,7 +304,7 @@ class _OverviewTab extends ConsumerWidget {
                     value: progress,
                     minHeight: 9,
                     color: isComplete
-                        ? const Color(0xFF43A047)
+                        ? AppColors.primary
                         : const Color(0xFFFFA733),
                     backgroundColor: isComplete
                         ? const Color(0xFFE8F5E9)

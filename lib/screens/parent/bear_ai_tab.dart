@@ -262,8 +262,13 @@ class _BearAITabState extends ConsumerState<BearAITab> {
             data: (strengthMap) {
               return Column(
                 children: [
-                  const Text('Subject Strength', style: AppTextStyles.bodyBold),
-                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Subject Strength',
+                    style: AppTextStyles.bodyBold.copyWith(
+                      fontWeight: FontWeight.w900, // Or FontWeight.bold
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
                   SubjectRadarChart(subjectData: strengthMap),
                 ],
               );
