@@ -24,6 +24,7 @@ import '../screens/parent/parent_settings_screen.dart';
 import '../screens/parent/reward_management_screen.dart';
 import '../screens/parent/parent_profile_detail_screen.dart';
 import '../screens/parent/change_password_screen.dart';
+import '../screens/parent/lesson_history_screen.dart';
 import '../screens/shared/no_internet_screen.dart';
 import '../screens/shared/tutorial_screen.dart';
 import '../screens/shared/splash_screen.dart';
@@ -169,6 +170,7 @@ class AppRouter {
   static const parentNotifications = '/parent-notifications';
   static const parentSettings = '/parent-settings';
   static const parentProfileDetail = '/parent-profile-detail';
+  static const lessonHistory = '/lesson-history';
   static const changePassword = '/change-password';
   static const noInternet = '/no-internet';
   static const tutorial = '/tutorial';
@@ -331,6 +333,16 @@ class AppRouter {
             path: parentProfileDetail,
             pageBuilder: (context, state) =>
                 _noTransitionPage(state, const ParentProfileDetailScreen()),
+          ),
+          GoRoute(
+            path: lessonHistory,
+            pageBuilder: (context, state) {
+              final childId = state.uri.queryParameters['childId'] ?? '';
+              return _noTransitionPage(
+                state,
+                LessonHistoryScreen(childId: childId),
+              );
+            },
           ),
         ],
       ),

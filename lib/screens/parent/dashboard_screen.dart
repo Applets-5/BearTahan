@@ -392,6 +392,7 @@ class _OverviewTab extends ConsumerWidget {
                   0,
                   (sum, s) => sum + (s['completedLevels'] as int),
                 );
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -403,6 +404,14 @@ class _OverviewTab extends ConsumerWidget {
                             label: 'Stars Earned',
                             value: profile.lifetimeStarsEarned.toString(),
                             color: AppColors.star,
+                            onTap: () {
+                              context.push(
+                                Uri(
+                                  path: AppRouter.starHistory,
+                                  queryParameters: {'childId': selectedChildId},
+                                ).toString(),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: AppSpacing.md),
@@ -412,6 +421,14 @@ class _OverviewTab extends ConsumerWidget {
                             label: 'Lessons',
                             value: totalCompletedLevels.toString(),
                             color: AppColors.primary,
+                            onTap: () {
+                              context.push(
+                                Uri(
+                                  path: AppRouter.lessonHistory,
+                                  queryParameters: {'childId': selectedChildId},
+                                ).toString(),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: AppSpacing.md),
@@ -502,6 +519,7 @@ class _OverviewTab extends ConsumerWidget {
                           const SizedBox(height: AppSpacing.md),
                           ...displaySubjects.map(
                             (s) => _SubjectProgress(
+                              subjectId: s['id'] ?? '',
                               label: s['name'],
                               score: (s['progress'] as int) / 100,
                               completedLevels: s['completedLevels'],
@@ -536,7 +554,6 @@ class _OverviewTab extends ConsumerWidget {
           error: (e, st) => Text('Error loading profile: $e'),
         ),
         const SizedBox(height: AppSpacing.lg),
-        _RecentActivity(childId: selectedChildId),
       ],
     );
   }
@@ -544,6 +561,7 @@ class _OverviewTab extends ConsumerWidget {
 
 class _SubjectProgress extends StatelessWidget {
   const _SubjectProgress({
+    required this.subjectId,
     required this.label,
     required this.score,
     required this.completedLevels,
@@ -551,12 +569,27 @@ class _SubjectProgress extends StatelessWidget {
     required this.color,
     this.isLast = false,
   });
+  final String subjectId;
   final String label;
   final double score;
   final int completedLevels;
   final int totalStars;
   final Color color;
   final bool isLast;
+
+  String _getCurrentChapter() {
+    if (score >= 1.0) return 'Completed';
+
+    if (subjectId == 'bi') {
+      if (completedLevels < 4) return 'Chapter 0';
+      if (completedLevels < 11) return 'Chapter 1';
+      return 'Chapter 2';
+    }
+
+    // Default assumes ~6 levels per chapter
+    final chapterNum = (completedLevels / 6).floor() + 1;
+    return 'Chapter $chapterNum';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -571,7 +604,7 @@ class _SubjectProgress extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('$completedLevels lessons', style: AppTextStyles.tiny),
+                  Text(_getCurrentChapter(), style: AppTextStyles.tiny),
                   const Text(' • ', style: AppTextStyles.tiny),
                   Text('$totalStars '),
                   const Icon(Icons.star, size: 10, color: AppColors.star),
@@ -590,113 +623,6 @@ class _SubjectProgress extends StatelessWidget {
               color: color,
               backgroundColor: AppColors.muted,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecentActivity extends ConsumerWidget {
-  const _RecentActivity({required this.childId});
-  final String childId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final parentId = ref.watch(parentIdProvider);
-    final transactionsAsync = ref.watch(
-      starTransactionsProvider((parentId: parentId, childId: childId)),
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.xl),
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Recent Activity', style: AppTextStyles.bodyBold),
-              TextButton(
-                onPressed: () {
-                  context.push(
-                    Uri(
-                      path: AppRouter.starHistory,
-                      queryParameters: {'childId': childId},
-                    ).toString(),
-                  );
-                },
-                child: const Text('View All', style: AppTextStyles.tiny),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          transactionsAsync.when(
-            data: (transactions) {
-              if (transactions.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: Center(
-                    child: Text(
-                      'No recent activity',
-                      style: AppTextStyles.small,
-                    ),
-                  ),
-                );
-              }
-
-              // Only show top 5 on dashboard
-              final recent = transactions.take(5).toList();
-
-              return Column(
-                children: recent.map((tx) {
-                  final isEarn = tx.type == 'earn';
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isEarn
-                              ? Icons.add_circle_outline
-                              : Icons.remove_circle_outline,
-                          size: 14,
-                          color: isEarn
-                              ? AppColors.accent
-                              : AppColors.destructive,
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            tx.description,
-                            style: AppTextStyles.small,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Text(
-                          isEarn ? '+${tx.amount}' : '-${tx.amount.abs()}',
-                          style: AppTextStyles.small.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: isEarn
-                                ? AppColors.accent
-                                : AppColors.destructive,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        const Icon(Icons.star, size: 12, color: AppColors.star),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, _) => Text('Error: $err', style: AppTextStyles.tiny),
           ),
         ],
       ),

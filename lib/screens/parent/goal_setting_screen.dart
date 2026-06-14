@@ -93,18 +93,55 @@ class _GoalSettingScreenState extends ConsumerState<GoalSettingScreen> {
               const SizedBox(height: AppSpacing.lg),
               DropdownButtonFormField<String>(
                 initialValue: selectedChild.uid,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.child_care),
+                borderRadius: AppRadius.r(AppRadius.lg),
+                dropdownColor: AppColors.card,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.child_care),
                   labelText: 'Child',
+                  border: OutlineInputBorder(
+                    borderRadius: AppRadius.r(AppRadius.lg),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.muted.withValues(alpha: 0.3),
                 ),
-                items: children
-                    .map(
-                      (child) => DropdownMenuItem(
-                        value: child.uid,
-                        child: Text(child.name),
+                selectedItemBuilder: (context) {
+                  return children.map((child) {
+                    return Text(
+                      child.name,
+                      style: AppTextStyles.bodyBold.copyWith(
+                        color: AppColors.foreground,
                       ),
-                    )
-                    .toList(),
+                    );
+                  }).toList();
+                },
+                items: children.map((child) {
+                  final isSelected = selectedChild.uid == child.uid;
+                  return DropdownMenuItem(
+                    value: child.uid,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary.withValues(alpha: 0.1)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        child.name,
+                        style: AppTextStyles.body.copyWith(
+                          color: isSelected ? AppColors.primary : null,
+                          fontWeight: isSelected ? FontWeight.bold : null,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
                 onChanged: (value) {
                   ref.read(childIdProvider.notifier).update(value);
                   setState(() => _hydratedChildId = null);
