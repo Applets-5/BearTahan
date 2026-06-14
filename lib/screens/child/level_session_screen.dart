@@ -1392,6 +1392,43 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         return _buildNumberQuestion(question);
       case 'mcq':
       default:
+        final isAnswerImage = question.options.any(
+          (o) => o.imageUrl != null && o.imageUrl!.isNotEmpty,
+        );
+        if (isAnswerImage) {
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final parentWidth = constraints.maxWidth;
+              const crossAxisCount = 2;
+              final itemWidth =
+                  (parentWidth - (crossAxisCount - 1) * AppSpacing.xs) /
+                  crossAxisCount;
+
+              final double avatarSize = parentWidth > 360 ? 32.0 : 24.0;
+              final double imageSize = (itemWidth * 0.55).clamp(48.0, 110.0);
+              final double padding = AppSpacing.md * 2;
+              final double spacing = AppSpacing.xs * 3;
+              final double textHeight = parentWidth > 360 ? 20.0 : 16.0;
+              final double totalHeight =
+                  padding + avatarSize + spacing + imageSize + textHeight + 20;
+
+              final aspectRatio = itemWidth / totalHeight;
+
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: crossAxisCount,
+                mainAxisSpacing: AppSpacing.xs,
+                crossAxisSpacing: AppSpacing.xs,
+                childAspectRatio: aspectRatio,
+                children: List.generate(
+                  question.options.length,
+                  (index) => _option(index, question),
+                ),
+              );
+            },
+          );
+        }
         return Column(
           children: List.generate(
             question.options.length,
@@ -1777,6 +1814,129 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         : showWrong
         ? AppColors.destructiveLight
         : AppColors.card;
+
+    final isAnswerImage = question.options.any(
+      (o) => o.imageUrl != null && o.imageUrl!.isNotEmpty,
+    );
+
+    if (isAnswerImage) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final isSmallDevice = constraints.maxWidth < 180;
+          final double avatarSize = isSmallDevice ? 24.0 : 32.0;
+
+          return InkWell(
+            onTap: selected == null
+                ? () {
+                    final isCorrect = index == question.correctAnswerIndex;
+                    if (isCorrect) {
+                      HapticFeedback.mediumImpact();
+                      _playQuestionFeedback(question, true);
+                    } else {
+                      HapticFeedback.vibrate();
+                      _playQuestionFeedback(question, false);
+                    }
+                    setState(() {
+                      selected = index;
+                      if (isCorrect) {
+                        score++;
+                      }
+                    });
+                    unawaited(_recordQuestionResult(question, isCorrect));
+                  }
+                : null,
+            borderRadius: AppRadius.r(AppRadius.lg),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: AppRadius.r(AppRadius.lg),
+                border: Border.all(
+                  color: showCorrect
+                      ? AppColors.accent
+                      : showWrong
+                      ? AppColors.destructive
+                      : AppColors.border,
+                ),
+                boxShadow: AppShadows.card,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      CircleAvatar(
+                        radius: avatarSize / 2,
+                        backgroundColor: AppColors.muted,
+                        child: Text(
+                          String.fromCharCode(65 + index),
+                          style: AppTextStyles.bodyBold.copyWith(
+                            fontSize: isSmallDevice ? 11 : 13,
+                          ),
+                        ),
+                      ),
+                      if (showCorrect)
+                        const Icon(
+                          Icons.check_circle,
+                          color: AppColors.accent,
+                          size: 20,
+                        )
+                      else if (showWrong)
+                        const Icon(
+                          Icons.cancel,
+                          color: AppColors.destructive,
+                          size: 20,
+                        )
+                      else
+                        const SizedBox(width: 20),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  if (option.imageUrl != null && option.imageUrl!.isNotEmpty)
+                    Expanded(
+                      child: Center(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.imagePlaceholder,
+                            borderRadius: AppRadius.r(AppRadius.md),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: AppRadius.r(AppRadius.md),
+                            child: Image.network(
+                              option.imageUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
+                                    Icons.image,
+                                    size: isSmallDevice ? 24 : 32,
+                                  ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: AppSpacing.xs),
+                  if (option.text.isNotEmpty)
+                    Text(
+                      option.text,
+                      style: AppTextStyles.bodyBold.copyWith(
+                        fontSize: isSmallDevice ? 13 : 15,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
