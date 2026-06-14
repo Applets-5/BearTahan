@@ -437,7 +437,7 @@ class _QuestOutfitCard extends StatelessWidget {
                   ],
                   if (active)
                     const _SmallStatusButton(
-                      label: '✔ Active',
+                      label: '✅ Active',
                       backgroundColor: AppColors.primary,
                       textColor: Colors.white,
                     )
@@ -562,7 +562,7 @@ class _QuestDetailsDialog extends StatelessWidget {
                   Expanded(
                     child: active
                         ? const _SmallStatusButton(
-                            label: '✔ Active',
+                            label: '✅ Active',
                             backgroundColor: AppColors.primary,
                             textColor: Colors.white,
                           )
@@ -792,28 +792,46 @@ class _SmallStatusButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: backgroundColor,
-      borderRadius: AppRadius.r(AppRadius.xxl),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadius.r(AppRadius.xxl),
-        child: Container(
-          width: double.infinity,
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.r(AppRadius.xxl),
-            border: borderColor == null
-                ? null
-                : Border.all(color: borderColor!),
+    final bool hasShadow = onTap != null || label.contains('Active');
+    final Color shadowColor = hasShadow
+        ? Color.lerp(backgroundColor, Colors.black, 0.25)!
+        : Colors.transparent;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4, right: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            offset: const Offset(4, 4),
+            blurRadius: 0,
           ),
-          child: Text(
-            label,
-            style: AppTextStyles.tiny.copyWith(
-              color: textColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+        ],
+      ),
+      child: Material(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            width: double.infinity,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: borderColor == null
+                  ? null
+                  : Border.all(color: borderColor!),
+            ),
+            child: Text(
+              label,
+              style: AppTextStyles.tiny.copyWith(
+                color: textColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
