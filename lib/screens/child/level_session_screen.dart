@@ -1235,6 +1235,17 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         return _draggedOptionIndex != null && !_fillBlankSubmitted;
       case 'keyinnumber':
         return !_numberSubmitted;
+      case 'fillblanklist':
+        if (_fillBlankListSubmitted) return false;
+        // Keyboard-input mode
+        if (_fillBlankListControllers.isNotEmpty) {
+          return _fillBlankListControllers.every(
+            (c) => c.text.trim().isNotEmpty,
+          );
+        }
+        // Drag-drop mode
+        return _fillBlankListAnswers.isNotEmpty &&
+            !_fillBlankListAnswers.contains(null);
       default:
         return false;
     }
@@ -1254,6 +1265,9 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         break;
       case 'keyinnumber':
         onPressed = () => _checkNumberAnswer(question);
+        break;
+      case 'fillblanklist':
+        onPressed = () => _checkFillBlankListAnswer(question);
         break;
     }
 
@@ -1317,6 +1331,56 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       if (isCorrect) score++;
       _playQuestionFeedback(question, isCorrect);
     });
+    unawaited(_recordQuestionResult(question, isCorrect));
+  }
+
+  void _checkFillBlankListAnswer(Question question) {
+    // Keyboard-input mode (no options to drag)
+    if (question.options.isEmpty) {
+      final allCorrect = List.generate(
+        question.correctOrder?.length ?? 0,
+        (i) =>
+            _fillBlankListControllers[i].text.trim() ==
+            question.correctOrder![i],
+      ).every((c) => c);
+
+      setState(() {
+        _fillBlankListSubmitted = true;
+        selected = allCorrect ? question.correctAnswerIndex : -1;
+        if (allCorrect) score++;
+      });
+      unawaited(_playQuestionFeedback(question, allCorrect));
+      unawaited(_recordQuestionResult(question, allCorrect));
+      return;
+    }
+
+    // Drag-drop mode
+    final answers = _fillBlankListAnswers
+        .map(
+          (idx) => idx != null
+              ? question.options[idx].text.trim().toLowerCase()
+              : '',
+        )
+        .toList();
+
+    bool isCorrect = false;
+    if (question.correctOrder != null &&
+        question.correctOrder!.length == answers.length) {
+      isCorrect = true;
+      for (int i = 0; i < answers.length; i++) {
+        if (answers[i] != question.correctOrder![i].trim().toLowerCase()) {
+          isCorrect = false;
+          break;
+        }
+      }
+    }
+
+    setState(() {
+      _fillBlankListSubmitted = true;
+      selected = isCorrect ? question.correctAnswerIndex : -1;
+      if (isCorrect) score++;
+    });
+    unawaited(_playQuestionFeedback(question, isCorrect));
     unawaited(_recordQuestionResult(question, isCorrect));
   }
 
@@ -1888,10 +1952,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         }
       }
 
-      final allFilled = _fillBlankListControllers.every(
-        (c) => c.text.trim().isNotEmpty,
-      );
-
       return Column(
         key: key,
         children: [
@@ -1974,28 +2034,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               ),
             );
           }),
-          if (!_fillBlankListSubmitted && allFilled) ...[
-            const SizedBox(height: AppSpacing.sm),
-            PrimaryButton(
-              label: 'Check Answers',
-              onPressed: () {
-                final allCorrect = List.generate(
-                  blanksCount,
-                  (i) =>
-                      _fillBlankListControllers[i].text.trim() ==
-                      question.correctOrder![i],
-                ).every((c) => c);
-
-                setState(() {
-                  _fillBlankListSubmitted = true;
-                  selected = allCorrect ? question.correctAnswerIndex : -1;
-                  if (allCorrect) score++;
-                });
-                unawaited(_playQuestionFeedback(question, allCorrect));
-                unawaited(_recordQuestionResult(question, allCorrect));
-              },
-            ),
-          ],
         ],
       );
     }
@@ -2017,7 +2055,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         .where((e) => e != null)
         .cast<int>()
         .toSet();
-    final allFilled = totalBlanks > 0 && !_fillBlankListAnswers.contains(null);
 
     final textStyle = AppTextStyles.cardTitle.copyWith(fontSize: 16);
 
@@ -2100,41 +2137,6 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               );
             }),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          if (allFilled)
-            PrimaryButton(
-              label: 'Check Answer',
-              onPressed: () {
-                final answers = _fillBlankListAnswers
-                    .map(
-                      (idx) => idx != null
-                          ? question.options[idx].text.trim().toLowerCase()
-                          : '',
-                    )
-                    .toList();
-
-                bool isCorrect = false;
-                if (question.correctOrder != null &&
-                    question.correctOrder!.length == answers.length) {
-                  isCorrect = true;
-                  for (int i = 0; i < answers.length; i++) {
-                    if (answers[i] !=
-                        question.correctOrder![i].trim().toLowerCase()) {
-                      isCorrect = false;
-                      break;
-                    }
-                  }
-                }
-
-                setState(() {
-                  _fillBlankListSubmitted = true;
-                  selected = isCorrect ? question.correctAnswerIndex : -1;
-                  if (isCorrect) score++;
-                });
-                unawaited(_playQuestionFeedback(question, isCorrect));
-                unawaited(_recordQuestionResult(question, isCorrect));
-              },
-            ),
         ],
       ],
     );
