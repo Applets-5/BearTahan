@@ -952,11 +952,16 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     final language = _languageForQuestion(question);
 
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        children: [
-          Row(
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            0,
+          ),
+          child: Row(
             children: [
               IconButton(
                 onPressed: _handleExit,
@@ -981,98 +986,99 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               Text(_formatElapsedTime(), style: AppTextStyles.bodyBold),
             ],
           ),
-          if (widget.sessionMode == SessionMode.bearsDen) ...[
-            const SizedBox(height: AppSpacing.sm),
-            const _BearsDenChip(label: "Bear's Den"),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          Expanded(
-            child: Column(
-              children: [
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        key: const ValueKey('level_session_scroll'),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.md,
+        ),
+        if (widget.sessionMode == SessionMode.bearsDen) ...[
+          const SizedBox(height: AppSpacing.sm),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: _BearsDenChip(label: "Bear's Den"),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.md),
+        Expanded(
+          child: Column(
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      key: const ValueKey('level_session_scroll'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.md,
+                      ),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight:
+                              constraints.maxHeight - (AppSpacing.md * 2),
                         ),
-                        keyboardDismissBehavior:
-                            ScrollViewKeyboardDismissBehavior.onDrag,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight:
-                                constraints.maxHeight - (AppSpacing.md * 2),
-                          ),
-                          child: Column(
-                            key: const ValueKey('question_content'),
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (question.imageUrl != null &&
-                                  question.imageUrl!.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    bottom: AppSpacing.md,
-                                  ),
-                                  child: Center(
-                                    child: Container(
-                                      constraints: const BoxConstraints(
-                                        maxHeight: 160,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.imagePlaceholder,
-                                        borderRadius: AppRadius.r(AppRadius.xl),
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: AppRadius.r(AppRadius.xl),
-                                        child: Image.network(
-                                          question.imageUrl!,
-                                          fit: BoxFit.contain,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  const Icon(
-                                                    Icons.image,
-                                                    color: AppColors.mutedText,
-                                                    size: 48,
-                                                  ),
-                                        ),
+                        child: Column(
+                          key: const ValueKey('question_content'),
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (question.imageUrl != null &&
+                                question.imageUrl!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: AppSpacing.md,
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    constraints: const BoxConstraints(
+                                      maxHeight: 160,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.imagePlaceholder,
+                                      borderRadius: AppRadius.r(AppRadius.xl),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: AppRadius.r(AppRadius.xl),
+                                      child: Image.network(
+                                        question.imageUrl!,
+                                        fit: BoxFit.contain,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                const Icon(
+                                                  Icons.image,
+                                                  color: AppColors.mutedText,
+                                                  size: 48,
+                                                ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              _buildQuestionText(question, language),
-                              if (widget.sessionMode ==
-                                  SessionMode.bearsDen) ...[
-                                const SizedBox(height: AppSpacing.sm),
-                                _BearsDenChip(
-                                  label:
-                                      BearsDenDemoData.chapterLabelForQuestion(
-                                        question,
-                                      ),
-                                ),
-                              ],
+                              ),
+                            _buildQuestionText(question, language),
+                            if (widget.sessionMode == SessionMode.bearsDen) ...[
                               const SizedBox(height: AppSpacing.sm),
-                              _buildQuestionBody(question),
+                              _BearsDenChip(
+                                label: BearsDenDemoData.chapterLabelForQuestion(
+                                  question,
+                                ),
+                              ),
                             ],
-                          ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _buildQuestionBody(question),
+                          ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
-                if (isQuestionComplete) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  _buildAnswerActions(
-                    question,
-                    isLastQuestion: isLastQuestion,
-                    totalQuestions: questions.length,
-                  ),
-                ],
+              ),
+              if (isQuestionComplete) ...[
+                _buildAnswerActions(
+                  question,
+                  isLastQuestion: isLastQuestion,
+                  totalQuestions: questions.length,
+                ),
               ],
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1097,12 +1103,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           child: Container(
             key: const ValueKey('answer_feedback'),
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: selected == question.correctAnswerIndex
                   ? AppColors.accentLight
                   : AppColors.destructiveLight,
-              borderRadius: AppRadius.r(AppRadius.lg),
+              borderRadius: BorderRadius.zero,
             ),
             child: Row(
               children: [
@@ -1136,30 +1142,38 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        PrimaryButton(
-          label: isLastQuestion ? 'Finish' : 'Next',
-          isLoading: isLastQuestion && _isSaving,
-          icon: Icons.arrow_forward_rounded,
-          onPressed: () {
-            if (isLastQuestion) {
-              _completeSession(totalQuestions);
-            } else {
-              setState(() {
-                currentQuestionIndex++;
-                selected = null;
-                _rearrangeOrder = null;
-                _rearrangeSubmitted = false;
-                _draggedOptionIndex = null;
-                _fillBlankSubmitted = false;
-                _dragDropSpellingSubmitted = false;
-                _matchingSubmitted = false;
-                _strokeTraceSubmitted = false;
-                _strokeHadWrongAttempt = false;
-                _numberSubmitted = false;
-                _numberController.clear();
-              });
-            }
-          },
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            0,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: PrimaryButton(
+            label: isLastQuestion ? 'Finish' : 'Next',
+            isLoading: isLastQuestion && _isSaving,
+            icon: Icons.arrow_forward_rounded,
+            onPressed: () {
+              if (isLastQuestion) {
+                _completeSession(totalQuestions);
+              } else {
+                setState(() {
+                  currentQuestionIndex++;
+                  selected = null;
+                  _rearrangeOrder = null;
+                  _rearrangeSubmitted = false;
+                  _draggedOptionIndex = null;
+                  _fillBlankSubmitted = false;
+                  _dragDropSpellingSubmitted = false;
+                  _matchingSubmitted = false;
+                  _strokeTraceSubmitted = false;
+                  _strokeHadWrongAttempt = false;
+                  _numberSubmitted = false;
+                  _numberController.clear();
+                });
+              }
+            },
+          ),
         ),
       ],
     );
