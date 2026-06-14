@@ -360,5 +360,4 @@ class Question {
     }
     return false;
   }
-
 }
