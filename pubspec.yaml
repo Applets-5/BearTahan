@@ -58,7 +58,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/beartahan.png"
+  image_path: "assets/images/app_icon.jpg"
   min_sdk_android: 21
   remove_alpha_ios: true
 

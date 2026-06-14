@@ -1368,16 +1368,6 @@ class _AdventureTrailPainter extends CustomPainter {
 class _AdventureText {
   const _AdventureText._();
 
-  static TextStyle logo(BuildContext context) {
-    return Theme.of(context).textTheme.headlineSmall!.copyWith(
-      fontSize: (32 * _fontScale(context)).clamp(0, 36),
-      height: 1,
-      fontWeight: FontWeight.w900,
-      color: const Color(0xFF4B2416),
-      letterSpacing: 0,
-    );
-  }
-
   static TextStyle heroTitle(BuildContext context) {
     return Theme.of(context).textTheme.headlineSmall!.copyWith(
       fontSize: (22 * _fontScale(context)).clamp(0.0, 23.0),
