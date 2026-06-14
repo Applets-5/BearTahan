@@ -1885,8 +1885,15 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     if (type == 'rearrange' && question.correctOrder != null) {
       return 'The correct sentence is "${question.correctOrder!.join(' ')}".';
     }
-    if (type == 'keyinnumber' && question.correctNumber != null) {
-      return 'Not quite! The answer is ${question.correctNumber}.';
+    if (type == 'keyinnumber') {
+      final answers = question.correctAnswers;
+      if (answers != null && answers.isNotEmpty) {
+        final uniqueAnswers = answers.toSet().toList();
+        return 'Not quite! The answer is ${uniqueAnswers.join(' or ')}.';
+      }
+      if (question.correctNumber != null) {
+        return 'Not quite! The answer is ${question.correctNumber}.';
+      }
     }
 
     String? answer;
