@@ -6,7 +6,6 @@ import '../../models/subject.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/progress_bar_card.dart';
 import '../../widgets/parent/stat_card.dart';
 import 'bear_ai_tab.dart';
 import '../../features/bears_den/chapter_insights_card.dart';
@@ -184,29 +183,150 @@ class _OverviewTab extends ConsumerWidget {
 
   const _OverviewTab({required this.selectedChildId});
 
-  Widget _buildDailyGoalCard(dynamic profile) {
+  Widget _buildDailyGoalCard(BuildContext context, dynamic profile) {
     final goal = profile.dailyGoal;
+
+    String todayKey() {
+      final now = DateTime.now();
+      final month = now.month.toString().padLeft(2, '0');
+      final day = now.day.toString().padLeft(2, '0');
+      return '${now.year}-$month-$day';
+    }
+
     if (goal == null || !goal.isValid) {
-      return ProgressBarCard(
-        title: 'Daily Goal',
-        subtitle: 'No daily goal set for ${profile.name}',
-        progress: 0,
-        icon: Icons.flag_outlined,
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x16000000),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF5F5F5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.flag_outlined, color: Colors.grey),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Daily Goal', style: _AdventureText.cardTitle(context)),
+                  const SizedBox(height: 2),
+                  Text(
+                    'No daily goal set for ${profile.name}',
+                    style: _AdventureText.cardBody(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       );
     }
 
-    final double progress = (goal.todayProgress / goal.target).clamp(0.0, 1.0);
-    final String unit = goal.unitLabel;
-    final bool isComplete = goal.todayProgress >= goal.target;
+    final todayProgress = goal.lastUpdatedDate == todayKey()
+        ? goal.todayProgress
+        : 0;
+    final progress = (todayProgress / goal.target).clamp(0.0, 1.0);
+    final icon = goal.type == 'minutes'
+        ? Icons.timer_rounded
+        : Icons.flag_rounded;
+    final bool isComplete = todayProgress >= goal.target;
 
-    return ProgressBarCard(
-      title: 'Daily Goal',
-      subtitle: isComplete
-          ? 'Goal completed! ${goal.todayProgress}/$goal.target $unit'
-          : '${profile.name} has completed ${goal.todayProgress} of $goal.target $unit today',
-      progress: progress,
-      icon: isComplete ? Icons.stars_rounded : Icons.flag_rounded,
-      color: isComplete ? AppColors.star : AppColors.primary,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x16000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: isComplete
+                  ? const Color(0xFFE8F5E9)
+                  : const Color(0xFFFFE7B0),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isComplete ? Icons.stars_rounded : icon,
+              color: isComplete
+                  ? const Color(0xFF43A047)
+                  : const Color(0xFFE67817),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Daily Goal',
+                        style: _AdventureText.cardTitle(context),
+                      ),
+                    ),
+                    Text(
+                      '$todayProgress/${goal.target}',
+                      style: _AdventureText.progressChip(
+                        context,
+                        isComplete
+                            ? const Color(0xFF43A047)
+                            : const Color(0xFFE67817),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 9,
+                    color: isComplete
+                        ? const Color(0xFF43A047)
+                        : const Color(0xFFFFA733),
+                    backgroundColor: isComplete
+                        ? const Color(0xFFE8F5E9)
+                        : const Color(0xFFFFF1D6),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  isComplete
+                      ? 'Goal completed! $todayProgress/${goal.target} ${goal.unitLabel}'
+                      : '${profile.name} has completed $todayProgress of ${goal.target} ${goal.unitLabel} today',
+                  style: _AdventureText.cardBody(context),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -346,7 +466,7 @@ class _OverviewTab extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    _buildDailyGoalCard(profile),
+                    _buildDailyGoalCard(context, profile),
                     const SizedBox(height: AppSpacing.lg),
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -563,6 +683,42 @@ class _RecentActivity extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+double _fontScale(BuildContext context) {
+  final w = MediaQuery.of(context).size.width;
+  if (w >= 600) return 1.1; // tablet
+  if (w >= 400) return 0.9; // large phone
+  return 0.78; // small phone (most Malaysian budget phones)
+}
+
+class _AdventureText {
+  const _AdventureText._();
+
+  static TextStyle cardTitle(BuildContext context) {
+    return Theme.of(context).textTheme.titleLarge!.copyWith(
+      fontSize: (16 * _fontScale(context)).clamp(0.0, 17.0),
+      height: 1.1,
+      fontWeight: FontWeight.w900,
+      color: const Color(0xFF4B2416),
+    );
+  }
+
+  static TextStyle cardBody(BuildContext context) {
+    return Theme.of(context).textTheme.bodyMedium!.copyWith(
+      fontSize: (12 * _fontScale(context)).clamp(0.0, 13.0),
+      fontWeight: FontWeight.w800,
+      color: const Color(0xFF5C341E),
+    );
+  }
+
+  static TextStyle progressChip(BuildContext context, Color color) {
+    return Theme.of(context).textTheme.labelMedium!.copyWith(
+      fontSize: 13 * _fontScale(context),
+      fontWeight: FontWeight.w900,
+      color: color,
     );
   }
 }
