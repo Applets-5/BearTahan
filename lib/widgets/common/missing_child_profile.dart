@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import 'primary_button.dart';
 
 class MissingChildProfile extends StatelessWidget {
   const MissingChildProfile({super.key, required this.message});
@@ -29,10 +30,10 @@ class MissingChildProfile extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),
-            FilledButton.icon(
+            PrimaryButton(
               onPressed: () => context.go(AppRouter.selectProfile),
-              icon: const Icon(Icons.group_rounded),
-              label: const Text('Select Profile'),
+              icon: Icons.group_rounded,
+              label: 'Select Profile',
             ),
           ],
         ),

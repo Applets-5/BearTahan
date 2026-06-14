@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../../router/app_router.dart';
 import '../../widgets/common/mascot_widget.dart';
+import '../../widgets/common/primary_button.dart';
 import '../../providers/data_providers.dart';
 
 class ProfileSelectionScreen extends ConsumerStatefulWidget {
@@ -64,10 +65,10 @@ class _ProfileSelectionScreenState
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                FilledButton.icon(
+                PrimaryButton(
                   onPressed: () => context.go(AppRouter.login),
-                  icon: const Icon(Icons.login_rounded),
-                  label: const Text('Go to Login'),
+                  icon: Icons.login_rounded,
+                  label: 'Go to Login',
                 ),
               ],
             ),
