@@ -554,7 +554,6 @@ class _OverviewTab extends ConsumerWidget {
           error: (e, st) => Text('Error loading profile: $e'),
         ),
         const SizedBox(height: AppSpacing.lg),
-        _RecentActivity(childId: selectedChildId),
       ],
     );
   }
@@ -624,113 +623,6 @@ class _SubjectProgress extends StatelessWidget {
               color: color,
               backgroundColor: AppColors.muted,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecentActivity extends ConsumerWidget {
-  const _RecentActivity({required this.childId});
-  final String childId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final parentId = ref.watch(parentIdProvider);
-    final transactionsAsync = ref.watch(
-      starTransactionsProvider((parentId: parentId, childId: childId)),
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.xl),
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Recent Activity', style: AppTextStyles.bodyBold),
-              TextButton(
-                onPressed: () {
-                  context.push(
-                    Uri(
-                      path: AppRouter.starHistory,
-                      queryParameters: {'childId': childId},
-                    ).toString(),
-                  );
-                },
-                child: const Text('View All', style: AppTextStyles.tiny),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          transactionsAsync.when(
-            data: (transactions) {
-              if (transactions.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: Center(
-                    child: Text(
-                      'No recent activity',
-                      style: AppTextStyles.small,
-                    ),
-                  ),
-                );
-              }
-
-              // Only show top 5 on dashboard
-              final recent = transactions.take(5).toList();
-
-              return Column(
-                children: recent.map((tx) {
-                  final isEarn = tx.type == 'earn';
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isEarn
-                              ? Icons.add_circle_outline
-                              : Icons.remove_circle_outline,
-                          size: 14,
-                          color: isEarn
-                              ? AppColors.accent
-                              : AppColors.destructive,
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            tx.description,
-                            style: AppTextStyles.small,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Text(
-                          isEarn ? '+${tx.amount}' : '-${tx.amount.abs()}',
-                          style: AppTextStyles.small.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: isEarn
-                                ? AppColors.accent
-                                : AppColors.destructive,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        const Icon(Icons.star, size: 12, color: AppColors.star),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, _) => Text('Error: $err', style: AppTextStyles.tiny),
           ),
         ],
       ),
