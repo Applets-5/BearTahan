@@ -153,6 +153,17 @@ questions.forEach((q, index) => {
     }
   }
 
+  if (questionType === 'keyInNumber') {
+    const hasCorrectNumber = q.correctNumber !== undefined && q.correctNumber !== null;
+    const hasCorrectAnswers = Array.isArray(q.correctAnswers) && q.correctAnswers.length > 0;
+    if (!hasCorrectNumber && !hasCorrectAnswers) {
+      console.error(
+        `\n❌  Question "${q.id}" is keyInNumber but missing both correctNumber and correctAnswers.\n`
+      );
+      process.exit(1);
+    }
+  }
+
   // ── Difficulty range ────────────────────────────────────────────────────────
   if (q.difficulty < 1 || q.difficulty > 3) {
     console.error(

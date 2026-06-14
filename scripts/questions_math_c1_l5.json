@@ -158,20 +158,15 @@
     "prompt": "连一连以下数字来组成10",
     "imageUrl": null,
     "options": [
-      { "id": "A", "text": "5", "imageUrl": null },
-      { "id": "B", "text": "6", "imageUrl": null },
-      { "id": "C", "text": "7", "imageUrl": null },
-      { "id": "D", "text": "8", "imageUrl": null },
-      { "id": "E", "text": "9", "imageUrl": null },
-      { "id": "F", "text": "2", "imageUrl": null },
-      { "id": "G", "text": "5", "imageUrl": null },
-      { "id": "H", "text": "3", "imageUrl": null },
-      { "id": "I", "text": "1", "imageUrl": null },
-      { "id": "J", "text": "4", "imageUrl": null }
+      { "id": "A", "text": "5", "imageUrl": null, "pairText": "5", "pairImageUrl": null },
+      { "id": "B", "text": "6", "imageUrl": null, "pairText": "4", "pairImageUrl": null },
+      { "id": "C", "text": "7", "imageUrl": null, "pairText": "3", "pairImageUrl": null },
+      { "id": "D", "text": "8", "imageUrl": null, "pairText": "2", "pairImageUrl": null },
+      { "id": "E", "text": "9", "imageUrl": null, "pairText": "1", "pairImageUrl": null }
     ],
     "correctAnswerId": "",
     "correctBlank": null,
-    "correctOrder": ["A-F", "B-G", "C-H", "D-I", "E-J"],
+    "correctOrder": ["A-A", "B-B", "C-C", "D-D", "E-E"],
     "correctNumber": null,
     "createdAt": "2025-01-01T00:00:00Z"
   },

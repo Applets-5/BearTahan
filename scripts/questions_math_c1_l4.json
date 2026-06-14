@@ -160,7 +160,8 @@
     "correctAnswerId": "",
     "correctBlank": null,
     "correctOrder": null,
-    "correctNumber": "32",
+    "correctNumber": "27",
+    "correctAnswers": ["27", "31", "35"],
     "createdAt": "2025-01-01T00:00:00Z"
   },
   {
