@@ -926,7 +926,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
                 value: progress,
                 minHeight: AppSpacing.sm,
                 borderRadius: AppRadius.r(AppRadius.sm),
-                color: AppColors.accent,
+                color: AppColors.primary,
                 backgroundColor: AppColors.muted,
               ),
             ),
