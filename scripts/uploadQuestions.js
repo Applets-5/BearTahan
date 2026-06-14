@@ -38,6 +38,22 @@ if (!Array.isArray(questions) || questions.length === 0) {
   process.exit(1);
 }
 
+// ── Question types that do not require options ────────────────────────────────
+const NO_OPTIONS_TYPES = ['keyInNumber', 'fillBlankList', 'strokeTrace', 'matching'];
+
+// ── Valid question types ──────────────────────────────────────────────────────
+const VALID_TYPES = [
+  'mcq',
+  'fillBlank',
+  'fillBlankList',
+  'rearrange',
+  'keyInNumber',
+  'stroke_trace',
+  'strokeTrace',
+  'dragDropSpelling',
+  'matching',
+];
+
 // ── Validate each question ────────────────────────────────────────────────────
 const requiredFields = [
   "id",
@@ -46,51 +62,98 @@ const requiredFields = [
   "levelId",
   "difficulty",
   "prompt",
-  "options",
-  "correctAnswerId",
 ];
 
 questions.forEach((q, index) => {
+  const questionType = q.questionType;
+
+  // ── Required fields ─────────────────────────────────────────────────────────
   requiredFields.forEach((field) => {
     if (q[field] === undefined || q[field] === null) {
       console.error(
-        `\n❌  Question at index ${index} is missing required field: "${field}"\n`
+        `\n❌  Question at index ${index} (id: "${q.id}") is missing required field: "${field}"\n`
       );
       process.exit(1);
     }
   });
 
-  if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 4) {
+  // ── Valid question type ─────────────────────────────────────────────────────
+  if (!VALID_TYPES.includes(questionType)) {
     console.error(
-      `\n❌  Question "${q.id}" must have between 2 and 4 options.\n`
+      `\n❌  Question "${q.id}" has unknown questionType: "${questionType}"\n` +
+      `    Valid types: ${VALID_TYPES.join(', ')}\n`
     );
     process.exit(1);
   }
 
-  if (q.questionType === 'mcq') {
-    const optionIds = q.options.map((o) => o.id);
-    if (!q.correctAnswerId || !optionIds.includes(q.correctAnswerId)) {
+  // ── Options validation ──────────────────────────────────────────────────────
+  const isNoOptions = NO_OPTIONS_TYPES.includes(questionType);
+
+  if (!isNoOptions) {
+    if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 6) {
       console.error(
-        `\n❌  Question "${q.id}" correctAnswerId "${q.correctAnswerId}" does not match any option id.\n`
+        `\n❌  Question "${q.id}" must have between 2 and 6 options. Got: ${q.options?.length ?? 0}\n`
       );
       process.exit(1);
     }
   }
 
-  if (q.questionType === 'fillBlank' && !q.correctBlank) {
+  // ── Per-type correctness validation ─────────────────────────────────────────
+  if (questionType === 'mcq') {
+    const optionIds = (q.options || []).map((o) => o.id);
+    if (!q.correctAnswerId || !optionIds.includes(q.correctAnswerId)) {
+      console.error(
+        `\n❌  Question "${q.id}" correctAnswerId "${q.correctAnswerId}" does not match any option id.\n` +
+        `    Available ids: ${optionIds.join(', ')}\n`
+      );
+      process.exit(1);
+    }
+  }
+
+  if (questionType === 'fillBlank' && !q.correctBlank) {
     console.error(
       `\n❌  Question "${q.id}" is fillBlank but missing correctBlank.\n`
     );
     process.exit(1);
   }
 
-  if (q.questionType === 'rearrange' && (!q.correctOrder || q.correctOrder.length === 0)) {
-    console.error(
-      `\n❌  Question "${q.id}" is rearrange but missing correctOrder.\n`
-    );
-    process.exit(1);
+  if (questionType === 'fillBlankList') {
+    if (!q.correctOrder || q.correctOrder.length === 0) {
+      console.error(
+        `\n❌  Question "${q.id}" is fillBlankList but missing correctOrder.\n`
+      );
+      process.exit(1);
+    }
   }
 
+  if (questionType === 'rearrange') {
+    if (!q.correctOrder || q.correctOrder.length === 0) {
+      console.error(
+        `\n❌  Question "${q.id}" is rearrange but missing correctOrder.\n`
+      );
+      process.exit(1);
+    }
+  }
+
+  if (questionType === 'keyInNumber') {
+    if (!q.correctNumber && q.correctNumber !== 0) {
+      console.error(
+        `\n❌  Question "${q.id}" is keyInNumber but missing correctNumber.\n`
+      );
+      process.exit(1);
+    }
+  }
+
+  if (questionType === 'stroke_trace' || questionType === 'strokeTrace') {
+    if (!q.characterUnicode && !q.strokeOrderDataJson) {
+      console.error(
+        `\n❌  Question "${q.id}" is stroke_trace but missing both characterUnicode and strokeOrderDataJson.\n`
+      );
+      process.exit(1);
+    }
+  }
+
+  // ── Difficulty range ────────────────────────────────────────────────────────
   if (q.difficulty < 1 || q.difficulty > 3) {
     console.error(
       `\n❌  Question "${q.id}" difficulty must be 1, 2, or 3. Got: ${q.difficulty}\n`
@@ -124,37 +187,46 @@ async function uploadQuestions() {
   console.log(`📄  File      : ${fileName}`);
   console.log(`📦  Questions : ${questions.length}`);
 
-  const subjectId   = questions[0].subjectId;
-  const chapterId   = questions[0].chapterId;
-  const levelId     = questions[0].levelId;
+  const subjectId    = questions[0].subjectId;
+  const chapterId    = questions[0].chapterId;
+  const levelId      = questions[0].levelId;
   const difficulties = [...new Set(questions.map((q) => q.difficulty))].sort();
+  const types        = [...new Set(questions.map((q) => q.questionType))];
 
-  console.log(`📚  Subject   : ${subjectId}`);
-  console.log(`📖  Chapter   : ${chapterId}`);
-  console.log(`🎯  Level     : ${levelId}`);
+  console.log(`📚  Subject      : ${subjectId}`);
+  console.log(`📖  Chapter      : ${chapterId}`);
+  console.log(`🎯  Level        : ${levelId}`);
   console.log(`⭐  Difficulties : ${difficulties.join(", ")}`);
+  console.log(`📝  Types        : ${types.join(", ")}`);
   console.log("━".repeat(44));
   console.log("\nUploading...\n");
 
-  const batch = db.batch();
+  // Firestore batch limit is 500 — split if needed
+  const BATCH_SIZE = 490;
+  const batches = [];
+  for (let i = 0; i < questions.length; i += BATCH_SIZE) {
+    batches.push(questions.slice(i, i + BATCH_SIZE));
+  }
 
-  questions.forEach((q) => {
-    const docRef = db.collection("questions").doc(q.id);
-    batch.set(docRef, {
-      ...q,
-      createdAt: admin.firestore.Timestamp.fromDate(
-        new Date(q.createdAt || new Date())
-      ),
+  for (const batchItems of batches) {
+    const batch = db.batch();
+    batchItems.forEach((q) => {
+      const docRef = db.collection("questions").doc(q.id);
+      batch.set(docRef, {
+        ...q,
+        createdAt: admin.firestore.Timestamp.fromDate(
+          new Date(q.createdAt || new Date())
+        ),
+      });
     });
-  });
-
-  await batch.commit();
+    await batch.commit();
+  }
 
   console.log(`✅  ${questions.length} questions uploaded successfully!\n`);
   console.log("📋  Uploaded document IDs:");
   questions.forEach((q) =>
     console.log(
-      `    • ${q.id}  [difficulty: ${q.difficulty}]  [level: ${q.levelId}]`
+      `    • ${q.id}  [type: ${q.questionType}]  [difficulty: ${q.difficulty}]  [level: ${q.levelId}]`
     )
   );
 
