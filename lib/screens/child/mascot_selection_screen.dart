@@ -151,7 +151,7 @@ class _MascotSelectionScreenState extends State<MascotSelectionScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFAF0),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

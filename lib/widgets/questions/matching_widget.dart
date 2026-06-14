@@ -276,6 +276,10 @@ class _MatchingWidgetState extends State<MatchingWidget>
     required bool isWrong,
     required VoidCallback onTap,
   }) {
+    final double parentWidth = MediaQuery.of(context).size.width;
+    final double cardHeight = (parentWidth * 0.22).clamp(100.0, 180.0);
+    final double fontSize = parentWidth > 600 ? 18.0 : 14.0;
+
     final Color borderColor = isMatched
         ? AppColors.accent
         : isWrong
@@ -298,7 +302,7 @@ class _MatchingWidgetState extends State<MatchingWidget>
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: AppSpacing.md),
         padding: const EdgeInsets.all(AppSpacing.sm),
-        height: 100,
+        height: cardHeight,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: bgColor,
@@ -315,6 +319,7 @@ class _MatchingWidgetState extends State<MatchingWidget>
                       textAlign: TextAlign.center,
                       style: AppTextStyles.bodyBold.copyWith(
                         color: isMatched ? AppColors.accent : null,
+                        fontSize: fontSize,
                       ),
                     )
                   : imageUrl != null

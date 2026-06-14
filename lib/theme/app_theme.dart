@@ -2,30 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  static const background = Color(0xFFFFFBF0);
-  static const foreground = Color(0xFF22263A);
+  static const background = Color(0xFFFFF8EE);
+  static const foreground = Color(0xFF4B2416);
   static const card = Color(0xFFFFFFFF);
-  static const primary = Color(0xFF7C3AED);
-  static const primaryLight = Color(0x1A7C3AED);
-  static const primaryContainer = Color(0xFFEDE9FE);
+  static const primary = Color(0xFFA05A31);
+  static const primaryLight = Color(0x1AA05A31);
+  static const primaryContainer = Color(0xFFFAF1EB);
   static const secondary = Color(0xFFFFCC33);
   static const secondaryLight = Color(0x33FFCC33);
   static const secondaryContainer = Color(0xFFFEF9C3);
   static const secondaryText = Color(0xFF523214);
-  static const muted = Color(0xFFF0F2F6);
-  static const mutedText = Color(0xFF737986);
+  static const muted = Color(0xFFF5E6D3);
+  static const mutedText = Color(0xFF6F5B50);
   static const accent = Color(0xFF22C78F);
   static const accentLight = Color(0x2622C78F);
   static const destructive = Color(0xFFE93F3F);
   static const destructiveLight = Color(0x1AE93F3F);
-  static const border = Color(0xFFE3E7EF);
+  static const border = Color(0xFFF2E6D9);
   static const star = Color(0xFFFFC400);
   static const navInactive = Color(0xFFA0A5B1);
   static const mascotBubble = Color(0xFFE5F7FF);
   static const subjectBm = Color(0xFFFF7A2F);
   static const subjectEnglish = Color(0xFF3A8DFF);
   static const subjectMandarin = Color(0xFF57B846);
-  static const subjectMath = Color(0xFFA855F7);
+  static const subjectMath = Color(0xFF8453A8);
   static const subjectScience = Color(0xFF16A085);
   static const imagePlaceholder = Color(0xFFE5E7EB);
 }
@@ -46,8 +46,8 @@ class AppSpacing {
 class AppRadius {
   static const sm = 8.0;
   static const md = 12.0;
-  static const lg = 16.0;
-  static const xl = 20.0;
+  static const lg = 20.0;
+  static const xl = 24.0;
   static const xxl = 32.0;
   static BorderRadius r(double value) => BorderRadius.circular(value);
 }
@@ -118,11 +118,11 @@ class AppTextStyles {
 
 class AppShadows {
   static const card = [
-    BoxShadow(color: Color(0x1422263A), blurRadius: 16, offset: Offset(0, 4)),
-    BoxShadow(color: Color(0x0A22263A), blurRadius: 4, offset: Offset(0, 2)),
+    BoxShadow(color: Color(0x144B2416), blurRadius: 16, offset: Offset(0, 4)),
+    BoxShadow(color: Color(0x0A4B2416), blurRadius: 4, offset: Offset(0, 2)),
   ];
   static const strong = [
-    BoxShadow(color: Color(0x1F22263A), blurRadius: 24, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x1F4B2416), blurRadius: 24, offset: Offset(0, 8)),
   ];
 }
 

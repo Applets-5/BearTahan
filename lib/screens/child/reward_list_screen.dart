@@ -361,8 +361,8 @@ class _StarSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color titleColor = Color(0xFF333333); // Dark Charcoal
-    const Color subtitleColor = Color(0xFF666666); // Medium Slate Grey
+    final Color titleColor = AppColors.foreground;
+    final Color subtitleColor = AppColors.mutedText;
 
     return Container(
       padding: const EdgeInsets.all(24.0), // Generous padding

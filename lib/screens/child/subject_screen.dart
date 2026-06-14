@@ -38,7 +38,7 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
     final shouldStart = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFFFFF8E1),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
@@ -341,8 +341,32 @@ class _SubjectScreenState extends ConsumerState<SubjectScreen> {
                     allChaptersComplete: showRevision,
                   );
 
+                  final Map<String, String> subjectBackgrounds = {
+                    'bm': 'assets/images/bgbm.jpg',
+                    'bi': 'assets/images/bgbi.png',
+                    'bc': 'assets/images/mandarin.png',
+                    'math': 'assets/images/bgmt.png',
+                    'sci': 'assets/images/bgsc.png',
+                  };
+                  final hasBackground = subjectBackgrounds.containsKey(
+                    widget.subjectId,
+                  );
+
                   return Stack(
                     children: [
+                      if (hasBackground) ...[
+                        Positioned.fill(
+                          child: Image.asset(
+                            subjectBackgrounds[widget.subjectId]!,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.white.withValues(alpha: 0.55),
+                          ),
+                        ),
+                      ],
                       CustomScrollView(
                         controller: _scrollController,
                         slivers: [

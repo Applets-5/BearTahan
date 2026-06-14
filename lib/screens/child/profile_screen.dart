@@ -9,6 +9,7 @@ import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/missing_child_profile.dart';
 import '../../widgets/common/mascot_widget.dart';
+import '../../widgets/common/primary_button.dart';
 import '../../widgets/parent/stat_card.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -40,41 +41,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Widget _buildButtons(String childId) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () {
-                context.push(
-                  Uri(
-                    path: AppRouter.starHistory,
-                    queryParameters: {'childId': childId},
-                  ).toString(),
-                );
-              },
-              icon: const Icon(Icons.history),
-              label: const Text('Star History'),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _enterParentMode,
-              icon: const Icon(Icons.login),
-              label: const Text('Parent Mode'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final routeChildId = GoRouterState.of(
@@ -97,9 +63,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return userProfileAsync.when(
       data: (profile) => Scaffold(
         backgroundColor: Colors.transparent,
-        // Using bottomNavigationBar is the safest way to have fixed buttons
-        // that never overflow and respect the screen's bottom safe area.
-        bottomNavigationBar: _buildButtons(childId),
         body: SafeArea(
           bottom: false,
           child: Stack(
@@ -125,10 +88,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ActiveMascotWidget(childId: childId, size: 96),
                             const SizedBox(height: AppSpacing.md),
                             Text(profile.name, style: AppTextStyles.cardTitle),
-                            const Text(
-                              'Tap to edit name',
-                              style: AppTextStyles.tiny,
-                            ),
                           ],
                         ),
                       ),
@@ -186,7 +145,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           StatCard(
                             icon: Icons.local_fire_department,
                             label: 'Streak',
-                            value: '${profile.streakCount}d',
+                            value: '${profile.streakCount}',
                             color: AppColors.destructive,
                             onTap: () {
                               context.push(
@@ -241,6 +200,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             style: AppTextStyles.small,
                           ),
                         ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      PrimaryButton(
+                        onPressed: _enterParentMode,
+                        icon: Icons.login,
+                        label: 'Parent Mode',
                       ),
                     ],
                   );

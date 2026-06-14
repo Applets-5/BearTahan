@@ -132,6 +132,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                         child: _AdventureProgressCard(
                           progress: averageProgress,
+                          childId: effectiveChildId,
                         ),
                       ),
                     ),
@@ -724,9 +725,10 @@ class _DailyGoalCard extends ConsumerWidget {
 }
 
 class _AdventureProgressCard extends StatelessWidget {
-  const _AdventureProgressCard({required this.progress});
+  const _AdventureProgressCard({required this.progress, required this.childId});
 
   final int progress;
+  final String childId;
 
   @override
   Widget build(BuildContext context) {
@@ -795,7 +797,8 @@ class _AdventureProgressCard extends StatelessWidget {
                             Positioned(
                               left: mascotOffset.dx - 22,
                               top: mascotOffset.dy - 36,
-                              child: MascotWidget(
+                              child: ActiveMascotWidget(
+                                childId: childId,
                                 size: 44,
                                 showBackground: false,
                                 mood: MascotMood.idle,
