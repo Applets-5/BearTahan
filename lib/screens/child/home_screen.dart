@@ -286,14 +286,15 @@ class _ForestHero extends ConsumerWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              'BearTahan',
-                              style: _AdventureText.logo(context),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          Padding(
+                            padding: const EdgeInsets.only(top: 0.0),
+                            child: Image.asset(
+                              'assets/images/beartahan.png',
+                              height: 60,
+                              fit: BoxFit.contain,
                             ),
                           ),
+                          const Spacer(),
                           userProfileAsync.when(
                             data: (profile) => Row(
                               mainAxisSize: MainAxisSize.min,
