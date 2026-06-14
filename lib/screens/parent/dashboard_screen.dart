@@ -416,17 +416,34 @@ class _OverviewTab extends ConsumerWidget {
                         ),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
-                          child: StatCard(
-                            icon: Icons.trending_up,
-                            label: 'Streak',
-                            value: '${profile.streakCount}d',
-                            color: AppColors.accent,
-                            onTap: () {
-                              context.push(
-                                Uri(
-                                  path: AppRouter.parentStreak,
-                                  queryParameters: {'childId': selectedChildId},
-                                ).toString(),
+                          child: Builder(
+                            builder: (context) {
+                              final bool hasActivityToday =
+                                  profile.lastActivityDate != null &&
+                                  profile.lastActivityDate!.year ==
+                                      DateTime.now().year &&
+                                  profile.lastActivityDate!.month ==
+                                      DateTime.now().month &&
+                                  profile.lastActivityDate!.day ==
+                                      DateTime.now().day;
+
+                              return StatCard(
+                                icon: Icons.whatshot,
+                                label: 'Streak',
+                                value: '${profile.streakCount}d',
+                                color: hasActivityToday
+                                    ? AppColors.accent
+                                    : Colors.grey,
+                                onTap: () {
+                                  context.push(
+                                    Uri(
+                                      path: AppRouter.parentStreak,
+                                      queryParameters: {
+                                        'childId': selectedChildId
+                                      },
+                                    ).toString(),
+                                  );
+                                },
                               );
                             },
                           ),
