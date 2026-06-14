@@ -246,10 +246,56 @@ void main() {
           find.text('Drag the correct word to the blank!'),
           findsOneWidget,
         );
-        expect(find.text('Ini '), findsOneWidget);
-        expect(find.text(' buku.'), findsOneWidget);
+        final sentence = tester.widget<RichText>(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is RichText &&
+                widget.text.toPlainText().contains('Ini ') &&
+                widget.text.toPlainText().contains(' buku.'),
+          ),
+        );
+        expect(sentence.text.toPlainText(), contains('Ini '));
+        expect(sentence.text.toPlainText(), contains(' buku.'));
         expect(find.byType(DragTarget<int>), findsOneWidget);
         expect(find.byType(Draggable<int>), findsNWidgets(2));
+        final dropTargetSize = tester.getSize(
+          find.byKey(const ValueKey('fillblank_drop_target')),
+        );
+        expect(dropTargetSize.width, greaterThan(100));
+        expect(dropTargetSize.height, greaterThanOrEqualTo(28));
+      },
+    );
+
+    testWidgets(
+      'keeps a long Mandarin fillblank sentence inline on a narrow phone',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 800);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final questions = [
+          Question(
+            id: 'bc_c1_l4_q07',
+            text: '他的兴趣爱好很广泛，平时最喜欢的事情就是（ ）。',
+            type: 'fillblank',
+            options: [
+              QuestionOption(text: '做早操'),
+              QuestionOption(text: '读书'),
+              QuestionOption(text: '写字'),
+            ],
+            correctAnswerIndex: 1,
+            correctBlank: '读书',
+          ),
+        ];
+
+        await tester.pumpWidget(
+          createTestWidget(questions, key: const ValueKey('mandarin_fillblank')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(DragTarget<int>), findsOneWidget);
+        expect(tester.takeException(), isNull);
       },
     );
 
@@ -395,6 +441,14 @@ void main() {
         createTestWidget(questions, key: const ValueKey('matching')),
       );
       await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'Match each word to its number',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
 
       for (final pair in [('One', '1'), ('Two', '2'), ('Three', '3')]) {
         await tester.ensureVisible(find.text(pair.$1));
