@@ -256,14 +256,14 @@ class _BearAITabState extends ConsumerState<BearAITab> {
           else
             const Text('Connecting to BearAI...', style: AppTextStyles.body),
 
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.sm),
 
           strengthAsync.when(
             data: (strengthMap) {
               return Column(
                 children: [
                   const Text('Subject Strength', style: AppTextStyles.bodyBold),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.xs),
                   SubjectRadarChart(subjectData: strengthMap),
                 ],
               );
