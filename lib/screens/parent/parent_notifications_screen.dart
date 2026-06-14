@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../providers/data_providers.dart';
 import '../../theme/app_theme.dart';
+import 'notification_detail_screen.dart';
 
 class ParentNotificationsScreen extends ConsumerWidget {
   const ParentNotificationsScreen({super.key});
@@ -66,6 +67,13 @@ class ParentNotificationsScreen extends ConsumerWidget {
                             .read(firestoreServiceProvider)
                             .markNotificationAsRead(parentId, n.id);
                       }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              NotificationDetailScreen(notification: n),
+                        ),
+                      );
                     },
                     child: _NotificationTile(
                       icon: n.icon,
