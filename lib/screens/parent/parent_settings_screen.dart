@@ -189,8 +189,8 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
               _CardContainer(
                 child: _SettingsRow(
                   iconText: avatar,
-                  iconBgColor: const Color(0xFFEEEDFE),
-                  iconColor: const Color(0xFF534AB7),
+                  iconBgColor: AppColors.primaryLight,
+                  iconColor: AppColors.primary,
                   title: name,
                   subtitle: username.isNotEmpty
                       ? '@$username · Profile & children'
@@ -246,7 +246,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                       trailing: Switch.adaptive(
                         value: dailyGoals,
                         onChanged: (v) => _updateSetting('dailyGoals', v),
-                        activeTrackColor: const Color(0xFF534AB7),
+                        activeTrackColor: AppColors.primary,
                       ),
                     ),
                     _SettingsRow(
@@ -259,7 +259,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                       trailing: Switch.adaptive(
                         value: claims,
                         onChanged: (v) => _updateSetting('rewardClaims', v),
-                        activeTrackColor: const Color(0xFF534AB7),
+                        activeTrackColor: AppColors.primary,
                       ),
                     ),
                     _SettingsRow(
@@ -272,13 +272,13 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                       trailing: Switch.adaptive(
                         value: streakAtRisk,
                         onChanged: (v) => _updateSetting('streakAtRisk', v),
-                        activeTrackColor: const Color(0xFF534AB7),
+                        activeTrackColor: AppColors.primary,
                       ),
                     ),
                     _SettingsRow(
                       icon: Icons.volume_up_rounded,
-                      iconBgColor: const Color(0xFFEEEDFE),
-                      iconColor: const Color(0xFF534AB7),
+                      iconBgColor: AppColors.primaryLight,
+                      iconColor: AppColors.primary,
                       title: 'Sound effects',
                       subtitle: 'Quiz feedback sounds',
                       showTopBorder: true,
@@ -287,7 +287,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                         onChanged: soundEffectsAsync.isLoading
                             ? null
                             : _updateSoundEffects,
-                        activeTrackColor: const Color(0xFF534AB7),
+                        activeTrackColor: AppColors.primary,
                       ),
                     ),
                   ],
@@ -303,8 +303,8 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                   children: [
                     _SettingsRow(
                       icon: Icons.key_rounded,
-                      iconBgColor: const Color(0xFFEEEDFE),
-                      iconColor: const Color(0xFF534AB7),
+                      iconBgColor: AppColors.primaryLight,
+                      iconColor: AppColors.primary,
                       title: 'Change parent PIN',
                       subtitle: '4-digit access code',
                       onTap: () => _showPinDialog(settings),
@@ -325,7 +325,7 @@ class _ParentSettingsScreenState extends ConsumerState<ParentSettingsScreen> {
                         value: biometrics,
                         onChanged: (v) =>
                             _updateSetting('biometricsEnabled', v),
-                        activeTrackColor: const Color(0xFF534AB7),
+                        activeTrackColor: AppColors.primary,
                       ),
                     ),
                   ],
@@ -759,7 +759,7 @@ class _ChildGoalCardState extends ConsumerState<_ChildGoalCard> {
                         child: FilledButton(
                           onPressed: _isSaving ? null : _saveGoal,
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF534AB7),
+                            backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -812,9 +812,9 @@ class _GoalPill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 7),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF534AB7) : AppColors.card,
+          color: isActive ? AppColors.primary : AppColors.card,
           border: Border.all(
-            color: isActive ? const Color(0xFF534AB7) : AppColors.border,
+            color: isActive ? AppColors.primary : AppColors.border,
             width: 0.5,
           ),
           borderRadius: BorderRadius.circular(99),
@@ -825,7 +825,7 @@ class _GoalPill extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isActive ? const Color(0xFFEEEDFE) : AppColors.mutedText,
+            color: isActive ? Colors.white : AppColors.mutedText,
           ),
         ),
       ),

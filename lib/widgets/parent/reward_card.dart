@@ -52,16 +52,13 @@ class RewardCard extends StatelessWidget {
     // High-fidelity design colors - Precise Hex Codes
     const Color titleColor = Color(0xFF333333); // Dark Charcoal
     const Color subtitleColor = Color(0xFF666666); // Medium Slate Grey
-    const Color tealGreen = Color(0xFF20B2AA); // Teal Green
     const Color goldenYellow = Color(0xFFFCC667); // Golden Yellow
-    const Color vibrantPurple = Color(0xFF7F33DE); // Vibrant Purple (Button)
-    const Color trackPurple = Color(0xFF8A2BE2); // Vibrant Purple (Progress)
-    const Color thistlePurple = Color(0xFFD8BFD8); // Pale Lavender
+    const Color brandColor = AppColors.primary;
     const Color greyTrack = Color(0xFFE6E6E6); // Unfilled track
 
     Color cardColor = Colors.white;
     Color borderColor = AppColors.border;
-    Color progressValueColor = tealGreen;
+    Color progressValueColor = brandColor;
     Color progressTrackColor = greyTrack;
     Color? buttonColor;
     Color buttonTextColor = Colors.white;
@@ -70,7 +67,7 @@ class RewardCard extends StatelessWidget {
 
     if (redeemed || approved) {
       cardColor = Colors.white;
-      borderColor = tealGreen;
+      borderColor = brandColor;
       progressValueColor = AppColors.mutedText;
     } else if (rejected) {
       cardColor = Colors.white;
@@ -78,18 +75,18 @@ class RewardCard extends StatelessWidget {
     } else if (pending) {
       cardColor = const Color(0xFFFFFCEB); // Yellow - Pending
       borderColor = goldenYellow;
-      progressValueColor = tealGreen;
+      progressValueColor = brandColor;
     } else if (hasEnough && available) {
-      cardColor = const Color(0xFFEBFAF3); // Green - Available
-      borderColor = tealGreen;
-      progressValueColor = tealGreen;
-      buttonColor = vibrantPurple;
+      cardColor = AppColors.primaryContainer; // Warm cream-tan container
+      borderColor = brandColor;
+      progressValueColor = brandColor;
+      buttonColor = brandColor;
     } else {
       // White - Locked / In-Progress
       cardColor = const Color(0xFFFFFFFF);
       borderColor = AppColors.border;
-      progressValueColor = trackPurple;
-      buttonColor = thistlePurple;
+      progressValueColor = brandColor;
+      buttonColor = AppColors.muted;
       buttonTextColor = titleColor.withValues(alpha: 0.7);
 
       if (currentStars != null) {
@@ -209,7 +206,9 @@ class RewardCard extends StatelessWidget {
                       ? goldenYellow
                       : (rejected
                             ? AppColors.destructive
-                            : (approved ? tealGreen : AppColors.mutedText)),
+                            : (approved
+                                  ? AppColors.accent
+                                  : AppColors.mutedText)),
                   textColor: Colors.white,
                 ),
               ],
