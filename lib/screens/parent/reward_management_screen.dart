@@ -409,7 +409,7 @@ class _RewardManagementScreenState extends ConsumerState<RewardManagementScreen>
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
                     child: Text(
-                      'Select a child on the dashboard to manage reward claims.',
+                      'No pending reward claims for now',
                       style: AppTextStyles.small,
                     ),
                   ),
@@ -867,6 +867,7 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
     final childrenAsync = ref.watch(childrenProvider);
     final children = childrenAsync.value ?? [];
     return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.r(AppRadius.xl)),
       title: Text(widget.reward == null ? 'New Reward' : 'Edit Reward'),
       content: SingleChildScrollView(
         child: Form(
@@ -876,38 +877,98 @@ class _RewardDialogState extends ConsumerState<_RewardDialog> {
             children: [
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Reward name'),
+                decoration: InputDecoration(
+                  labelText: 'Reward name',
+                  border: OutlineInputBorder(
+                    borderRadius: AppRadius.r(AppRadius.lg),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
               ),
+              const SizedBox(height: AppSpacing.md),
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(
+                    borderRadius: AppRadius.r(AppSpacing.lg),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
               ),
+              const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
                 initialValue: _selectedChildId,
+                borderRadius: AppRadius.r(AppRadius.lg),
+                dropdownColor: AppColors.card,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                decoration: InputDecoration(
+                  labelText: 'Assign to child',
+                  prefixIcon: const Icon(Icons.person_outline, size: 20),
+                  border: OutlineInputBorder(
+                    borderRadius: AppRadius.r(AppRadius.lg),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
                 hint: const Text('All Children'),
+                selectedItemBuilder: (context) {
+                  return [
+                    const Text('All Children'),
+                    ...children.map((c) => Text(c.name)),
+                  ];
+                },
                 items: [
-                  const DropdownMenuItem<String>(
+                  DropdownMenuItem<String>(
                     value: null,
-                    child: Text('All Children'),
+                    child: Text(
+                      'All Children',
+                      style: AppTextStyles.body.copyWith(
+                        color: _selectedChildId == null
+                            ? AppColors.primary
+                            : null,
+                      ),
+                    ),
                   ),
                   ...children.map(
-                    (c) => DropdownMenuItem(value: c.uid, child: Text(c.name)),
+                    (c) => DropdownMenuItem(
+                      value: c.uid,
+                      child: Text(
+                        c.name,
+                        style: AppTextStyles.body.copyWith(
+                          color: _selectedChildId == c.uid
+                              ? AppColors.primary
+                              : null,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
                 onChanged: (v) => setState(() => _selectedChildId = v),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               Row(
                 children: [
                   _CostBtn(icon: Icons.remove, onTap: () => _adjustCost(-1)),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: TextFormField(
                       controller: _costController,
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        labelText: 'Star Cost',
+                        border: OutlineInputBorder(
+                          borderRadius: AppRadius.r(AppRadius.lg),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.md,
+                        ),
+                      ),
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.md),
                   _CostBtn(icon: Icons.add, onTap: () => _adjustCost(1)),
                 ],
               ),
