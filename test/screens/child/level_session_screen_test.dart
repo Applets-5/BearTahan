@@ -347,7 +347,7 @@ void main() {
       await tester.tap(find.text('Check Answer'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Correct! Well done!'), findsOneWidget);
+      expect(find.text('Correct!'), findsOneWidget);
       expect(find.text('Finish'), findsOneWidget);
     });
 
@@ -465,17 +465,12 @@ void main() {
       final finishButton = find.widgetWithText(FilledButton, 'Finish');
       final feedback = find.byKey(const ValueKey('answer_feedback'));
 
+      // In the redesigned feedback panel, the Finish button is inside the
+      // unified feedback container. Verify both are present and the container
+      // reaches near the bottom of the screen.
       expect(finishButton, findsOneWidget);
       expect(feedback, findsOneWidget);
-      expect(
-        tester.getBottomLeft(feedback).dy,
-        lessThan(tester.getTopLeft(finishButton).dy),
-      );
-      expect(
-        tester.getTopLeft(finishButton).dy - tester.getBottomLeft(feedback).dy,
-        lessThanOrEqualTo(16),
-      );
-      expect(tester.getBottomRight(finishButton).dy, greaterThan(690));
+      expect(tester.getBottomRight(feedback).dy, greaterThan(690));
       expect(tester.takeException(), isNull);
     });
 
@@ -536,17 +531,17 @@ void main() {
         await failCurrentTracingQuestion();
 
         expect(tester.takeException(), isNull);
-        expect(find.textContaining('Not quite'), findsOneWidget);
-        expect(find.text('Next'), findsOneWidget);
+        expect(find.text('Incorrect!'), findsOneWidget);
+        expect(find.text('Got it'), findsOneWidget);
 
-        await tester.tap(find.text('Next'));
+        await tester.tap(find.text('Got it'));
         await tester.pumpAndSettle();
         await tester.pump(const Duration(milliseconds: 500));
 
         await failCurrentTracingQuestion();
 
         expect(tester.takeException(), isNull);
-        expect(find.textContaining('Not quite'), findsOneWidget);
+        expect(find.text('Incorrect!'), findsOneWidget);
         expect(find.text('Finish'), findsOneWidget);
       },
     );

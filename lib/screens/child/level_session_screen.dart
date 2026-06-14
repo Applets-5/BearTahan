@@ -1250,9 +1250,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         onPressed = () => _checkFillBlankAnswer(question);
         break;
       case 'keyinnumber':
-        onPressed = _numberController.text.isNotEmpty
-            ? () => _checkNumberAnswer(question)
-            : null;
+        onPressed = () => _checkNumberAnswer(question);
         break;
     }
 
