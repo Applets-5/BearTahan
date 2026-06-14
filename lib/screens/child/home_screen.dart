@@ -235,194 +235,202 @@ class _ForestHero extends ConsumerWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(34),
-        child: Stack(
-          children: [
-            // Sky background fills the whole card via the Column below
-            Positioned(
-              left: 6,
-              top: 14,
-              child: Image.asset('assets/images/cloud1.png', width: 80),
-            ),
-            Positioned(
-              right: 6,
-              top: 48,
-              child: Image.asset('assets/images/cloud2.png', width: 65),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 10,
-              child: Center(
-                child: Image.asset(
-                  'assets/images/cloud1.png',
-                  width: 70,
-                  opacity: const AlwaysStoppedAnimation(0.8),
-                ),
-              ),
-            ),
-            const Positioned(right: 34, bottom: 52, child: _Sparkle(size: 18)),
-            // Grass background positioned behind the content
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: -1,
-              child: Image.asset(
-                'assets/images/grass.png',
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                height: 80,
-              ),
-            ),
-            // Column is the sizing child
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final cardWidth = constraints.maxWidth;
+            final grassHeight = cardWidth * 0.22;
+            final bottomPadding = cardWidth * 0.16;
+
+            return Stack(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                // Sky background fills the whole card via the Column below
+                Positioned(
+                  left: 6,
+                  top: 14,
+                  child: Image.asset('assets/images/cloud1.png', width: 80),
+                ),
+                Positioned(
+                  right: 6,
+                  top: 48,
+                  child: Image.asset('assets/images/cloud2.png', width: 65),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 10,
+                  child: Center(
+                    child: Image.asset(
+                      'assets/images/cloud1.png',
+                      width: 70,
+                      opacity: const AlwaysStoppedAnimation(0.8),
+                    ),
+                  ),
+                ),
+                const Positioned(right: 34, bottom: 52, child: _Sparkle(size: 18)),
+                // Grass background positioned behind the content
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: -1,
+                  child: Image.asset(
+                    'assets/images/grass.png',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.topCenter,
+                    height: grassHeight,
+                  ),
+                ),
+                // Column is the sizing child
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 0.0),
-                            child: Image.asset(
-                              'assets/images/beartahan.png',
-                              height: 60,
-                              fit: BoxFit.contain,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 0.0),
+                                child: Image.asset(
+                                  'assets/images/beartahan.png',
+                                  height: 60,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                              const Spacer(),
+                              userProfileAsync.when(
+                                data: (profile) => Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _HeroStatPill(
+                                      icon: Icons.local_fire_department_rounded,
+                                      iconColor: const Color(0xFFFF6B35),
+                                      value: profile.streakCount.toString(),
+                                      label: 'Day Streak',
+                                      onTap: () {
+                                        context.push(
+                                          Uri(
+                                            path: AppRouter.streak,
+                                            queryParameters: {'childId': childId},
+                                          ).toString(),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _HeroStatPill(
+                                      icon: Icons.star_rounded,
+                                      iconColor: const Color(0xFFFFC400),
+                                      value: profile.lifetimeStarsEarned.toString(),
+                                      label: 'Total Stars',
+                                    ),
+                                  ],
+                                ),
+                                loading: () => const _HeroStatsSkeleton(),
+                                error: (_, _) => const _HeroStatsSkeleton(),
+                              ),
+                            ],
                           ),
-                          const Spacer(),
-                          userProfileAsync.when(
-                            data: (profile) => Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _HeroStatPill(
-                                  icon: Icons.local_fire_department_rounded,
-                                  iconColor: const Color(0xFFFF6B35),
-                                  value: profile.streakCount.toString(),
-                                  label: 'Day Streak',
-                                  onTap: () {
-                                    context.push(
-                                      Uri(
-                                        path: AppRouter.streak,
-                                        queryParameters: {'childId': childId},
-                                      ).toString(),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                                _HeroStatPill(
-                                  icon: Icons.star_rounded,
-                                  iconColor: const Color(0xFFFFC400),
-                                  value: profile.lifetimeStarsEarned.toString(),
-                                  label: 'Total Stars',
-                                ),
-                              ],
-                            ),
-                            loading: () => const _HeroStatsSkeleton(),
-                            error: (_, _) => const _HeroStatsSkeleton(),
+                          const SizedBox(height: 8),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  TweenAnimationBuilder<double>(
+                                    tween: Tween(begin: 0.96, end: 1),
+                                    duration: const Duration(milliseconds: 900),
+                                    curve: Curves.elasticOut,
+                                    builder: (context, scale, child) {
+                                      return Transform.scale(
+                                        scale: scale,
+                                        child: child,
+                                      );
+                                    },
+                                    child: ActiveMascotWidget(
+                                      childId: childId,
+                                      size: constraints.maxWidth >= 600
+                                          ? 120
+                                          : (constraints.maxWidth < 380 ? 72 : 88),
+                                      showBackground: false,
+                                      mood: MascotMood.cheering,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        10,
+                                        12,
+                                        10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.94),
+                                        borderRadius: BorderRadius.circular(30),
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 3,
+                                        ),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Color(0x1A3B7CA8),
+                                            blurRadius: 18,
+                                            offset: Offset(0, 8),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          userProfileAsync.when(
+                                            data: (profile) => Text(
+                                              'Hi ${profile.name}!',
+                                              style: _AdventureText.heroTitle(
+                                                context,
+                                              ),
+                                            ),
+                                            loading: () => Text(
+                                              'Hi Explorer!',
+                                              style: _AdventureText.heroTitle(
+                                                context,
+                                              ),
+                                            ),
+                                            error: (_, _) => Text(
+                                              'Hi Explorer!',
+                                              style: _AdventureText.heroTitle(
+                                                context,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            "Let's learn something fun today!",
+                                            style: _AdventureText.heroSubtitle(
+                                              context,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              TweenAnimationBuilder<double>(
-                                tween: Tween(begin: 0.96, end: 1),
-                                duration: const Duration(milliseconds: 900),
-                                curve: Curves.elasticOut,
-                                builder: (context, scale, child) {
-                                  return Transform.scale(
-                                    scale: scale,
-                                    child: child,
-                                  );
-                                },
-                                child: ActiveMascotWidget(
-                                  childId: childId,
-                                  size: constraints.maxWidth >= 600
-                                      ? 120
-                                      : (constraints.maxWidth < 380 ? 72 : 88),
-                                  showBackground: false,
-                                  mood: MascotMood.cheering,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    12,
-                                    10,
-                                    12,
-                                    10,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.94),
-                                    borderRadius: BorderRadius.circular(30),
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 3,
-                                    ),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color(0x1A3B7CA8),
-                                        blurRadius: 18,
-                                        offset: Offset(0, 8),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      userProfileAsync.when(
-                                        data: (profile) => Text(
-                                          'Hi ${profile.name}!',
-                                          style: _AdventureText.heroTitle(
-                                            context,
-                                          ),
-                                        ),
-                                        loading: () => Text(
-                                          'Hi Explorer!',
-                                          style: _AdventureText.heroTitle(
-                                            context,
-                                          ),
-                                        ),
-                                        error: (_, _) => Text(
-                                          'Hi Explorer!',
-                                          style: _AdventureText.heroTitle(
-                                            context,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        "Let's learn something fun today!",
-                                        style: _AdventureText.heroSubtitle(
-                                          context,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                    ),
+                    // Padding bottom for the column to keep content above grass visually
+                    SizedBox(height: bottomPadding),
+                  ],
                 ),
-                // Padding bottom for the column to keep content above grass visually
-                const SizedBox(height: 60),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
