@@ -25,7 +25,7 @@ class AppColors {
   static const subjectBm = Color(0xFFFF7A2F);
   static const subjectEnglish = Color(0xFF3A8DFF);
   static const subjectMandarin = Color(0xFF57B846);
-  static const subjectMath = Color(0xFFA855F7);
+  static const subjectMath = Color(0xFF8453A8);
   static const subjectScience = Color(0xFF16A085);
   static const imagePlaceholder = Color(0xFFE5E7EB);
 }

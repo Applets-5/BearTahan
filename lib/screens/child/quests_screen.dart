@@ -413,7 +413,7 @@ class _QuestOutfitCard extends StatelessWidget {
                 boxShadow: AppShadows.card,
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _OutfitImage(quest: quest, locked: !unlocked),
                   const SizedBox(height: AppSpacing.sm),
