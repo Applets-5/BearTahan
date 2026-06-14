@@ -71,9 +71,7 @@ class StarHistoryScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  ...dayTransactions.map(
-                    (tx) => _StarLogTile(transaction: tx),
-                  ),
+                  ...dayTransactions.map((tx) => _StarLogTile(transaction: tx)),
                   const SizedBox(height: AppSpacing.md),
                 ],
               );
@@ -192,10 +190,7 @@ class _StarLogTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _getFormattedDescription(),
-                  style: AppTextStyles.bodyBold,
-                ),
+                Text(_getFormattedDescription(), style: AppTextStyles.bodyBold),
                 if (subjectName.isNotEmpty)
                   Text(
                     subjectName,
