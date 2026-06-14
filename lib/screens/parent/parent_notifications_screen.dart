@@ -48,38 +48,92 @@ class ParentNotificationsScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              const Text('Notifications', style: AppTextStyles.screenTitle),
-              Text(
-                '$unreadCount unread',
-                style: AppTextStyles.small.copyWith(
-                  color: unreadCount > 0 ? AppColors.primary : null,
-                  fontWeight: unreadCount > 0 ? FontWeight.bold : null,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Notifications',
+                        style: AppTextStyles.screenTitle,
+                      ),
+                      Text(
+                        '$unreadCount unread',
+                        style: AppTextStyles.small.copyWith(
+                          color: unreadCount > 0 ? AppColors.primary : null,
+                          fontWeight: unreadCount > 0 ? FontWeight.bold : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (unreadCount > 0)
+                    TextButton.icon(
+                      onPressed: () {
+                        ref
+                            .read(firestoreServiceProvider)
+                            .markAllNotificationsAsRead(parentId);
+                      },
+                      icon: const Icon(Icons.done_all, size: 18),
+                      label: const Text(
+                        'Mark all as read',
+                        style: AppTextStyles.tiny,
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: AppSpacing.lg),
               ...notifications.map((n) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InkWell(
-                    onTap: () {
-                      if (!n.isRead) {
+                  child: Dismissible(
+                    key: Key('noti_${n.id}'),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: AppSpacing.xl),
+                      decoration: BoxDecoration(
+                        color: n.isRead ? AppColors.primary : Colors.grey,
+                        borderRadius: AppRadius.r(AppRadius.lg),
+                      ),
+                      child: Icon(
+                        n.isRead ? Icons.mark_as_unread : Icons.done,
+                        color: Colors.white,
+                      ),
+                    ),
+                    onDismissed: (direction) {
+                      if (n.isRead) {
+                        ref
+                            .read(firestoreServiceProvider)
+                            .markNotificationAsUnread(parentId, n.id);
+                      } else {
                         ref
                             .read(firestoreServiceProvider)
                             .markNotificationAsRead(parentId, n.id);
                       }
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              NotificationDetailScreen(notification: n),
-                        ),
-                      );
                     },
-                    child: _NotificationTile(
-                      icon: n.icon,
-                      title: n.title,
-                      time: _formatTime(n.timestamp),
-                      unread: !n.isRead,
+                    child: InkWell(
+                      onTap: () {
+                        if (!n.isRead) {
+                          ref
+                              .read(firestoreServiceProvider)
+                              .markNotificationAsRead(parentId, n.id);
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                NotificationDetailScreen(notification: n),
+                          ),
+                        );
+                      },
+                      child: _NotificationTile(
+                        icon: n.icon,
+                        title: n.title,
+                        time: _formatTime(n.timestamp),
+                        unread: !n.isRead,
+                      ),
                     ),
                   ),
                 );

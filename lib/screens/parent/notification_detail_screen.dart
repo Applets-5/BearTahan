@@ -61,37 +61,124 @@ class _RewardDetail extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (claims) {
-        // Find the specific pending claim from the notification payload
-        final claim = claims
-            .where((c) => c.isPending)
-            .cast<RewardClaim?>()
-            .firstWhere(
-              (c) =>
-                  c?.rewardName ==
-                  notification.title.split(' wants to redeem ').last,
-              orElse: () => claims
-                  .where((c) => c.isPending)
-                  .cast<RewardClaim?>()
-                  .firstOrNull,
-            );
+        // Match by rewardName across ALL claims, not just pending
+        final claim = claims.cast<RewardClaim?>().firstWhere(
+          (c) => notification.title.contains(c?.rewardName ?? ''),
+          orElse: () => null,
+        );
 
         if (claim == null) {
           return const Center(
-            child: Text('This claim has already been resolved.'),
+            child: Padding(
+              padding: EdgeInsets.all(AppSpacing.xxl),
+              child: Text(
+                'This notification has no matching claim.',
+                style: AppTextStyles.small,
+                textAlign: TextAlign.center,
+              ),
+            ),
           );
         }
+
+        // Determine resolved state
+        final isResolved = !claim.isPending;
+        final resolvedAt = claim.resolvedAt;
+
+        // Status display config
+        final (pillColor, pillText, pillTextColor) = switch (claim.status) {
+          'approved' => (
+            const Color(0xFFD1FAE5),
+            'Approved',
+            const Color(0xFF065F46),
+          ),
+          'rejected' => (
+            const Color(0xFFFEE2E2),
+            'Declined',
+            const Color(0xFF991B1B),
+          ),
+          'expired' => (AppColors.muted, 'Expired', AppColors.mutedText),
+          _ => (const Color(0xFFFEF3C7), 'Pending', const Color(0xFF92400E)),
+        };
 
         return ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
             _HeroCard(
               icon: Icons.card_giftcard_rounded,
-              iconColor: const Color(0xFFD97706),
-              iconBg: const Color(0xFFFEF3C7),
-              title: '${claim.childName} wants to redeem ${claim.rewardName}',
+              iconColor: isResolved
+                  ? AppColors.mutedText
+                  : const Color(0xFFD97706),
+              iconBg: isResolved ? AppColors.muted : const Color(0xFFFEF3C7),
+              title: '${claim.childName} wanted to redeem ${claim.rewardName}',
               subtitle:
                   'Claimed on ${DateFormat('dd MMM yyyy, hh:mm a').format(claim.claimedAt)}',
             ),
+
+            // Resolved banner — shown only when claim is done
+            if (isResolved) ...[
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                decoration: BoxDecoration(
+                  color: switch (claim.status) {
+                    'approved' => const Color(0xFFD1FAE5),
+                    'rejected' => const Color(0xFFFEE2E2),
+                    _ => AppColors.muted,
+                  },
+                  borderRadius: AppRadius.r(AppRadius.lg),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      switch (claim.status) {
+                        'approved' => Icons.check_circle_outline_rounded,
+                        'rejected' => Icons.cancel_outlined,
+                        _ => Icons.schedule_rounded,
+                      },
+                      size: 18,
+                      color: switch (claim.status) {
+                        'approved' => const Color(0xFF065F46),
+                        'rejected' => const Color(0xFF991B1B),
+                        _ => AppColors.mutedText,
+                      },
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            switch (claim.status) {
+                              'approved' => 'You approved this request',
+                              'rejected' => 'You declined this request',
+                              _ => 'This request has expired',
+                            },
+                            style: AppTextStyles.bodyBold.copyWith(
+                              color: switch (claim.status) {
+                                'approved' => const Color(0xFF065F46),
+                                'rejected' => const Color(0xFF991B1B),
+                                _ => AppColors.mutedText,
+                              },
+                            ),
+                          ),
+                          if (resolvedAt != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Resolved on ${DateFormat('dd MMM yyyy, hh:mm a').format(resolvedAt)}',
+                              style: AppTextStyles.tiny,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: AppSpacing.md),
             _DetailCard(
               label: 'Reward details',
@@ -110,44 +197,91 @@ class _RewardDetail extends ConsumerWidget {
                   icon: Icons.schedule_outlined,
                   label: 'Status',
                   value: claim.status,
-                  valueWidget: const _Pill(
-                    label: 'Pending',
-                    color: Color(0xFFFEF3C7),
-                    textColor: Color(0xFF92400E),
+                  valueWidget: _Pill(
+                    label: pillText,
+                    color: pillColor,
+                    textColor: pillTextColor,
                   ),
                 ),
+                if (resolvedAt != null)
+                  _DetailRow(
+                    icon: Icons.event_available_outlined,
+                    label: 'Resolved on',
+                    value: DateFormat('dd MMM yyyy').format(resolvedAt),
+                  ),
               ],
             ),
+
             const SizedBox(height: AppSpacing.md),
+
+            // Buttons — greyed out when resolved, fully functional when pending
             Row(
               children: [
                 Expanded(
-                  child: PrimaryButton(
-                    label: 'Approve',
-                    onPressed: () async {
-                      await ref
-                          .read(firestoreServiceProvider)
-                          .approveRewardClaim(parentId, claim);
-                      if (context.mounted) Navigator.pop(context);
-                    },
+                  child: FilledButton(
+                    onPressed: isResolved
+                        ? null // greyed out
+                        : () async {
+                            await ref
+                                .read(firestoreServiceProvider)
+                                .approveRewardClaim(parentId, claim);
+                            if (context.mounted) Navigator.pop(context);
+                          },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      disabledBackgroundColor: AppColors.muted,
+                      disabledForegroundColor: AppColors.mutedText,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: AppRadius.r(AppRadius.lg),
+                      ),
+                    ),
+                    child: const Text('Approve'),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: PrimaryButton(
-                    label: 'Decline',
-                    backgroundColor: AppColors.muted,
-                    foregroundColor: AppColors.foreground,
-                    onPressed: () async {
-                      await ref
-                          .read(firestoreServiceProvider)
-                          .rejectRewardClaim(parentId, claim);
-                      if (context.mounted) Navigator.pop(context);
-                    },
+                  child: OutlinedButton(
+                    onPressed: isResolved
+                        ? null // greyed out
+                        : () async {
+                            await ref
+                                .read(firestoreServiceProvider)
+                                .rejectRewardClaim(parentId, claim);
+                            if (context.mounted) Navigator.pop(context);
+                          },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: isResolved
+                            ? AppColors.border
+                            : AppColors.primary,
+                      ),
+                      disabledForegroundColor: AppColors.mutedText,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: AppRadius.r(AppRadius.lg),
+                      ),
+                    ),
+                    child: const Text('Decline'),
                   ),
                 ),
               ],
             ),
+
+            // Explanatory note under greyed buttons
+            if (isResolved) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Center(
+                child: Text(
+                  'This request has already been ${claim.status}.',
+                  style: AppTextStyles.tiny,
+                ),
+              ),
+            ],
           ],
         );
       },
@@ -312,7 +446,7 @@ class _HeroCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: AppTextStyles.bodyBold),
-              const SizedBox(height: 3),
+              const SizedBox(height: 6),
               Text(subtitle, style: AppTextStyles.small),
             ],
           ),
@@ -364,11 +498,11 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
+    padding: const EdgeInsets.symmetric(vertical: 10),
     child: Row(
       children: [
         Icon(icon, size: 16, color: AppColors.mutedText),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Text(label, style: AppTextStyles.small),
         const Spacer(),
         valueWidget ??
