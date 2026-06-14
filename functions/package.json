@@ -18,6 +18,10 @@
     "repair:mandarin-strokes:dry-run": "node scripts/repair_mandarin_strokes.js --dry-run",
     "repair:mandarin-strokes:apply": "node scripts/repair_mandarin_strokes.js --apply",
     "test:mandarin-stroke-repair": "node --test test/mandarin_stroke_repair_test.js",
+    "repair:mandarin-content:inspect": "node scripts/repair_mandarin_non_tracing.js --inspect",
+    "repair:mandarin-content:dry-run": "node scripts/repair_mandarin_non_tracing.js --dry-run",
+    "repair:mandarin-content:apply": "node scripts/repair_mandarin_non_tracing.js --apply",
+    "test:mandarin-content-repair": "node --test test/mandarin_non_tracing_repair_test.js",
     "migrate:sprint3:inspect": "node scripts/migrate_sprint3_data.js --inspect",
     "migrate:sprint3:dry-run": "node scripts/migrate_sprint3_data.js --dry-run",
     "migrate:sprint3:apply": "node scripts/migrate_sprint3_data.js --apply"

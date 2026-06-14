@@ -1,0 +1,42 @@
+[
+  {
+    "id": "bc_c1_l3_q07",
+    "questionType": "mcq",
+    "type": "mcq",
+    "prompt": "选择与图片相同的部首",
+    "correctAnswerId": "A",
+    "correctAnswerIndex": 0,
+    "correctBlank": null,
+    "correctOrder": null
+  },
+  {
+    "id": "bc_c1_l3_q08",
+    "questionType": "mcq",
+    "type": "mcq",
+    "prompt": "选择与图片相同的部首",
+    "correctAnswerId": "D",
+    "correctAnswerIndex": 3,
+    "correctBlank": null,
+    "correctOrder": null
+  },
+  {
+    "id": "bc_c1_l4_q05",
+    "prompt": "下课了，同学们（ ）食堂吃东西。"
+  },
+  {
+    "id": "bc_c1_l4_q06",
+    "prompt": "（ ）在树上的鸟窝里。"
+  },
+  {
+    "id": "bc_c1_l4_q07",
+    "prompt": "他的兴趣爱好很广泛，平时最喜欢的事情就是（ ）。"
+  },
+  {
+    "id": "bc_c1_l4_q08",
+    "prompt": "将词语排列成正确的句子"
+  },
+  {
+    "id": "bc_c1_l4_q09",
+    "prompt": "将词语排列成正确的句子"
+  }
+]
