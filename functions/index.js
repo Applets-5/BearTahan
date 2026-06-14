@@ -534,7 +534,7 @@ Keep replies under 100 words.`;
 
   const genAI = new GoogleGenerativeAI(geminiKey.value());
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-3.5-flash",
   });
 
   try {
@@ -694,7 +694,7 @@ Keep it under 150 words.
 ${childContext}`;
 
   const genAI = new GoogleGenerativeAI(geminiKey.value());
-  const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
+  const model = genAI.getGenerativeModel({model: "gemini-3.5-flash"});
 
   try {
     const result = await model.generateContent(prompt);
