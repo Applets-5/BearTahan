@@ -7,6 +7,7 @@ class MatchingWidget extends StatefulWidget {
   final Function(bool isCorrect) onCompleted;
   final VoidCallback? onCorrectMatch;
   final VoidCallback? onWrongAttempt;
+  final bool showPrompt;
 
   const MatchingWidget({
     super.key,
@@ -14,6 +15,7 @@ class MatchingWidget extends StatefulWidget {
     required this.onCompleted,
     this.onCorrectMatch,
     this.onWrongAttempt,
+    this.showPrompt = true,
   });
 
   @override
@@ -148,7 +150,7 @@ class _MatchingWidgetState extends State<MatchingWidget>
   Widget build(BuildContext context) {
     return Column(
       children: [
-        if (widget.question.text.isNotEmpty) ...[
+        if (widget.showPrompt && widget.question.text.isNotEmpty) ...[
           Text(widget.question.text, style: AppTextStyles.bodyBold),
           const SizedBox(height: AppSpacing.sm),
         ],

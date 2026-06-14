@@ -556,6 +556,35 @@ class FirestoreService {
         .update({'isRead': true});
   }
 
+  Future<void> markNotificationAsUnread(
+    String parentId,
+    String notificationId,
+  ) async {
+    await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('notifications')
+        .doc(notificationId)
+        .update({'isRead': false});
+  }
+
+  Future<void> markAllNotificationsAsRead(String parentId) async {
+    final query = await _db
+        .collection('parents')
+        .doc(parentId)
+        .collection('notifications')
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    if (query.docs.isEmpty) return;
+
+    final batch = _db.batch();
+    for (var doc in query.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+    await batch.commit();
+  }
+
   Future<void> flagWrongAnswer(
     String parentId,
     String childId, {

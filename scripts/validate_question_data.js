@@ -32,11 +32,86 @@ for (const root of roots) {
     for (const question of questions) {
       count++;
       const id = String(question.id || "");
-      const type = String(question.questionType || question.type || "mcq")
-          .toLowerCase();
+      const inferredType =
+        name.includes("tracing") && question.characterUnicode
+          ? "stroke_trace"
+          : "mcq";
+      const type = String(
+          question.questionType || question.type || inferredType,
+      ).toLowerCase();
       if (!id) errors.push(`${name}: question is missing id`);
       if (!supportedTypes.has(type)) {
         errors.push(`${id}: unsupported question type "${type}"`);
+      }
+      const options = Array.isArray(question.options) ? question.options : [];
+      const optionText = (option) => {
+        if (typeof option === "string") return option;
+        return String(option?.text ?? option?.label ?? "");
+      };
+      const optionImage = (option) =>
+        typeof option === "object" && option !== null
+          ? option.imageUrl ?? option.image ?? null
+          : null;
+      const prompt = String(question.prompt ?? question.questionText ?? "");
+
+      if (type === "mcq") {
+        if (options.length < 2) {
+          errors.push(`${id}: mcq requires at least two options`);
+        }
+        if (options.some((option) => !optionText(option) && !optionImage(option))) {
+          errors.push(`${id}: mcq contains an empty option`);
+        }
+      }
+      if (type === "fillblank" || type === "fillblanklistening") {
+        const correctBlank = String(question.correctBlank ?? "").trim();
+        const hasBlankMarker = /[（(]\s*[）)]|____/.test(prompt);
+        const matchingOption = options.some(
+            (option) => optionText(option).trim() === correctBlank,
+        );
+        if (!hasBlankMarker) {
+          errors.push(`${id}: fillblank requires a blank marker`);
+        }
+        if (!correctBlank || !matchingOption) {
+          errors.push(`${id}: correctBlank must match option text`);
+        }
+        if (options.some((option) => !optionText(option) && optionImage(option))) {
+          errors.push(`${id}: image-only options must use mcq, not fillblank`);
+        }
+      }
+      if (type === "rearrange") {
+        const correctOrder = Array.isArray(question.correctOrder)
+          ? question.correctOrder.map(String)
+          : [];
+        const optionTexts = options.map(optionText);
+        if (
+          correctOrder.length !== optionTexts.length ||
+          correctOrder.some((value) => !optionTexts.includes(value))
+        ) {
+          errors.push(`${id}: rearrange correctOrder must match its options`);
+        }
+        const repeatedWords = optionTexts.filter(
+            (value) => value && prompt.includes(value),
+        );
+        if (repeatedWords.length >= Math.max(2, optionTexts.length - 1)) {
+          errors.push(`${id}: rearrange prompt duplicates draggable words`);
+        }
+      }
+      if (type === "matching") {
+        for (const option of options) {
+          const hasLeft = Boolean(optionText(option) || optionImage(option));
+          const hasRight = Boolean(
+              option?.pairText ??
+              option?.matchText ??
+              option?.pairImageUrl ??
+              option?.pairImage ??
+              option?.matchImageUrl ??
+              optionImage(option),
+          );
+          if (!hasLeft || !hasRight) {
+            errors.push(`${id}: matching options require both sides`);
+            break;
+          }
+        }
       }
       if (type === "keyinnumber") {
         const answer =

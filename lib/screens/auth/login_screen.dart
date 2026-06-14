@@ -188,6 +188,8 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset:
+          false, // Prevent keyboard from shifting background/logo
       body: Stack(
         children: [
           Image.asset(
@@ -201,181 +203,222 @@ class _LoginScreenState extends State<LoginScreen>
           SafeArea(
             child: Stack(
               children: [
-                SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xxl,
-                  ),
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: AppSpacing.maxPhoneWidth,
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.only(
+                        left: AppSpacing.xxl,
+                        right: AppSpacing.xxl,
+                        bottom:
+                            MediaQuery.of(context).viewInsets.bottom +
+                            AppSpacing.md,
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(
-                            height: 300,
-                          ), // Increased top margin to visually center the card
-                          Card(
-                            elevation: 8,
-                            shadowColor: Colors.black12,
-                            color: const Color(0xFFFAEEDA),
-                            surfaceTintColor: Colors.transparent,
-                            clipBehavior: Clip.antiAlias,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: AppRadius.r(AppRadius.xl),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: Align(
+                          alignment: Alignment.center,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: AppSpacing.maxPhoneWidth,
                             ),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Container(
+                                Card(
+                                  elevation: 8,
+                                  shadowColor: Colors.black12,
                                   color: const Color(0xFFFAEEDA),
-                                  child: TabBar(
-                                    controller: _tabController,
-                                    labelColor: AppColors.secondaryText,
-                                    unselectedLabelColor: Colors.grey.shade600,
-                                    indicatorColor: AppColors.secondaryText,
-                                    indicatorWeight: 4,
-                                    indicatorSize: TabBarIndicatorSize.tab,
-                                    labelStyle: AppTextStyles.bodyBold,
-                                    dividerColor: Colors.grey.shade300,
-                                    tabs: const [
-                                      Tab(text: 'Log In'),
-                                      Tab(text: 'Sign Up'),
-                                    ],
+                                  surfaceTintColor: Colors.transparent,
+                                  clipBehavior: Clip.antiAlias,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: AppRadius.r(AppRadius.xl),
                                   ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(AppSpacing.xl),
-                                  child: Theme(
-                                    data: Theme.of(context).copyWith(
-                                      inputDecorationTheme: Theme.of(context)
-                                          .inputDecorationTheme
-                                          .copyWith(
-                                            fillColor: const Color(0xFFFAC775),
-                                            prefixIconColor: AppColors
-                                                .secondaryText
-                                                .withValues(alpha: 0.7),
-                                            hintStyle: AppTextStyles.body
-                                                .copyWith(
-                                                  color: AppColors.secondaryText
-                                                      .withValues(alpha: 0.5),
-                                                ),
-                                          ),
-                                    ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _tabController.index == 0
-                                            ? _buildLoginTab()
-                                            : _buildSignUpTab(),
-                                        const SizedBox(height: AppSpacing.xl),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Divider(
-                                                color: AppColors.secondaryText
-                                                    .withValues(alpha: 0.2),
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: AppSpacing.md,
-                                                  ),
-                                              child: Text(
-                                                'OR',
-                                                style: AppTextStyles.tiny
-                                                    .copyWith(
-                                                      color: AppColors
-                                                          .secondaryText
-                                                          .withValues(
-                                                            alpha: 0.6,
-                                                          ),
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                              ),
-                                            ),
-                                            Expanded(
-                                              child: Divider(
-                                                color: AppColors.secondaryText
-                                                    .withValues(alpha: 0.2),
-                                              ),
-                                            ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        color: const Color(0xFFFAEEDA),
+                                        child: TabBar(
+                                          controller: _tabController,
+                                          labelColor: AppColors.secondaryText,
+                                          unselectedLabelColor:
+                                              Colors.grey.shade600,
+                                          indicatorColor:
+                                              AppColors.secondaryText,
+                                          indicatorWeight: 4,
+                                          indicatorSize:
+                                              TabBarIndicatorSize.tab,
+                                          labelStyle: AppTextStyles.bodyBold,
+                                          dividerColor: Colors.grey.shade300,
+                                          tabs: const [
+                                            Tab(text: 'Log In'),
+                                            Tab(text: 'Sign Up'),
                                           ],
                                         ),
-                                        const SizedBox(height: AppSpacing.xl),
-                                        _isLoading
-                                            ? const CircularProgressIndicator(
-                                                valueColor:
-                                                    AlwaysStoppedAnimation<
-                                                      Color
-                                                    >(AppColors.secondaryText),
-                                              )
-                                            : SizedBox(
-                                                width: double.infinity,
-                                                child: OutlinedButton.icon(
-                                                  onPressed: _signInWithGoogle,
-                                                  icon: Image.asset(
-                                                    'assets/images/google.webp',
-                                                    height: 24,
-                                                    width: 24,
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.all(
+                                          AppSpacing.xl,
+                                        ),
+                                        child: Theme(
+                                          data: Theme.of(context).copyWith(
+                                            inputDecorationTheme:
+                                                Theme.of(
+                                                  context,
+                                                ).inputDecorationTheme.copyWith(
+                                                  fillColor: const Color(
+                                                    0xFFFAC775,
                                                   ),
-                                                  label: const Text(
-                                                    'Sign in with Google',
-                                                    style: TextStyle(
-                                                      color: AppColors
-                                                          .secondaryText,
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontFamily: 'Roboto',
-                                                    ),
-                                                  ),
-                                                  style: OutlinedButton.styleFrom(
-                                                    backgroundColor: Colors
-                                                        .white
-                                                        .withValues(alpha: 0.5),
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          vertical:
-                                                              AppSpacing.md,
-                                                          horizontal:
-                                                              AppSpacing.md,
-                                                        ),
-                                                    shape:
-                                                        RoundedRectangleBorder(
-                                                          borderRadius:
-                                                              AppRadius.r(
-                                                                AppRadius.lg,
-                                                              ),
-                                                        ),
-                                                    side: BorderSide(
+                                                  prefixIconColor: AppColors
+                                                      .secondaryText
+                                                      .withValues(alpha: 0.7),
+                                                  hintStyle: AppTextStyles.body
+                                                      .copyWith(
+                                                        color: AppColors
+                                                            .secondaryText
+                                                            .withValues(
+                                                              alpha: 0.5,
+                                                            ),
+                                                      ),
+                                                ),
+                                          ),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              _tabController.index == 0
+                                                  ? _buildLoginTab()
+                                                  : _buildSignUpTab(),
+                                              const SizedBox(
+                                                height: AppSpacing.xl,
+                                              ),
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Divider(
                                                       color: AppColors
                                                           .secondaryText
                                                           .withValues(
                                                             alpha: 0.2,
                                                           ),
                                                     ),
-                                                    elevation: 0,
                                                   ),
-                                                ),
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal:
+                                                              AppSpacing.md,
+                                                        ),
+                                                    child: Text(
+                                                      'OR',
+                                                      style: AppTextStyles.tiny
+                                                          .copyWith(
+                                                            color: AppColors
+                                                                .secondaryText
+                                                                .withValues(
+                                                                  alpha: 0.6,
+                                                                ),
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    child: Divider(
+                                                      color: AppColors
+                                                          .secondaryText
+                                                          .withValues(
+                                                            alpha: 0.2,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                      ],
-                                    ),
+                                              const SizedBox(
+                                                height: AppSpacing.xl,
+                                              ),
+                                              _isLoading
+                                                  ? const CircularProgressIndicator(
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                            Color
+                                                          >(
+                                                            AppColors
+                                                                .secondaryText,
+                                                          ),
+                                                    )
+                                                  : SizedBox(
+                                                      width: double.infinity,
+                                                      child: OutlinedButton.icon(
+                                                        onPressed:
+                                                            _signInWithGoogle,
+                                                        icon: Image.asset(
+                                                          'assets/images/google.webp',
+                                                          height: 24,
+                                                          width: 24,
+                                                        ),
+                                                        label: const Text(
+                                                          'Sign in with Google',
+                                                          style: TextStyle(
+                                                            color: AppColors
+                                                                .secondaryText,
+                                                            fontSize: 16,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            fontFamily:
+                                                                'Roboto',
+                                                          ),
+                                                        ),
+                                                        style: OutlinedButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors.white
+                                                                  .withValues(
+                                                                    alpha: 0.5,
+                                                                  ),
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                vertical:
+                                                                    AppSpacing
+                                                                        .md,
+                                                                horizontal:
+                                                                    AppSpacing
+                                                                        .md,
+                                                              ),
+                                                          shape:
+                                                              RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    AppRadius.r(
+                                                                      AppRadius
+                                                                          .lg,
+                                                                    ),
+                                                              ),
+                                                          side: BorderSide(
+                                                            color: AppColors
+                                                                .secondaryText
+                                                                .withValues(
+                                                                  alpha: 0.2,
+                                                                ),
+                                                          ),
+                                                          elevation: 0,
+                                                        ),
+                                                      ),
+                                                    ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 80), // Bottom spacing
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
                 Align(
                   alignment: Alignment.bottomCenter,
@@ -413,9 +456,9 @@ class _LoginScreenState extends State<LoginScreen>
             prefixIcon: const Icon(Icons.lock),
             hintText: 'Password',
             suffixIcon: IconButton(
-              icon: Icon(
-                _obscureLoginPassword ? Icons.pets : Icons.pets_outlined,
+              icon: _PawIcon(
                 key: ValueKey(_obscureLoginPassword),
+                isFilled: !_obscureLoginPassword,
                 color: AppColors.secondaryText,
               ),
               onPressed: () => setState(
@@ -487,9 +530,9 @@ class _LoginScreenState extends State<LoginScreen>
                 prefixIcon: const Icon(Icons.lock_outline),
                 hintText: 'Password',
                 suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureRegPassword ? Icons.pets : Icons.pets_outlined,
+                  icon: _PawIcon(
                     key: ValueKey(_obscureRegPassword),
+                    isFilled: !_obscureRegPassword,
                     color: AppColors.secondaryText,
                   ),
                   onPressed: () => setState(
@@ -508,11 +551,9 @@ class _LoginScreenState extends State<LoginScreen>
                 prefixIcon: const Icon(Icons.lock_outline),
                 hintText: 'Confirm Password',
                 suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureRegConfirmPassword
-                        ? Icons.pets
-                        : Icons.pets_outlined,
+                  icon: _PawIcon(
                     key: ValueKey(_obscureRegConfirmPassword),
+                    isFilled: !_obscureRegConfirmPassword,
                     color: AppColors.secondaryText,
                   ),
                   onPressed: () => setState(
@@ -537,5 +578,97 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       ),
     );
+  }
+}
+
+class _PawIcon extends StatelessWidget {
+  const _PawIcon({required this.isFilled, required this.color, super.key});
+
+  final bool isFilled;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(24.0, 24.0),
+      painter: _PawPainter(isFilled: isFilled, color: color),
+    );
+  }
+}
+
+class _PawPainter extends CustomPainter {
+  _PawPainter({required this.isFilled, required this.color});
+
+  final bool isFilled;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = isFilled ? PaintingStyle.fill : PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..isAntiAlias = true;
+
+    final w = size.width;
+    final h = size.height;
+
+    // Draw the 4 toes
+    // Toe 1 (left-most)
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.20, h * 0.42),
+        width: w * 0.18,
+        height: h * 0.24,
+      ),
+      paint,
+    );
+
+    // Toe 2 (middle-left)
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.40, h * 0.26),
+        width: w * 0.20,
+        height: h * 0.28,
+      ),
+      paint,
+    );
+
+    // Toe 3 (middle-right)
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.60, h * 0.26),
+        width: w * 0.20,
+        height: h * 0.28,
+      ),
+      paint,
+    );
+
+    // Toe 4 (right-most)
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.80, h * 0.42),
+        width: w * 0.18,
+        height: h * 0.24,
+      ),
+      paint,
+    );
+
+    // Draw main pad
+    final path = Path();
+    path.moveTo(w * 0.5, h * 0.88);
+    path.quadraticBezierTo(w * 0.18, h * 0.88, w * 0.24, h * 0.68);
+    path.quadraticBezierTo(w * 0.5, w * 0.46, w * 0.76, h * 0.68);
+    path.quadraticBezierTo(w * 0.82, h * 0.88, w * 0.5, h * 0.88);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PawPainter oldDelegate) {
+    return oldDelegate.isFilled != isFilled || oldDelegate.color != color;
   }
 }

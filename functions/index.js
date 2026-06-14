@@ -431,6 +431,11 @@ Strength signals:
 - Always refer to the child by name, never as "the child" or "your child"
 - Keep responses under 150 words for insights, 100 words for chat replies
 - Format for mobile: short paragraphs, max 3 sentences each
+
+=== TOPIC BOUNDARIES ===
+- You are strictly an educational coach for the BearTahan app.
+- If the parent asks a question that is completely irrelevant to the child's learning, the BearTahan app, education, or parenting, DO NOT answer it.
+- Instead, politely decline using a backup message like: "I'm your BearTahan learning coach! I can't help with that, but I'd love to chat about [Child's Name]'s progress or how to help them with their studies."
 `;
 
 exports.askBearAi = onCall({secrets: [geminiKey]}, async (request) => {
@@ -529,7 +534,7 @@ Keep replies under 100 words.`;
 
   const genAI = new GoogleGenerativeAI(geminiKey.value());
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-3.5-flash",
   });
 
   try {
@@ -689,7 +694,7 @@ Keep it under 150 words.
 ${childContext}`;
 
   const genAI = new GoogleGenerativeAI(geminiKey.value());
-  const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
+  const model = genAI.getGenerativeModel({model: "gemini-3.5-flash"});
 
   try {
     const result = await model.generateContent(prompt);

@@ -26,7 +26,7 @@ class StatCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24.0), // Highly rounded
+        borderRadius: BorderRadius.circular(24.0),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -40,27 +40,50 @@ class StatCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(24.0),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0), // Generous padding
-            child: Column(
-              children: [
-                Icon(icon, color: color, size: AppSpacing.xxl),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  value,
-                  style: AppTextStyles.cardTitle.copyWith(color: titleColor),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final availableWidth = constraints.maxWidth;
+              // Dynamically calculate sizes based on width
+              final iconSize = (availableWidth * 0.25).clamp(24.0, 48.0);
+              final valueSize = (availableWidth * 0.15).clamp(14.0, 24.0);
+              final labelSize = (availableWidth * 0.08).clamp(10.0, 14.0);
+
+              return Padding(
+                padding: EdgeInsets.all(availableWidth * 0.08),
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, color: color, size: iconSize),
+                        SizedBox(height: availableWidth * 0.02),
+                        Text(
+                          value,
+                          style: AppTextStyles.cardTitle.copyWith(
+                            color: titleColor,
+                            fontSize: valueSize,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          label,
+                          style: AppTextStyles.tiny.copyWith(
+                            color: subtitleColor,
+                            fontSize: labelSize,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                Text(
-                  label,
-                  style: AppTextStyles.tiny.copyWith(color: subtitleColor),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),

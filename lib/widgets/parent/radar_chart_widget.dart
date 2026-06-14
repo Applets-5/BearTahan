@@ -158,7 +158,12 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
     if (data == null) return const SizedBox();
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.sm,
+        right: AppSpacing.sm,
+        bottom: AppSpacing.sm,
+        top: 6, // <-- Tweak this number if you need it tighter!
+      ),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.95),
         borderRadius: AppRadius.r(AppRadius.md),
@@ -173,6 +178,7 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
             style: AppTextStyles.small.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w800,
+              height: 1.1,
             ),
           ),
           Text(

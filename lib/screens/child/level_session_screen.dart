@@ -14,6 +14,7 @@ import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/audio_contexts.dart';
+import '../../utils/question_session_selector.dart';
 import '../../utils/sound_effects.dart';
 import '../../utils/star_utils.dart';
 import '../../widgets/common/primary_button.dart';
@@ -583,23 +584,38 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           ..clear()
           ..addAll(reviewById.keys);
 
-        final List<Question> pool =
-            rawQuestions
-                .where((question) => !reviewById.containsKey(question.id))
-                .toList()
-              ..shuffle();
-        final mainQuestions = pool
-            .take((10 - reviewById.length).clamp(0, 10))
+        final List<Question> pool = rawQuestions
+            .where((question) => !reviewById.containsKey(question.id))
             .toList();
+        final mainQuestionCount = (10 - reviewById.length).clamp(0, 10);
+        final mainQuestions = _isMandarinChapterOneLevelFour
+            ? selectBalancedMandarinL4Questions(pool, count: mainQuestionCount)
+            : (pool..shuffle()).take(mainQuestionCount).toList();
         shuffledQuestions = [...mainQuestions, ...reviewById.values]..shuffle();
       }
     } catch (error) {
       debugPrint('Unable to prepare personalized questions: $error');
       _reviewQuestionIds.clear();
-      final fallback = List<Question>.from(rawQuestions)..shuffle();
-      shuffledQuestions = fallback.take(needsPrioritization ? 15 : 10).toList();
+      if (_isMandarinChapterOneLevelFour && !needsPrioritization) {
+        shuffledQuestions = selectBalancedMandarinL4Questions(
+          rawQuestions,
+          count: 10,
+        );
+      } else {
+        final fallback = List<Question>.from(rawQuestions)..shuffle();
+        shuffledQuestions = fallback
+            .take(needsPrioritization ? 15 : 10)
+            .toList();
+      }
     }
     await _prepareSelectedQuestions();
+  }
+
+  bool get _isMandarinChapterOneLevelFour {
+    final subject = widget.subjectId.toLowerCase();
+    final level = widget.levelId.toLowerCase().replaceAll('-', '_');
+    return subject == 'bc' &&
+        (level == 'l4' || level == 'c1_l4' || level == 'bc_c1_l4');
   }
 
   @override
@@ -666,7 +682,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
               }
               return _buildSession(shuffledQuestions!);
             },
-            loading: _buildPreparationScreen,
+            loading: () => _buildPreparationScreen(animateMascot: false),
             error: (error, stack) => _buildNoQuestionsPlaceholder(
               context,
               message: "Bear's Den could not load. Check your connection.",
@@ -715,7 +731,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
             return _buildSession(shuffledQuestions!);
           },
-          loading: _buildPreparationScreen,
+          loading: () => _buildPreparationScreen(animateMascot: false),
           error: (err, stack) => Center(child: Text('Error: $err')),
         ),
       ),
@@ -786,38 +802,78 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
   Widget _buildNoQuestionsPlaceholder(
     BuildContext context, {
-    String message = 'No questions found for this level.',
+    String message =
+        'No questions are ready for this level yet. Head back and explore another trail.',
   }) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            child: Text(message, textAlign: TextAlign.center),
+    return SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl,
+            vertical: AppSpacing.xl,
           ),
-          const SizedBox(height: AppSpacing.md),
-          PrimaryButton(
-            label: 'Go Back',
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go(
-                  AppRouter.subjectFor(
-                    widget.childId,
-                    subjectId: widget.subjectId,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (widget.showFeedbackMascot)
+                ActiveMascotWidget(
+                  childId: widget.childId,
+                  size: 150,
+                  showBackground: false,
+                  mood: MascotMood.crying,
+                  hideUntilLoaded: true,
+                )
+              else
+                const MascotWidget(
+                  size: 150,
+                  showBackground: false,
+                  mood: MascotMood.crying,
+                ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'The question trail is quiet!',
+                style: AppTextStyles.title,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 300),
+                child: Text(
+                  message,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.mutedText,
                   ),
-                );
-              }
-            },
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              SizedBox(
+                width: 190,
+                child: PrimaryButton(
+                  label: 'Back to the Trail',
+                  icon: Icons.arrow_back_rounded,
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go(
+                        AppRouter.subjectFor(
+                          widget.childId,
+                          subjectId: widget.subjectId,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildPreparationScreen() {
+  Widget _buildPreparationScreen({bool animateMascot = true}) {
     final hasProgress = _totalAssetCount > 0;
     final progress = hasProgress
         ? (_preparedAssetCount / _totalAssetCount).clamp(0.0, 1.0)
@@ -829,20 +885,25 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (widget.showFeedbackMascot)
-              ActiveMascotWidget(
-                childId: widget.childId,
-                size: 150,
-                showBackground: false,
-                mood: MascotMood.idle,
-              )
-            else
-              const MascotWidget(
-                size: 150,
-                showBackground: false,
-                mood: MascotMood.idle,
-              ),
-            const SizedBox(height: AppSpacing.xl),
+            WalkingMascotStage(
+              mascotSize: 120,
+              height: 155,
+              isWalking: animateMascot,
+              child: widget.showFeedbackMascot
+                  ? ActiveMascotWidget(
+                      childId: widget.childId,
+                      size: 120,
+                      showBackground: false,
+                      mood: MascotMood.idle,
+                      hideUntilLoaded: true,
+                    )
+                  : const MascotWidget(
+                      size: 120,
+                      showBackground: false,
+                      mood: MascotMood.idle,
+                    ),
+            ),
+            const SizedBox(height: AppSpacing.md),
             Text(
               'Preparing your adventure',
               style: AppTextStyles.title,
@@ -1163,77 +1224,86 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
       parts = [text, ''];
     }
 
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      runSpacing: AppSpacing.sm,
-      children: [
-        if (parts.isNotEmpty && parts[0].isNotEmpty)
-          Text(
-            parts[0],
-            style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
-            textAlign: TextAlign.center,
-          ),
-        DragTarget<int>(
-          onAcceptWithDetails: (details) {
-            if (_fillBlankSubmitted) return;
-            setState(() {
-              _draggedOptionIndex = details.data;
-            });
-          },
-          builder: (context, candidateData, rejectedData) {
-            final bool isOccupied = _draggedOptionIndex != null;
-            return Container(
-              constraints: const BoxConstraints(maxWidth: 100),
-              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: candidateData.isNotEmpty || isOccupied
-                        ? AppColors.primary
-                        : const Color(0xFFAAAAAA),
-                    width: 2,
+    final sentenceStyle = AppTextStyles.cardTitle.copyWith(fontSize: 16);
+
+    return DragTarget<int>(
+      key: const ValueKey('fillblank_drop_target'),
+      onAcceptWithDetails: (details) {
+        if (_fillBlankSubmitted) return;
+        setState(() {
+          _draggedOptionIndex = details.data;
+        });
+      },
+      builder: (context, candidateData, rejectedData) {
+        final bool isOccupied = _draggedOptionIndex != null;
+        return Text.rich(
+          TextSpan(
+            style: sentenceStyle,
+            children: [
+              if (parts.isNotEmpty && parts[0].isNotEmpty)
+                TextSpan(text: parts[0]),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 52,
+                    maxWidth: 120,
+                  ),
+                  margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: candidateData.isNotEmpty || isOccupied
+                            ? AppColors.primary
+                            : const Color(0xFFAAAAAA),
+                        width: 2,
+                      ),
+                    ),
+                    color: isOccupied
+                        ? AppColors.primaryLight.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                  ),
+                  child: Text(
+                    isOccupied
+                        ? question.options[_draggedOptionIndex!].text
+                        : ' ',
+                    style: AppTextStyles.bodyBold.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                color: isOccupied
-                    ? AppColors.primaryLight.withValues(alpha: 0.1)
-                    : Colors.transparent,
               ),
-              child: Text(
-                isOccupied
-                    ? question.options[_draggedOptionIndex!].text
-                    : '   ',
-                style: AppTextStyles.bodyBold.copyWith(
-                  color: AppColors.primary,
-                  fontSize: 16,
+              if (parts.length > 1 && parts[1].isNotEmpty)
+                TextSpan(text: parts[1]),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.sm),
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: AudioPromptPlayer(
+                      key: ValueKey('audio_${question.id}'),
+                      url: question.promptAudioUrl,
+                      textToSpeak: question.promptAudioText ?? question.text,
+                      language: language,
+                      autoPlay: true,
+                      isSmall: true,
+                    ),
+                  ),
                 ),
               ),
-            );
-          },
-        ),
-        if (parts.length > 1 && parts[1].isNotEmpty)
-          Text(
-            parts[1],
-            style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
-            textAlign: TextAlign.center,
+            ],
           ),
-        Padding(
-          padding: const EdgeInsets.only(left: AppSpacing.sm),
-          child: SizedBox(
-            width: 28,
-            height: 28,
-            child: AudioPromptPlayer(
-              key: ValueKey('audio_${question.id}'),
-              url: question.promptAudioUrl,
-              textToSpeak: question.promptAudioText ?? question.text,
-              language: language,
-              autoPlay: true,
-              isSmall: true,
-            ),
-          ),
-        ),
-      ],
+          textAlign: TextAlign.center,
+        );
+      },
     );
   }
 
@@ -1290,6 +1360,7 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         return MatchingWidget(
           key: ValueKey('matching_${question.id}'),
           question: question,
+          showPrompt: false,
           onCorrectMatch: () {
             unawaited(
               _playStrokeCorrect(0),

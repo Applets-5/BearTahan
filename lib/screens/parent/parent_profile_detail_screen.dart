@@ -110,6 +110,9 @@ class _ParentProfileDetailScreenState
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: AppRadius.r(AppRadius.xl),
+              ),
               title: Text(child == null ? 'Add Child' : 'Edit Child'),
               content: SingleChildScrollView(
                 child: Column(
@@ -117,20 +120,77 @@ class _ParentProfileDetailScreenState
                   children: [
                     TextField(
                       controller: nameController,
-                      decoration: const InputDecoration(labelText: 'Name'),
+                      decoration: InputDecoration(
+                        labelText: 'Name',
+                        border: OutlineInputBorder(
+                          borderRadius: AppRadius.r(AppRadius.lg),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     TextField(
                       controller: ageController,
-                      decoration: const InputDecoration(labelText: 'Age'),
+                      decoration: InputDecoration(
+                        labelText: 'Age',
+                        border: OutlineInputBorder(
+                          borderRadius: AppRadius.r(AppRadius.lg),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: AppSpacing.md),
                     DropdownButtonFormField<String>(
                       initialValue: selectedGrade,
-                      decoration: const InputDecoration(labelText: 'Grade'),
+                      borderRadius: AppRadius.r(AppRadius.lg),
+                      dropdownColor: AppColors.card,
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                      decoration: InputDecoration(
+                        labelText: 'Grade',
+                        prefixIcon: const Icon(Icons.school_outlined, size: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: AppRadius.r(AppRadius.lg),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: AppColors.muted.withValues(alpha: 0.3),
+                      ),
+                      selectedItemBuilder: (context) {
+                        return grades.map((g) {
+                          return Text(
+                            g,
+                            style: AppTextStyles.bodyBold.copyWith(
+                              color: AppColors.foreground,
+                            ),
+                          );
+                        }).toList();
+                      },
                       items: grades.map((g) {
-                        return DropdownMenuItem(value: g, child: Text(g));
+                        final isSelected = selectedGrade == g;
+                        return DropdownMenuItem(
+                          value: g,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primary.withValues(alpha: 0.1)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              g,
+                              style: AppTextStyles.body.copyWith(
+                                color: isSelected ? AppColors.primary : null,
+                                fontWeight: isSelected ? FontWeight.bold : null,
+                              ),
+                            ),
+                          ),
+                        );
                       }).toList(),
                       onChanged: (v) {
                         if (v != null) {
