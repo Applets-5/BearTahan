@@ -29,6 +29,7 @@ class Question {
   final String? strokeOrderDataJson;
   final int? correctNumber;
   final List<String>? correctAnswers;
+  final int? difficulty;
 
   Question({
     required this.id,
@@ -45,6 +46,7 @@ class Question {
     this.strokeOrderDataJson,
     this.correctNumber,
     this.correctAnswers,
+    this.difficulty,
   }) : options = options.map((e) {
          if (e is QuestionOption) return e;
          if (e == null) return QuestionOption(text: '');
@@ -332,6 +334,11 @@ class Question {
       );
     }).toList();
 
+    final rawDifficulty = data['difficulty'];
+    final int? difficulty = rawDifficulty is num
+        ? rawDifficulty.toInt()
+        : int.tryParse(rawDifficulty?.toString() ?? '');
+
     return Question(
       id: id,
       text: text,
@@ -347,6 +354,7 @@ class Question {
       strokeOrderDataJson: strokeOrderDataJson,
       correctNumber: correctNumber,
       correctAnswers: correctAnswers,
+      difficulty: difficulty,
     );
   }
 

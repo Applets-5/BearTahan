@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../models/question.dart';
 import '../../models/bears_den_result.dart';
+import '../../models/math_generation_rule.dart';
 import '../../models/session_mode.dart';
 import '../../features/bears_den/bears_den_demo_data.dart';
 import '../../providers/data_providers.dart';
@@ -14,6 +15,7 @@ import '../../providers/sound_effects_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/audio_contexts.dart';
+import '../../utils/math_question_generator.dart';
 import '../../utils/question_session_selector.dart';
 import '../../utils/sound_effects.dart';
 import '../../utils/star_utils.dart';
@@ -67,6 +69,8 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
   List<Question>? shuffledQuestions;
   List<Question>? _lastRawQuestions;
   final Set<String> _reviewQuestionIds = {};
+  List<Question>? _generatedQuestionsCache;
+  MathGenerationRule? _generatedQuestionsCacheRule;
   AudioPool? _correctAnswerPool;
   AudioPool? _wrongAnswerPool;
   AudioPool? _correctStrokePool;
@@ -533,6 +537,29 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     setState(() {});
   }
 
+  /// Generates this session's Maths questions once and caches them so they
+  /// stay stable across rebuilds; a fresh set is generated next time this
+  /// screen is opened, giving a different mix of questions every session.
+  List<Question> _generatedQuestionsFor(MathGenerationRule rule) {
+    final cached = _generatedQuestionsCache;
+    if (cached != null && _generatedQuestionsCacheRule == rule) {
+      return cached;
+    }
+
+    final generator = MathQuestionGenerator();
+    final sessionToken = DateTime.now().microsecondsSinceEpoch;
+    final questions = List.generate(
+      10,
+      (index) => generator
+          .generate(rule)
+          .toQuestion('math_generated_${sessionToken}_$index'),
+    );
+
+    _generatedQuestionsCache = questions;
+    _generatedQuestionsCacheRule = rule;
+    return questions;
+  }
+
   Future<void> _initializeQuestions(List<Question> rawQuestions) async {
     if (widget.reviewQuestions != null) {
       final questionsById = <String, Question>{
@@ -557,7 +584,12 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
     final needsPrioritization = isSummary || isRevision;
 
     try {
-      if (needsPrioritization) {
+      if (isSummary) {
+        shuffledQuestions = _selectStratifiedByDifficulty(
+          rawQuestions,
+          perBucket: 5,
+        );
+      } else if (isRevision) {
         final stats = await ref
             .read(firestoreServiceProvider)
             .getQuestionStatsForUser(
@@ -697,6 +729,72 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
 
     // If it's a revision stage, we fetch ALL questions for the subject
     final isRevision = widget.levelId.toLowerCase().contains('revision');
+    final isSummary = widget.levelId.toLowerCase().contains('summary');
+
+    // Maths levels can be configured (per chapter, via the admin CMS) to
+    // generate questions at runtime from a number-range rule instead of
+    // reading a static question bank. Chapters without a rule configured
+    // fall back to the static question bank below, same as every other
+    // subject.
+    if (widget.subjectId == 'math' && !isRevision && !isSummary) {
+      final chapterId = widget.levelId.split('_').first;
+      final ruleAsync = ref.watch(
+        mathGenerationRuleProvider((
+          subjectId: widget.subjectId,
+          chapterId: chapterId,
+        )),
+      );
+
+      return ruleAsync.when(
+        data: (rule) {
+          if (rule == null) {
+            return _buildStaticQuestionSession(isRevision: isRevision);
+          }
+          return _buildGeneratedMathSession(rule);
+        },
+        loading: () => Scaffold(
+          body: SafeArea(
+            child: _buildPreparationScreen(animateMascot: false),
+          ),
+        ),
+        error: (err, stack) =>
+            Scaffold(body: SafeArea(child: Center(child: Text('Error: $err')))),
+      );
+    }
+
+    return _buildStaticQuestionSession(isRevision: isRevision);
+  }
+
+  Widget _buildGeneratedMathSession(MathGenerationRule rule) {
+    ref.watch(parentSettingsProvider);
+
+    final rawQuestions = _generatedQuestionsFor(rule);
+    if (_lastRawQuestions != rawQuestions) {
+      _lastRawQuestions = rawQuestions;
+      _resetPreparation();
+      _initializationFuture = Future<void>.microtask(
+        () => _initializeQuestions(rawQuestions),
+      );
+    }
+
+    return Scaffold(
+      body: SafeArea(
+        child: !_assetsPrepared || shuffledQuestions == null
+            ? FutureBuilder<void>(
+                future: _initializationFuture,
+                builder: (context, snapshot) {
+                  if (!_assetsPrepared || shuffledQuestions == null) {
+                    return _buildPreparationScreen();
+                  }
+                  return _buildSession(shuffledQuestions!);
+                },
+              )
+            : _buildSession(shuffledQuestions!),
+      ),
+    );
+  }
+
+  Widget _buildStaticQuestionSession({required bool isRevision}) {
     final queryPrefix = isRevision
         ? '${widget.subjectId}_'
         : widget.levelPrefix;
@@ -739,6 +837,48 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
         ),
       ),
     );
+  }
+
+  /// For chapter summaries: gathers the whole chapter's question pool and
+  /// randomly draws `perBucket` questions from each difficulty (1, 2, 3).
+  /// If a difficulty doesn't have enough questions, the shortfall is
+  /// backfilled randomly from the other difficulties so the session still
+  /// reaches `perBucket * 3` questions where possible.
+  List<Question> _selectStratifiedByDifficulty(
+    List<Question> pool, {
+    required int perBucket,
+  }) {
+    final Map<int, List<Question>> buckets = {1: [], 2: [], 3: []};
+    final List<Question> unknownDifficulty = [];
+
+    for (final q in pool) {
+      final bucket = buckets[q.difficulty];
+      if (bucket != null) {
+        bucket.add(q);
+      } else {
+        unknownDifficulty.add(q);
+      }
+    }
+
+    final List<Question> selected = [];
+    final List<Question> leftover = [];
+
+    for (final group in buckets.values) {
+      group.shuffle();
+      final take = group.length < perBucket ? group.length : perBucket;
+      selected.addAll(group.take(take));
+      leftover.addAll(group.skip(take));
+    }
+    leftover.addAll(unknownDifficulty);
+
+    final target = perBucket * buckets.length;
+    if (selected.length < target) {
+      leftover.shuffle();
+      selected.addAll(leftover.take(target - selected.length));
+    }
+
+    selected.shuffle();
+    return selected;
   }
 
   List<Question> _prioritizeQuestions(
