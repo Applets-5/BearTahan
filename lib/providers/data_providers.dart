@@ -124,14 +124,15 @@ final questionsProvider = FutureProvider.family<List<Question>, String>((
   return ref.watch(firestoreServiceProvider).getQuestions(prefix);
 });
 
-final mathGenerationRuleProvider = FutureProvider.family<
-  MathGenerationRule?,
-  ({String subjectId, String chapterId})
->((ref, arg) {
-  return ref
-      .watch(firestoreServiceProvider)
-      .getMathGenerationRule(arg.subjectId, arg.chapterId);
-});
+final mathGenerationRuleProvider =
+    FutureProvider.family<
+      MathGenerationRule?,
+      ({String subjectId, String chapterId})
+    >((ref, arg) {
+      return ref
+          .watch(firestoreServiceProvider)
+          .getMathGenerationRule(arg.subjectId, arg.chapterId);
+    });
 
 final bearsDenQuestionsProvider = FutureProvider.autoDispose<List<Question>>((
   ref,

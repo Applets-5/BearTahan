@@ -753,12 +753,11 @@ class _LevelSessionScreenState extends ConsumerState<LevelSessionScreen> {
           return _buildGeneratedMathSession(rule);
         },
         loading: () => Scaffold(
-          body: SafeArea(
-            child: _buildPreparationScreen(animateMascot: false),
-          ),
+          body: SafeArea(child: _buildPreparationScreen(animateMascot: false)),
         ),
-        error: (err, stack) =>
-            Scaffold(body: SafeArea(child: Center(child: Text('Error: $err')))),
+        error: (err, stack) => Scaffold(
+          body: SafeArea(child: Center(child: Text('Error: $err'))),
+        ),
       );
     }
 
