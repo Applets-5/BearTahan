@@ -51,7 +51,7 @@ void main() {
         outfitId: 'chef_bear',
         currentValue: 5,
         targetValue: 5,
-        isUnlocked: true,
+        isUnlocked: false,
       ),
     };
 
@@ -76,6 +76,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Chef Bear'), findsOneWidget);
+    expect(find.text('🎁 Unlock'), findsOneWidget);
+    expect(find.text('Equip'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

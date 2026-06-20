@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 //import 'package:go_router/go_router.dart';
 import '../models/chapter_data.dart';
+import '../models/math_generation_rule.dart';
 import '../models/subject.dart';
 import '../models/user_profile.dart';
 import '../models/question.dart';
@@ -122,6 +123,16 @@ final questionsProvider = FutureProvider.family<List<Question>, String>((
 ) {
   return ref.watch(firestoreServiceProvider).getQuestions(prefix);
 });
+
+final mathGenerationRuleProvider =
+    FutureProvider.family<
+      MathGenerationRule?,
+      ({String subjectId, String chapterId})
+    >((ref, arg) {
+      return ref
+          .watch(firestoreServiceProvider)
+          .getMathGenerationRule(arg.subjectId, arg.chapterId);
+    });
 
 final bearsDenQuestionsProvider = FutureProvider.autoDispose<List<Question>>((
   ref,

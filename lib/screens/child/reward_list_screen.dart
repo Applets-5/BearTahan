@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../models/reward_claim.dart';
 import '../../providers/data_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
@@ -154,7 +153,7 @@ class RewardListScreen extends ConsumerWidget {
                       cost: claim.starCost,
                       status: claim.status,
                       currentStars: userProfileAsync.value?.availableStars,
-                      showBorder: false,
+                      showBorder: true,
                     ),
                   ),
                 ),
@@ -254,8 +253,17 @@ class RewardListScreen extends ConsumerWidget {
                     .take(5)
                     .map(
                       (claim) => Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: _ClaimHistoryTile(claim: claim),
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: RewardCard(
+                          title: claim.rewardName,
+                          description: claim.rewardDescription,
+                          cost: claim.starCost,
+                          status: claim.status,
+                          timestamp: DateFormat(
+                            'dd MMM yyyy, hh:mm a',
+                          ).format(claim.resolvedAt ?? claim.claimedAt),
+                          showBorder: true,
+                        ),
                       ),
                     ),
               ],
@@ -264,84 +272,6 @@ class RewardListScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Error: $e')),
-      ),
-    );
-  }
-}
-
-class _ClaimHistoryTile extends StatelessWidget {
-  const _ClaimHistoryTile({required this.claim});
-
-  final RewardClaim claim;
-
-  Color _statusColor() {
-    switch (claim.status) {
-      case 'approved':
-        return AppColors.accent;
-      case 'rejected':
-        return AppColors.destructive;
-      case 'expired':
-        return AppColors.mutedText;
-      default:
-        return AppColors.primary;
-    }
-  }
-
-  IconData _statusIcon() {
-    switch (claim.status) {
-      case 'approved':
-        return Icons.check_circle;
-      case 'rejected':
-        return Icons.cancel;
-      case 'expired':
-        return Icons.schedule;
-      default:
-        return Icons.info;
-    }
-  }
-
-  String _message() {
-    switch (claim.status) {
-      case 'approved':
-        return 'Approved - ${claim.starCost} stars used';
-      case 'rejected':
-        return 'Rejected - stars unchanged';
-      case 'expired':
-        return 'Expired - stars unchanged';
-      default:
-        return claim.status;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _statusColor();
-    final date = claim.resolvedAt ?? claim.claimedAt;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Icon(_statusIcon(), color: color),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(claim.rewardName, style: AppTextStyles.bodyBold),
-                Text(
-                  '${_message()} - ${DateFormat('dd MMM yyyy').format(date)}',
-                  style: AppTextStyles.tiny,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

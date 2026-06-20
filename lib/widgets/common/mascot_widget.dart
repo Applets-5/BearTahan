@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -381,41 +380,34 @@ class ActiveMascotWidget extends ConsumerWidget {
       );
     }
 
-    if (hideUntilLoaded) {
-      final profile = ref.watch(userProfileProvider(childId!));
+    final profile = ref.watch(userProfileProvider(childId!));
 
-      return profile.when(
-        loading: () => SizedBox(height: size, width: size),
-        error: (error, stackTrace) => SizedBox(height: size, width: size),
-        data: (profile) => _PrecachedMascot(
-          outfitId: profile.activeMascotOutfit,
-          size: size,
-          message: message,
-          showBackground: showBackground,
-          mood: mood,
-        ),
-      );
-    }
-
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('parents')
-          .doc(user.uid)
-          .collection('children')
-          .doc(childId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        final data = snapshot.data?.data();
-        final outfitId = data?['activeOutfitID'] as String? ?? 'scholar_bear';
-
-        return MascotWidget(
-          size: size,
-          message: message,
-          outfitId: outfitId,
-          showBackground: showBackground,
-          mood: mood,
-        );
-      },
+    return profile.when(
+      loading: () => hideUntilLoaded
+          ? SizedBox(height: size, width: size)
+          : MascotWidget(
+              size: size,
+              message: message,
+              outfitId: 'scholar_bear',
+              showBackground: showBackground,
+              mood: mood,
+            ),
+      error: (error, stackTrace) => hideUntilLoaded
+          ? SizedBox(height: size, width: size)
+          : MascotWidget(
+              size: size,
+              message: message,
+              outfitId: 'scholar_bear',
+              showBackground: showBackground,
+              mood: mood,
+            ),
+      data: (profile) => _PrecachedMascot(
+        outfitId: profile.activeMascotOutfit,
+        size: size,
+        message: message,
+        showBackground: showBackground,
+        mood: mood,
+      ),
     );
   }
 }

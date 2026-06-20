@@ -413,7 +413,7 @@ class _QuestOutfitCard extends StatelessWidget {
                 boxShadow: AppShadows.card,
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _OutfitImage(quest: quest, locked: !unlocked),
                   const SizedBox(height: AppSpacing.sm),
@@ -428,34 +428,37 @@ class _QuestOutfitCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  _QuestTag(text: quest.description),
-                  const SizedBox(height: AppSpacing.sm),
-                  if (!quest.isStarter) ...[
-                    _QuestProgressSection(progress: progress),
-                    const SizedBox(height: AppSpacing.sm),
-                  ],
-                  if (active)
-                    const _SmallStatusButton(
-                      label: 'Active',
-                      backgroundColor: AppColors.primary,
-                      textColor: Colors.white,
-                    )
-                  else if (unlocked || canUnlock)
-                    _SmallStatusButton(
-                      label: buttonLabel,
-                      backgroundColor: AppColors.primary,
-                      textColor: Colors.white,
-                      onTap: onEquip,
-                    )
-                  else
-                    Text(
-                      '🔒 Locked',
-                      style: AppTextStyles.tiny.copyWith(
-                        color: AppColors.mutedText,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(
+                    height: 40,
+                    child: Center(child: _QuestTag(text: quest.description)),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    height: 32,
+                    child: quest.isStarter
+                        ? const SizedBox.shrink()
+                        : _QuestProgressSection(progress: progress),
+                  ),
+                  const Spacer(),
+                  active
+                      ? const _SmallStatusButton(
+                          label: 'Active',
+                          backgroundColor: AppColors.primary,
+                          textColor: Colors.white,
+                        )
+                      : (unlocked || canUnlock)
+                      ? _SmallStatusButton(
+                          label: buttonLabel,
+                          backgroundColor: AppColors.primary,
+                          textColor: Colors.white,
+                          onTap: onEquip,
+                        )
+                      : const _SmallStatusButton(
+                          label: 'Locked',
+                          backgroundColor: AppColors.muted,
+                          textColor: AppColors.mutedText,
+                        ),
                 ],
               ),
             ),

@@ -654,6 +654,111 @@ void main() {
       },
     );
 
+    test(
+      'evaluateAndUpdateQuestProgress preserves demo eligibility without unlocking',
+      () async {
+        const parentId = 'p1';
+        const childId = 'c1';
+        final childRef = fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId);
+
+        await childRef.set({'lifetimeStarsEarned': 61});
+        await fakeFirestore.collection('outfitQuests').doc('super_bear').set({
+          'name': 'Super Bear',
+          'description': 'Earn 500 total stars',
+          'imagePath': 'assets/images/bear5.png',
+          'conditionType': 'total_stars',
+          'target': 500,
+          'displayOrder': 4,
+        });
+        await childRef.collection('questProgress').doc('super_bear').set({
+          'currentValue': 61,
+          'targetValue': 500,
+          'isUnlocked': false,
+          'demoEligibilityOverride': true,
+        });
+
+        await firestoreService.evaluateAndUpdateQuestProgress(
+          parentId,
+          childId,
+        );
+
+        final progress = await childRef
+            .collection('questProgress')
+            .doc('super_bear')
+            .get();
+        expect(progress.data()?['currentValue'], 500);
+        expect(progress.data()?['targetValue'], 500);
+        expect(progress.data()?['isUnlocked'], false);
+        expect(progress.data()?['demoEligibilityOverride'], true);
+        expect(progress.data()?['unlockedAt'], isNull);
+      },
+    );
+
+    test(
+      'evaluateAndUpdateQuestProgress keeps real progress without demo override',
+      () async {
+        const parentId = 'p1';
+        const childId = 'c1';
+        final childRef = fakeFirestore
+            .collection('parents')
+            .doc(parentId)
+            .collection('children')
+            .doc(childId);
+
+        await childRef.set({'lifetimeStarsEarned': 61});
+        await fakeFirestore.collection('outfitQuests').doc('super_bear').set({
+          'name': 'Super Bear',
+          'description': 'Earn 500 total stars',
+          'imagePath': 'assets/images/bear5.png',
+          'conditionType': 'total_stars',
+          'target': 500,
+          'displayOrder': 4,
+        });
+
+        await firestoreService.evaluateAndUpdateQuestProgress(
+          parentId,
+          childId,
+        );
+
+        final progress = await childRef
+            .collection('questProgress')
+            .doc('super_bear')
+            .get();
+        expect(progress.data()?['currentValue'], 61);
+        expect(progress.data()?['isUnlocked'], false);
+      },
+    );
+
+    test('unlockQuestOutfit removes a consumed demo override', () async {
+      const parentId = 'p1';
+      const childId = 'c1';
+      final progressRef = fakeFirestore
+          .collection('parents')
+          .doc(parentId)
+          .collection('children')
+          .doc(childId)
+          .collection('questProgress')
+          .doc('chef_bear');
+
+      await progressRef.set({
+        'currentValue': 5,
+        'targetValue': 5,
+        'isUnlocked': false,
+        'demoEligibilityOverride': true,
+      });
+
+      await firestoreService.unlockQuestOutfit(parentId, childId, 'chef_bear');
+
+      final progress = await progressRef.get();
+      expect(progress.data()?['isUnlocked'], true);
+      expect(progress.data()?['unlockedAt'], isNotNull);
+      expect(progress.data()?.containsKey('demoEligibilityOverride'), false);
+    });
+
     test('addChild should create a new child document', () async {
       const parentId = 'p1';
       final childData = {'name': 'Ali', 'age': 7, 'grade': 'Standard 1'};

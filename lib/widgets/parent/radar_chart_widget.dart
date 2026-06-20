@@ -26,109 +26,141 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
       RadarEntry(value: (widget.subjectData['bc']?.strengthScore ?? 0) * 100),
     ];
 
-    return Stack(
-      children: [
-        AspectRatio(
-          aspectRatio: 1.3,
-          child: RadarChart(
-            RadarChartData(
-              radarShape: RadarShape.polygon,
-              radarTouchData: RadarTouchData(
-                enabled: true,
-                touchCallback:
-                    (FlTouchEvent event, RadarTouchResponse? response) {
-                      if (!event.isInterestedForInteractions ||
-                          response == null ||
-                          response.touchedSpot == null) {
-                        setState(() {
-                          _touchedIndex = -1;
-                          _touchPosition = null;
-                        });
-                        return;
-                      }
-                      setState(() {
-                        _touchedIndex =
-                            response.touchedSpot!.touchedRadarEntryIndex;
-                        _touchPosition = event.localPosition;
-                      });
-                    },
-              ),
-              dataSets: [
-                _buildLayer(100, opacity: 0.04),
-                _buildLayer(80, opacity: 0.06),
-                _buildLayer(60, opacity: 0.08),
-                _buildLayer(40, opacity: 0.10),
-                _buildLayer(20, opacity: 0.15),
-                RadarDataSet(
-                  fillColor: AppColors.primary.withValues(alpha: 0.2),
-                  borderColor: Colors.transparent,
-                  entryRadius: 0,
-                  dataEntries: childEntries,
-                  borderWidth: 0,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+
+        final double? leftPos =
+            _touchPosition != null && _touchPosition!.dx < width / 2
+            ? _touchPosition!.dx
+            : null;
+        final double? rightPos =
+            _touchPosition != null && _touchPosition!.dx >= width / 2
+            ? width - _touchPosition!.dx
+            : null;
+
+        double? actualLeft;
+        double? actualRight;
+        double horizontalShift = 0.0;
+        const double minTooltipWidth = 220.0;
+
+        if (leftPos != null) {
+          actualLeft = leftPos.clamp(0.0, width - minTooltipWidth);
+          horizontalShift = leftPos - actualLeft;
+        } else if (rightPos != null) {
+          actualRight = rightPos.clamp(0.0, width - minTooltipWidth);
+          horizontalShift = actualRight - rightPos;
+        }
+
+        return Stack(
+          children: [
+            AspectRatio(
+              aspectRatio: 1.3,
+              child: RadarChart(
+                RadarChartData(
+                  radarShape: RadarShape.polygon,
+                  radarTouchData: RadarTouchData(
+                    enabled: true,
+                    touchCallback:
+                        (FlTouchEvent event, RadarTouchResponse? response) {
+                          if (!event.isInterestedForInteractions ||
+                              response == null ||
+                              response.touchedSpot == null) {
+                            setState(() {
+                              _touchedIndex = -1;
+                              _touchPosition = null;
+                            });
+                            return;
+                          }
+                          setState(() {
+                            _touchedIndex =
+                                response.touchedSpot!.touchedRadarEntryIndex;
+                            _touchPosition = event.localPosition;
+                          });
+                        },
+                  ),
+                  dataSets: [
+                    _buildLayer(100, opacity: 0.04),
+                    _buildLayer(80, opacity: 0.06),
+                    _buildLayer(60, opacity: 0.08),
+                    _buildLayer(40, opacity: 0.10),
+                    _buildLayer(20, opacity: 0.15),
+                    RadarDataSet(
+                      fillColor: AppColors.primary.withValues(alpha: 0.2),
+                      borderColor: Colors.transparent,
+                      entryRadius: 0,
+                      dataEntries: childEntries,
+                      borderWidth: 0,
+                    ),
+                    RadarDataSet(
+                      fillColor: Colors.transparent,
+                      borderColor: AppColors.primary,
+                      entryRadius: 5.5,
+                      dataEntries: childEntries,
+                      borderWidth: 3.5,
+                    ),
+                  ],
+                  radarBackgroundColor: Colors.transparent,
+                  borderData: FlBorderData(show: false),
+                  radarBorderData: const BorderSide(color: Colors.transparent),
+                  titlePositionPercentageOffset: 0.2,
+                  titleTextStyle: AppTextStyles.tiny.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.foreground,
+                    fontSize: 11,
+                  ),
+                  getTitle: (index, angle) {
+                    String label;
+                    switch (index) {
+                      case 0:
+                        label = 'BM';
+                        break;
+                      case 1:
+                        label = 'EN';
+                        break;
+                      case 2:
+                        label = 'MATH';
+                        break;
+                      case 3:
+                        label = 'SCI';
+                        break;
+                      case 4:
+                        label = 'BC';
+                        break;
+                      default:
+                        return const RadarChartTitle(text: '');
+                    }
+                    return RadarChartTitle(text: label, angle: 0);
+                  },
+                  tickCount: 5,
+                  ticksTextStyle: const TextStyle(color: Colors.transparent),
+                  tickBorderData: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    width: 1.2,
+                  ),
+                  gridBorderData: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    width: 1.2,
+                  ),
                 ),
-                RadarDataSet(
-                  fillColor: Colors.transparent,
-                  borderColor: AppColors.primary,
-                  entryRadius: 5.5,
-                  dataEntries: childEntries,
-                  borderWidth: 3.5,
-                ),
-              ],
-              radarBackgroundColor: Colors.transparent,
-              borderData: FlBorderData(show: false),
-              radarBorderData: const BorderSide(color: Colors.transparent),
-              titlePositionPercentageOffset: 0.2,
-              titleTextStyle: AppTextStyles.tiny.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.foreground,
-                fontSize: 11,
-              ),
-              getTitle: (index, angle) {
-                String label;
-                switch (index) {
-                  case 0:
-                    label = 'BM';
-                    break;
-                  case 1:
-                    label = 'EN';
-                    break;
-                  case 2:
-                    label = 'MATH';
-                    break;
-                  case 3:
-                    label = 'SCI';
-                    break;
-                  case 4:
-                    label = 'BC';
-                    break;
-                  default:
-                    return const RadarChartTitle(text: '');
-                }
-                return RadarChartTitle(text: label, angle: 0);
-              },
-              tickCount: 5,
-              ticksTextStyle: const TextStyle(color: Colors.transparent),
-              tickBorderData: BorderSide(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                width: 1.2,
-              ),
-              gridBorderData: BorderSide(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                width: 1.2,
               ),
             ),
-          ),
-        ),
-        if (_touchedIndex != -1 && _touchPosition != null)
-          Positioned(
-            left: _touchPosition!.dx,
-            top: _touchPosition!.dy,
-            child: FractionalTranslation(
-              translation: const Offset(-0.5, -1.1),
-              child: _buildTooltipOverlay(),
-            ),
-          ),
-      ],
+            if (_touchedIndex != -1 && _touchPosition != null)
+              Positioned(
+                left: actualLeft,
+                right: actualRight,
+                top: _touchPosition!.dy,
+                child: FractionalTranslation(
+                  translation: Offset(leftPos != null ? -0.5 : 0.5, -1.1),
+                  child: Transform.translate(
+                    offset: Offset(horizontalShift, 0),
+                    child: _buildTooltipOverlay(),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -181,17 +213,29 @@ class _SubjectRadarChartState extends State<SubjectRadarChart> {
               height: 1.1,
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             'Strength: ${(data.strengthScore * 100).toStringAsFixed(0)}%',
-            style: AppTextStyles.tiny.copyWith(color: Colors.white),
+            style: AppTextStyles.tiny.copyWith(
+              color: Colors.white,
+              height: 1.1,
+            ),
           ),
+          const SizedBox(height: 3),
           Text(
             'Weakest: ${data.weakestChapter}',
-            style: AppTextStyles.tiny.copyWith(color: Colors.white),
+            style: AppTextStyles.tiny.copyWith(
+              color: Colors.white,
+              height: 1.1,
+            ),
           ),
+          const SizedBox(height: 3),
           Text(
             'Accuracy: ${data.accuracy.toStringAsFixed(0)}%',
-            style: AppTextStyles.tiny.copyWith(color: Colors.white),
+            style: AppTextStyles.tiny.copyWith(
+              color: Colors.white,
+              height: 1.1,
+            ),
           ),
         ],
       ),

@@ -12,6 +12,7 @@ import '../models/outfit_quest.dart';
 import '../models/star_transaction.dart';
 import '../models/level_progress_result.dart';
 import '../models/bears_den_result.dart';
+import '../models/math_generation_rule.dart';
 import '../utils/data_contracts.dart';
 import '../utils/streak_utils.dart';
 import '../utils/star_utils.dart';
@@ -425,6 +426,7 @@ class FirestoreService {
       transaction.set(progressDocRef, {
         'isUnlocked': true,
         'unlockedAt': FieldValue.serverTimestamp(),
+        'demoEligibilityOverride': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     });
@@ -484,14 +486,19 @@ class FirestoreService {
     final batch = _db.batch();
 
     for (final quest in quests) {
-      final currentValue = QuestUtils.calculateQuestCurrentValue(
+      final existingData = existingProgress[quest.id] ?? {};
+      final calculatedValue = QuestUtils.calculateQuestCurrentValue(
         quest: quest,
         lifetimeStarsEarned: lifetimeStarsEarned,
         subjectProgress: subjectProgress,
         attempts: attempts,
       );
-
-      final existingData = existingProgress[quest.id] ?? {};
+      final currentValue = QuestUtils.effectiveCurrentValue(
+        calculatedValue: calculatedValue,
+        targetValue: quest.target,
+        demoEligibilityOverride:
+            existingData['demoEligibilityOverride'] == true,
+      );
       final alreadyUnlocked = existingData['isUnlocked'] == true;
 
       batch.set(
@@ -907,6 +914,24 @@ class FirestoreService {
         levelIds: levelIds,
       );
     }).toList();
+  }
+
+  Future<MathGenerationRule?> getMathGenerationRule(
+    String subjectId,
+    String chapterId,
+  ) async {
+    final doc = await _db
+        .collection('subjects')
+        .doc(subjectId)
+        .collection('chapters')
+        .doc(chapterId)
+        .get();
+
+    final raw = doc.data()?['mathGenerationRule'];
+    if (raw is Map<String, dynamic>) {
+      return MathGenerationRule.fromMap(raw);
+    }
+    return null;
   }
 
   Future<List<Question>> getQuestions(String prefix) async {

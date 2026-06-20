@@ -12,14 +12,30 @@ class BearHeadShape extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final path = _getBearPath(size);
+
+    // Subtle soft shadow behind the bear head to blur the outline/edges
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.18)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
+    canvas.drawPath(path, shadowPaint);
+
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
 
-    final path = _getBearPath(size);
     canvas.drawPath(path, paint);
 
     if (borderWidth > 0 && borderColor != null) {
+      // Soft glow/blur effect around the outline/border
+      final glowPaint = Paint()
+        ..color = borderColor!.withValues(alpha: 0.4)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = borderWidth + 3
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+      canvas.drawPath(path, glowPaint);
+
       final borderPaint = Paint()
         ..color = borderColor!
         ..style = PaintingStyle.stroke
@@ -85,6 +101,7 @@ class LevelNode extends StatelessWidget {
   final bool isActive;
   final bool isBoss;
   final VoidCallback onTap;
+  final Color? completedColor;
 
   const LevelNode({
     super.key,
@@ -95,6 +112,7 @@ class LevelNode extends StatelessWidget {
     required this.isActive,
     required this.isBoss,
     required this.onTap,
+    this.completedColor,
   });
 
   @override
@@ -107,7 +125,7 @@ class LevelNode extends StatelessWidget {
     } else if (isActive) {
       nodeColor = AppColors.primary;
     } else if (isCompleted) {
-      nodeColor = AppColors.secondary;
+      nodeColor = completedColor ?? AppColors.secondary;
     } else {
       nodeColor = AppColors.primaryLight;
     }
@@ -158,13 +176,38 @@ class LevelNode extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           if (!isBoss || label == 'Summary')
-            Text(
-              label,
-              style: AppTextStyles.bodyBold.copyWith(
-                color: isUnlocked ? AppColors.foreground : AppColors.mutedText,
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: AppTextStyles.bodyBold.copyWith(
+                      color: isUnlocked
+                          ? AppColors.foreground
+                          : AppColors.mutedText,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  _buildStars(),
+                ],
               ),
             ),
-          if (!isBoss || label == 'Summary') _buildStars(),
         ],
       ),
     );
@@ -346,10 +389,15 @@ class PathPainter extends CustomPainter {
 
 class ChapterDivider extends StatelessWidget {
   final String title;
-  const ChapterDivider({super.key, required this.title});
+  final Color? color;
+
+  const ChapterDivider({super.key, required this.title, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = color ?? AppColors.secondary;
+    final textColor = color != null ? Colors.white : AppColors.secondaryText;
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(
@@ -358,7 +406,7 @@ class ChapterDivider extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.secondary,
+        color: bgColor,
         borderRadius: AppRadius.r(AppRadius.lg),
         boxShadow: AppShadows.card,
         border: Border.all(color: Colors.white, width: 3),
@@ -367,7 +415,7 @@ class ChapterDivider extends StatelessWidget {
         child: Text(
           title.toUpperCase(),
           style: AppTextStyles.whiteTitle.copyWith(
-            color: AppColors.secondaryText,
+            color: textColor,
             letterSpacing: 2,
           ),
         ),
@@ -398,6 +446,27 @@ class LevelWindingPath extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final Color completedColor;
+        switch (subjectId.toLowerCase()) {
+          case 'bm':
+            completedColor = AppColors.subjectBm;
+            break;
+          case 'bi':
+            completedColor = AppColors.subjectEnglish;
+            break;
+          case 'bc':
+            completedColor = AppColors.subjectMandarin;
+            break;
+          case 'math':
+            completedColor = AppColors.subjectMath;
+            break;
+          case 'sci':
+            completedColor = AppColors.subjectScience;
+            break;
+          default:
+            completedColor = AppColors.secondary;
+        }
+
         final width = constraints.maxWidth;
         final centerX = width / 2;
         final horizontalOffset = width * 0.22;
@@ -417,7 +486,7 @@ class LevelWindingPath extends StatelessWidget {
               left: 0,
               right: 0,
               top: visualIndex * verticalStep + 20,
-              child: ChapterDivider(title: chapter.name),
+              child: ChapterDivider(title: chapter.name, color: completedColor),
             ),
           );
           visualIndex++;
@@ -488,6 +557,7 @@ class LevelWindingPath extends StatelessWidget {
                   isActive: isActive,
                   isBoss: isBoss,
                   onTap: () => onLevelTap(levelId, isBoss, chapter.id),
+                  completedColor: completedColor,
                 ),
               ),
             );

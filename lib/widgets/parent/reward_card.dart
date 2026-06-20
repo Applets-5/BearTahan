@@ -78,7 +78,7 @@ class RewardCard extends StatelessWidget {
       borderColor = goldenYellow;
       progressValueColor = brandColor;
     } else if (hasEnough && available) {
-      cardColor = AppColors.primaryContainer; // Warm cream-tan container
+      cardColor = Colors.white; // White - Available (has enough stars)
       borderColor = brandColor;
       progressValueColor = brandColor;
       buttonColor = brandColor;
@@ -109,13 +109,18 @@ class RewardCard extends StatelessWidget {
         color: cardColor,
         borderRadius: BorderRadius.circular(24.0),
         border: showBorder
-            ? Border.all(color: borderColor.withValues(alpha: 0.5), width: 1.0)
+            ? Border.all(
+                color: pending
+                    ? borderColor
+                    : borderColor.withValues(alpha: 0.5),
+                width: pending ? 1.5 : 1.0,
+              )
             : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),

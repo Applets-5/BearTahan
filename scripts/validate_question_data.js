@@ -11,6 +11,7 @@ const supportedTypes = new Set([
   "mcq",
   "fillblank",
   "fillblanklistening",
+  "fillblanklist",
   "rearrange",
   "dragdropspelling",
   "matching",
@@ -76,6 +77,19 @@ for (const root of roots) {
         }
         if (options.some((option) => !optionText(option) && optionImage(option))) {
           errors.push(`${id}: image-only options must use mcq, not fillblank`);
+        }
+      }
+      if (type === "fillblanklist") {
+        const correctOrder = Array.isArray(question.correctOrder)
+          ? question.correctOrder
+          : [];
+        const blankCount = (prompt.match(/[（(]\s*[）)]|___+/g) || []).length;
+        if (correctOrder.length === 0) {
+          errors.push(`${id}: fillblanklist requires correctOrder`);
+        } else if (blankCount > 0 && correctOrder.length !== blankCount) {
+          errors.push(
+            `${id}: fillblanklist correctOrder length (${correctOrder.length}) does not match blank count (${blankCount})`,
+          );
         }
       }
       if (type === "rearrange") {

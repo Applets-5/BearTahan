@@ -3,7 +3,7 @@
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node firestore_rules_test.js\""
   },
   "dependencies": {
-    "firebase-admin": "^13.9.0"
+    "firebase-admin": "^13.10.0"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",
