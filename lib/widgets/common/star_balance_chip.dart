@@ -6,10 +6,12 @@ class StarBalanceChip extends StatelessWidget {
   const StarBalanceChip({
     super.key,
     required this.count,
+    this.label,
     this.showPulse = false,
   });
 
   final int count;
+  final String? label;
   final bool showPulse;
 
   @override
@@ -29,7 +31,13 @@ class StarBalanceChip extends StatelessWidget {
         children: [
           Icon(Icons.star, size: AppSpacing.xl, color: AppColors.star),
           const SizedBox(width: AppSpacing.xs),
-          Text('$count', style: AppTextStyles.cardTitle),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$count', style: AppTextStyles.cardTitle),
+              if (label != null) Text(label!, style: AppTextStyles.tiny),
+            ],
+          ),
         ],
       ),
     );

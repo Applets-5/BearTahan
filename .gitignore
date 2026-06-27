@@ -8,9 +8,12 @@
 .build/
 .buildlog/
 .history
+.agent/
 .svn/
 .swiftpm/
 migrate_working_dir/
+
+.env
 
 # IntelliJ related
 *.iml
@@ -43,3 +46,23 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Flutter/Dart generated files
+linux/flutter/
+macos/Flutter/GeneratedPluginRegistrant.swift
+windows/flutter/
+
+# Node.js
+node_modules/
+**/node_modules/
+package-lock.json
+package.json
+!functions/package-lock.json
+!functions/package.json
+
+# Secrets
+service-account.json
+**/serviceAccountKey.json
+**/serviceAccountKey.json.json
+
+functions/.env

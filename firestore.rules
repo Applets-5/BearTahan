@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function ownsParent(parentId) {
+      return isSignedIn() && request.auth.uid == parentId;
+    }
+
+    match /parents/{parentId} {
+      allow read, write: if ownsParent(parentId);
+
+      match /{document=**} {
+        allow read, write: if ownsParent(parentId);
+      }
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+
+      match /{document=**} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+    }
+
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /outfitQuests/{questId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

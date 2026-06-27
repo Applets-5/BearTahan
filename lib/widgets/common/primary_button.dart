@@ -10,6 +10,7 @@ class PrimaryButton extends StatelessWidget {
     this.icon,
     this.backgroundColor = AppColors.primary,
     this.foregroundColor = Colors.white,
+    this.isLoading = false,
   });
 
   final String label;
@@ -17,26 +18,69 @@ class PrimaryButton extends StatelessWidget {
   final IconData? icon;
   final Color backgroundColor;
   final Color foregroundColor;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    final bool isEnabled = onPressed != null && !isLoading;
+    final Color shadowColor = isEnabled
+        ? Color.lerp(backgroundColor, Colors.black, 0.25)!
+        : Colors.transparent;
+
+    return Container(
       width: double.infinity,
-      child: FilledButton.icon(
-        onPressed: onPressed,
-        icon: icon == null
-            ? const SizedBox.shrink()
-            : Icon(icon, size: AppSpacing.xl),
-        label: Text(label),
+      margin: const EdgeInsets.only(bottom: 6, right: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            offset: const Offset(6, 6),
+            blurRadius: 0,
+          ),
+        ],
+      ),
+      child: FilledButton(
+        onPressed: isLoading ? null : onPressed,
         style: FilledButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: foregroundColor,
+          elevation: 0,
           textStyle: AppTextStyles.button.copyWith(color: foregroundColor),
           shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.r(AppRadius.lg),
+            borderRadius: BorderRadius.circular(32),
           ),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.md,
+            horizontal: AppSpacing.md, // Added horizontal padding for safety
+          ),
         ),
+        child: isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: AppSpacing.xl),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

@@ -1,79 +1,327 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../providers/data_providers.dart';
+import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/star_balance_chip.dart';
+import '../../widgets/common/missing_child_profile.dart';
 import '../../widgets/parent/reward_card.dart';
 
-class RewardListScreen extends StatelessWidget {
+class RewardListScreen extends ConsumerWidget {
   const RewardListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rewardsAsync = ref.watch(rewardsProvider);
+    final routeChildId = GoRouterState.of(
+      context,
+    ).uri.queryParameters['childId'];
+    final providerChildId = ref.watch(childIdProvider);
+    final childId = routeChildId?.isNotEmpty == true
+        ? routeChildId!
+        : providerChildId ?? '';
+
+    if (childId.isEmpty) {
+      return const MissingChildProfile(
+        message: 'Select a child profile to view rewards.',
+      );
+    }
+
+    final userProfileAsync = ref.watch(userProfileProvider(childId));
+    final parentId = ref.watch(parentIdProvider);
+    final rewardClaimsAsync = ref.watch(
+      rewardClaimsProvider((parentId: parentId, childId: childId)),
+    );
+
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        children: const [
-          Text('My Rewards', style: AppTextStyles.screenTitle),
-          Text('Spend stars on real-world treats!', style: AppTextStyles.small),
-          SizedBox(height: AppSpacing.lg),
-          Row(
+      child: rewardsAsync.when(
+        data: (rewards) {
+          final claims = rewardClaimsAsync.value ?? [];
+          final pendingClaims = claims.where((c) => c.isPending).toList();
+          final resolvedClaims = claims.where((c) => !c.isPending).toList();
+          final pendingRewardIds = pendingClaims.map((c) => c.rewardId).toSet();
+          final availableRewards = rewards
+              .where(
+                (r) =>
+                    r.status == 'available' && !pendingRewardIds.contains(r.id),
+              )
+              .toList();
+
+          final int currentBalance =
+              userProfileAsync.value?.availableStars ?? 0;
+
+          // Sort: Enough stars first, then not enough
+          availableRewards.sort((a, b) {
+            final aEnough = currentBalance >= a.cost;
+            final bEnough = currentBalance >= b.cost;
+            if (aEnough && !bEnough) return -1;
+            if (!aEnough && bEnough) return 1;
+            return a.cost.compareTo(b.cost); // Within groups, sort by cost
+          });
+
+          return ListView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              Expanded(
-                child: _StarSummary(label: 'Available', value: '120'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('My Rewards', style: AppTextStyles.screenTitle),
+                      Text(
+                        'Spend stars on real-world treats!',
+                        style: AppTextStyles.small,
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.history, color: AppColors.primary),
+                    onPressed: () {
+                      context.push(
+                        Uri(
+                          path: AppRouter.starHistory,
+                          queryParameters: {'childId': childId},
+                        ).toString(),
+                      );
+                    },
+                  ),
+                ],
               ),
-              SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _StarSummary(label: 'Lifetime', value: '340'),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: userProfileAsync.when(
+                      data: (profile) => _StarSummary(
+                        label: 'Available',
+                        value: profile.availableStars.toString(),
+                        icon: Icons.star,
+                        color: AppColors.star,
+                      ),
+                      loading: () => _StarSummary(
+                        label: 'Available',
+                        value: '0',
+                        icon: Icons.star,
+                        color: AppColors.star,
+                      ),
+                      error: (err, stack) => _StarSummary(
+                        label: 'Available',
+                        value: '0',
+                        icon: Icons.star,
+                        color: AppColors.star,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: userProfileAsync.when(
+                      data: (profile) => _StarSummary(
+                        label: 'Total Earned',
+                        value: profile.lifetimeStarsEarned.toString(),
+                        icon: Icons.auto_awesome,
+                        color: AppColors.star,
+                      ),
+                      loading: () => _StarSummary(
+                        label: 'Total Earned',
+                        value: '0',
+                        icon: Icons.auto_awesome,
+                        color: AppColors.star,
+                      ),
+                      error: (err, stack) => _StarSummary(
+                        label: 'Total Earned',
+                        value: '0',
+                        icon: Icons.auto_awesome,
+                        color: AppColors.star,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: AppSpacing.lg),
+              if (pendingClaims.isNotEmpty) ...[
+                const Text('Pending Approval', style: AppTextStyles.tiny),
+                const SizedBox(height: AppSpacing.sm),
+                ...pendingClaims.map(
+                  (claim) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: RewardCard(
+                      title: claim.rewardName,
+                      description: 'Pending — waiting for parent approval',
+                      cost: claim.starCost,
+                      status: claim.status,
+                      currentStars: userProfileAsync.value?.availableStars,
+                      showBorder: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              const Text('Available', style: AppTextStyles.tiny),
+              const SizedBox(height: AppSpacing.sm),
+              if (availableRewards.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                  child: Center(
+                    child: Text(
+                      'No rewards available yet. Ask your parent to add some!',
+                      style: AppTextStyles.small,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ...availableRewards.map(
+                (r) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: RewardCard(
+                    title: r.title,
+                    description: r.description,
+                    cost: r.cost,
+                    status: r.status,
+                    currentStars: userProfileAsync.value?.availableStars,
+                    showBorder: false,
+                    primaryLabel: 'Claim',
+                    onPrimary: () async {
+                      final profile = userProfileAsync.value;
+                      if (profile == null) return;
+
+                      if (profile.availableStars < r.cost) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Not enough stars!')),
+                        );
+                        return;
+                      }
+
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Claim Reward'),
+                          content: Text(
+                            'This will use ${r.cost} stars. Are you sure?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Claim'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed != true) return;
+
+                      try {
+                        final parentId = ref.read(parentIdProvider);
+                        await ref
+                            .read(firestoreServiceProvider)
+                            .claimReward(
+                              parentId,
+                              profile.uid,
+                              r,
+                              profile.name,
+                            );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Requested ${r.title}!'),
+                              backgroundColor: AppColors.accent,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ),
+              if (resolvedClaims.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.lg),
+                const Text('Claim History', style: AppTextStyles.tiny),
+                const SizedBox(height: AppSpacing.sm),
+                ...resolvedClaims
+                    .take(5)
+                    .map(
+                      (claim) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: RewardCard(
+                          title: claim.rewardName,
+                          description: claim.rewardDescription,
+                          cost: claim.starCost,
+                          status: claim.status,
+                          timestamp: DateFormat(
+                            'dd MMM yyyy, hh:mm a',
+                          ).format(claim.resolvedAt ?? claim.claimedAt),
+                          showBorder: true,
+                        ),
+                      ),
+                    ),
+              ],
             ],
-          ),
-          SizedBox(height: AppSpacing.lg),
-          RewardCard(
-            title: 'Pizza Night',
-            description: 'Family pizza dinner this weekend',
-            cost: 80,
-            status: 'available',
-          ),
-          SizedBox(height: AppSpacing.md),
-          RewardCard(
-            title: 'Extra Screen Time',
-            description: '20 minutes after homework',
-            cost: 40,
-            status: 'pending',
-          ),
-          SizedBox(height: AppSpacing.md),
-          RewardCard(
-            title: 'Park Trip',
-            description: 'Sunday morning playground visit',
-            cost: 150,
-            status: 'available',
-          ),
-        ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => Center(child: Text('Error: $e')),
       ),
     );
   }
 }
 
 class _StarSummary extends StatelessWidget {
-  const _StarSummary({required this.label, required this.value});
+  const _StarSummary({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
   final String label;
   final String value;
+  final IconData icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
+    final Color titleColor = AppColors.foreground;
+    final Color subtitleColor = AppColors.mutedText;
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(24.0), // Generous padding
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.r(AppRadius.lg),
-        boxShadow: AppShadows.card,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24.0), // Highly rounded
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          StarBalanceChip(count: int.parse(value)),
+          Row(
+            children: [
+              Icon(icon, color: color, size: AppSpacing.xl),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                value,
+                style: AppTextStyles.cardTitle.copyWith(color: titleColor),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.sm),
-          Text(label, style: AppTextStyles.tiny),
+          Text(label, style: AppTextStyles.tiny.copyWith(color: subtitleColor)),
         ],
       ),
     );
